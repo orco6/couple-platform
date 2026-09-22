@@ -73,48 +73,56 @@ export function ReviewForm({
       <FormError message={formError} />
 
       <div className="card relative overflow-hidden p-6">
-        {/* The response. Cool at 1, warm at 5, and it moves with the value
-            rather than appearing after it. */}
-        <motion.span
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 -top-24 h-56 rounded-full blur-3xl"
-          initial={false}
-          animate={{
-            opacity: respect === null ? 0 : 0.28 + (respect - 1) * 0.11,
-            backgroundColor:
-              respect === null
-                ? 'transparent'
-                : respect <= 2
-                  ? 'var(--brand-partner-b)'
-                  : respect === 3
-                    ? 'var(--brand-accent)'
-                    : 'var(--brand-partner-a)',
-          }}
-          transition={reduced ? { duration: 0.12 } : { duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-        />
+        <p className="text-center text-label font-semibold text-ink-muted">{copy.day.respectLabel}</p>
+        <p className="mt-1 mb-5 text-center text-body text-ink">{copy.day.respectQuestion}</p>
 
+        {/* THE RESPONSE. Cool at 1, warm at 5, and it moves with the value
+            rather than appearing after it.
+
+            It sits behind the STARS and stops short of the words above them.
+            That is a deliberate boundary, and it is one decision serving two
+            masters: the light belongs where the thumb is, and a saturated wash
+            behind a sentence is also how a screen stops being readable — at
+            full strength this exact glow put the question below 4.5:1. */}
         <div className="relative">
-          <p className="mb-1 text-center text-label font-semibold text-ink-muted">{copy.day.respectLabel}</p>
-          <p className="mb-5 text-center text-body text-ink-subtle">{copy.day.respectQuestion}</p>
-
-          <Stars
-            legend={copy.day.respectLabel}
-            labels={copy.day.scale}
-            value={respect}
-            onChange={(next) => {
-              setMissing(false);
-              setRespect(next);
+          <motion.span
+            aria-hidden="true"
+            className="pointer-events-none absolute -inset-x-8 -bottom-4 top-0 rounded-full blur-3xl"
+            initial={false}
+            animate={{
+              opacity: respect === null ? 0 : 0.22 + (respect - 1) * 0.07,
+              backgroundColor:
+                respect === null
+                  ? 'transparent'
+                  : respect <= 2
+                    ? 'var(--brand-partner-b)'
+                    : respect === 3
+                      ? 'var(--brand-accent)'
+                      : 'var(--brand-partner-a)',
             }}
-            size={52}
-            tone="accent"
+            transition={reduced ? { duration: 0.12 } : { duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
           />
 
-          {missing && (
-            <p role="alert" className="mt-1 text-center text-body font-medium text-danger-text">
-              {copy.day.chooseFirst}
-            </p>
-          )}
+          <div className="relative">
+            <Stars
+              legend={copy.day.respectLabel}
+              labels={copy.day.scale}
+              value={respect}
+              onChange={(next) => {
+                setMissing(false);
+                setRespect(next);
+              }}
+              size={52}
+              tone="accent"
+            />
+          </div>
         </div>
+
+        {missing && (
+          <p role="alert" className="mt-3 text-center text-body font-medium text-danger-text">
+            {copy.day.chooseFirst}
+          </p>
+        )}
       </div>
 
       <FormField label={copy.day.noteLabel} name="note" hint={copy.day.noteHint} error={fieldErrors.note}>

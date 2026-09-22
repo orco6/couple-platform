@@ -2,6 +2,7 @@
 
 import { motion, useReducedMotion } from 'motion/react';
 import { Star } from 'lucide-react';
+import { useRef } from 'react';
 
 import { cx } from '@/core/ui/cx';
 
@@ -9,9 +10,14 @@ import { cx } from '@/core/ui/cx';
  * THE RATING CONTROL — five stars, one tap.
  *
  * Used for both ratings in the product, so the gesture is learned once. It is
- * a real `radiogroup`: arrow keys move between stars, the value is announced,
- * and every star is its own 44px target rather than a slider people have to
- * aim at.
+ * a real `radiogroup`: one tab stop for the whole group (roving tabindex),
+ * arrow keys move the choice AND the focus with it, Home and End jump to the
+ * ends, the value is announced, and every star is its own 44px target rather
+ * than a slider people have to aim at.
+ *
+ * Moving the focus is not a nicety. Without it the arrow key leaves focus on a
+ * star that is no longer the tab stop, so the next Tab goes somewhere the
+ * person did not expect and a screen reader never announces what was chosen.
  *
  * Filled stars carry the warm gradient and, once chosen, a soft glow — the
  * "modern visual response" the value change deserves. The chosen star also
@@ -19,6 +25,26 @@ import { cx } from '@/core/ui/cx';
  */
 const STEPS = [1, 2, 3, 4, 5] as const;
 export type RatingValue = (typeof STEPS)[number];
+
+/**
+ * Which star a key moves to from the FOCUSED one, or null for a key this group
+ * does not handle. Relative to the focus and not to the current value, which
+ * is the ARIA radiogroup pattern and the only version that behaves predictably
+ * when nothing has been chosen yet: focus sits on the first star, and the
+ * first ArrowRight goes to the second rather than choosing the star the person
+ * is already standing on.
+ *
+ * The row is drawn LTR in both languages (a magnitude axis, like a chart), so
+ * ArrowRight means "more" regardless of the page direction.
+ */
+function nextStep(key: string, from: RatingValue): RatingValue | null {
+  if (key === 'Home') return 1;
+  if (key === 'End') return 5;
+  const delta =
+    key === 'ArrowRight' || key === 'ArrowUp' ? 1 : key === 'ArrowLeft' || key === 'ArrowDown' ? -1 : 0;
+  if (delta === 0) return null;
+  return Math.min(5, Math.max(1, from + delta)) as RatingValue;
+}
 
 export function Stars({
   value,
@@ -40,6 +66,14 @@ export function Stars({
 }) {
   const reduced = useReducedMotion();
   const readOnly = disabled || !onChange;
+  const group = useRef<HTMLDivElement>(null);
+
+  /** Roving tabindex: the chosen star is the group's one tab stop, so it has to
+   *  be where the focus is. */
+  function focusStep(step: RatingValue) {
+    const stars = group.current?.querySelectorAll<HTMLButtonElement>('[role="radio"]');
+    stars?.[step - 1]?.focus();
+  }
 
   function choose(next: RatingValue) {
     if (readOnly || next === value) return;
@@ -58,6 +92,7 @@ export function Stars({
   return (
     <div>
       <div
+        ref={group}
         role="radiogroup"
         aria-label={legend}
         dir="ltr"
@@ -79,11 +114,11 @@ export function Stars({
               onClick={() => choose(step)}
               onKeyDown={(event) => {
                 if (readOnly) return;
-                const delta = event.key === 'ArrowRight' || event.key === 'ArrowUp' ? 1 : event.key === 'ArrowLeft' || event.key === 'ArrowDown' ? -1 : 0;
-                if (delta === 0) return;
+                const next = nextStep(event.key, step);
+                if (next === null) return;
                 event.preventDefault();
-                const next = Math.min(5, Math.max(1, (value ?? 0) + delta)) as RatingValue;
                 choose(next);
+                focusStep(next);
               }}
               className={cx(
                 'tap-quiet grid place-items-center rounded-control',
