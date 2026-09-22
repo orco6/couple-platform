@@ -37,6 +37,18 @@ CREATE TABLE "DayEntry" (
     CONSTRAINT "DayEntry_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "Partnership" (
+    "id" TEXT NOT NULL DEFAULT 'couple',
+    "partnerAId" TEXT NOT NULL,
+    "partnerBId" TEXT NOT NULL,
+    "linkedById" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Partnership_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE INDEX "DailyTask_taskDate_archivedAt_idx" ON "DailyTask"("taskDate", "archivedAt");
 
@@ -52,6 +64,12 @@ CREATE INDEX "DayEntry_partnerId_entryDate_idx" ON "DayEntry"("partnerId", "entr
 -- CreateIndex
 CREATE UNIQUE INDEX "DayEntry_entryDate_partnerId_key" ON "DayEntry"("entryDate", "partnerId");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "Partnership_partnerAId_key" ON "Partnership"("partnerAId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Partnership_partnerBId_key" ON "Partnership"("partnerBId");
+
 -- AddForeignKey
 ALTER TABLE "DailyTask" ADD CONSTRAINT "DailyTask_completedById_fkey" FOREIGN KEY ("completedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -64,13 +82,22 @@ ALTER TABLE "DailyTask" ADD CONSTRAINT "DailyTask_archivedById_fkey" FOREIGN KEY
 -- AddForeignKey
 ALTER TABLE "DayEntry" ADD CONSTRAINT "DayEntry_partnerId_fkey" FOREIGN KEY ("partnerId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
+-- AddForeignKey
+ALTER TABLE "Partnership" ADD CONSTRAINT "Partnership_partnerAId_fkey" FOREIGN KEY ("partnerAId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Partnership" ADD CONSTRAINT "Partnership_partnerBId_fkey" FOREIGN KEY ("partnerBId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Partnership" ADD CONSTRAINT "Partnership_linkedById_fkey" FOREIGN KEY ("linkedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
 -- ═══════════════════════════════════════════════════════════════════════════
 -- Invariants (hand-written; BUSINESS_RULES.md §3).
 --
 -- These are in the database, not only in the services, because they are true
 -- of the data regardless of which code path wrote it — a future script, a
 -- console fix or a bug in a service must not be able to leave a half-completed
--- task or a rating of 9 behind.
+-- task, a rating of 9, or a second couple behind.
 -- ═══════════════════════════════════════════════════════════════════════════
 
 -- R-TASK-10 — completion is two columns that move together. A completedAt
@@ -110,3 +137,14 @@ ALTER TABLE "DayEntry" ADD CONSTRAINT "DayEntry_respect_rating_range"
 -- R-DAY-13
 ALTER TABLE "DayEntry" ADD CONSTRAINT "DayEntry_note_length"
   CHECK ("note" IS NULL OR length("note") <= 1000);
+
+-- D-1 — one couple per deployment (ADR 0009), enforced rather than assumed:
+-- the primary key can only ever hold this one value, so a second partnership
+-- row is impossible even by direct SQL.
+ALTER TABLE "Partnership" ADD CONSTRAINT "Partnership_singleton"
+  CHECK ("id" = 'couple');
+
+-- Nobody is their own partner. Without this, a mis-wired invite would create a
+-- "couple" of one person whose every day is trivially revealed to themselves.
+ALTER TABLE "Partnership" ADD CONSTRAINT "Partnership_two_people"
+  CHECK ("partnerAId" <> "partnerBId");

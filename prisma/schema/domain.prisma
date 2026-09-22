@@ -110,3 +110,32 @@ model DayEntry {
   @@unique([entryDate, partnerId])
   @@index([partnerId, entryDate])
 }
+
+/// The one partnership in this deployment — BUSINESS_RULES.md → D-1.
+///
+/// The brief asks for "two linked partners", and the link is explicit data
+/// rather than something inferred from the user table. Inferring it (say, the
+/// two oldest active users) breaks the moment a third account exists — a
+/// fixture user, a spare account, an old one that was never disabled — and it
+/// breaks *asymmetrically*: two people would disagree about who their partner
+/// is, which in this product means the reveal rule pairs the wrong rows.
+///
+/// `id` is pinned to a single value by a CHECK constraint, so "one couple per
+/// deployment" (ADR 0009) is a database guarantee and not a convention. If D-1
+/// ever becomes "many couples", this table is already the row every scope
+/// would filter by — which is the cheapest possible position to be in.
+model Partnership {
+  id String @id @default("couple")
+
+  partnerAId String @unique
+  partnerA   User   @relation("PartnershipPartnerA", fields: [partnerAId], references: [id], onDelete: Restrict)
+
+  partnerBId String @unique
+  partnerB   User   @relation("PartnershipPartnerB", fields: [partnerBId], references: [id], onDelete: Restrict)
+
+  linkedById String
+  linkedBy   User   @relation("PartnershipLinkedBy", fields: [linkedById], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

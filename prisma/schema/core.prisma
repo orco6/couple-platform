@@ -57,6 +57,10 @@ model User {
   dailyTasksArchived  DailyTask[] @relation("DailyTaskArchivedBy")
   dayEntries          DayEntry[]  @relation("DayEntryPartner")
 
+  partnershipAsA     Partnership? @relation("PartnershipPartnerA")
+  partnershipAsB     Partnership? @relation("PartnershipPartnerB")
+  partnershipsLinked Partnership[] @relation("PartnershipLinkedBy")
+
   @@index([role, status])
 }
 

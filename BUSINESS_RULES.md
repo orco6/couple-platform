@@ -51,6 +51,16 @@ reads PARTNER's unsubmitted-pair entry (`R-DAY-05`).
 |---|---|---|---|---|
 | `DailyTask` | the couple | nothing — the list is shared by design | both partners | `R-TASK-01` |
 | `DayEntry` | the authoring partner (`partnerId`) | `partnerId = actor.id` | nobody unconditionally; the partner's entry becomes visible only when both submitted | `R-DAY-05` |
+| `Partnership` | the deployment | the single row that names the two partners | both partners | `R-ACC-05` |
+
+**`R-ACC-05` — the couple is explicit data, not an inference.** A single
+`Partnership` row names partner A and partner B; `id` is pinned to one value by
+a CHECK, so a second couple cannot exist in this database (D-1). The link is
+what the reveal rule pairs rows by. Inferring the pair from the user table
+(say, the two oldest active accounts) breaks as soon as a third account exists —
+a spare, a fixture, one never disabled — and breaks *asymmetrically*: the two
+people would disagree about who their partner is. Only `users.manage` (OWNER)
+may set the link, and it is audited (`partnership.linked`).
 
 **`R-TASK-01` — the shared list is genuinely shared.** `DailyTask` has no owner scope: both partners
 see and act on every task. `forWhom` is information shown on the row, never a permission. A partner
