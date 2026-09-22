@@ -1,42 +1,49 @@
 /**
  * THE SUMMARIES — שנינו. BUSINESS_RULES.md §9.
  *
- * R-SUM-02 — a summary never leaks an unrevealed rating. Every figure here is
- * built from `listRangeDays`, which already withholds the partner's values on
- * unrevealed dates, so there is no second place where the reveal rule has to be
- * remembered.
+ * Weekly, ending Saturday (the Hebrew week runs Sunday → Saturday, so Saturday
+ * IS the end-of-week review the product is built around). Monthly, as four or
+ * five of those weeks side by side.
  *
- * One consequence worth stating: there is no "partner's average" figure. Over a
- * range containing unrevealed days it could only be an average of the revealed
+ * R-SUM-02 — a summary never leaks an unrevealed rating. Every relationship
+ * figure is built from `listRangeDays`, which already withholds the partner's
+ * values on unrevealed dates, so there is no second place where the reveal rule
+ * has to be remembered.
+ *
+ * There is deliberately no "partner's respect average" figure. Over a range
+ * containing unrevealed days it could only be an average of the revealed
  * subset — a different statistic from "my average", with a different
  * denominator, shown next to it under a similar label. Two figures that look
- * comparable and are not is how a summary starts lying. The couple average
- * (both closed) and my own average (all mine) are each answerable without a
- * caveat, and the chart draws both partners' days where they are revealed.
+ * comparable and are not is how a summary starts lying.
  *
  * Nothing here is snapshotted or locked (D-4): every figure is recomputed from
- * the rows, so an amended entry cannot leave a stale number behind.
+ * the rows, so an amended entry or a late rating cannot leave a stale number
+ * behind.
  */
 
 import { assertCan } from '@/core/access/can';
 import type { Actor } from '@/core/auth/actor';
-import { addDays, parts, todayIn, type CalendarDate } from '@/core/dates/calendar-date';
+import { addDays, compareCalendarDates, parts, todayIn, type CalendarDate } from '@/core/dates/calendar-date';
 import type { DbClient } from '@/core/db/types';
 
 import { listRangeDays, type RangeDay } from '../day-entries/day-entries';
 import { partnersOf, type PartnerRef } from '../partners';
-import { listTasksInRange } from '../tasks/tasks';
+import { listTasksInRange, type TaskSummaryRow } from '../tasks/tasks';
 import {
   bestDay,
   closedTogetherStreak,
-  coupleRangeAverage,
+  completion,
+  coupleRespectAverage,
   daysClosedTogether,
-  partnerRangeAverage,
-  taskCompletion,
-  type TaskCompletion,
+  executionAverage,
+  myRespectAverage,
+  trend,
+  unratedCompletedCount,
+  weeklyInsight,
+  type Completion,
+  type Insight,
+  type TrendDirection,
 } from './calculations';
-
-export type RangeKind = 'week' | 'month';
 
 export interface RangeBounds {
   from: CalendarDate;
@@ -50,9 +57,9 @@ function utcDate(date: CalendarDate): Date {
 }
 
 /**
- * The Hebrew week: Sunday to Saturday (BUSINESS_BRIEF §27). `getUTCDay` is
- * read on a date built from the calendar parts, never on a local Date, so the
- * answer does not depend on the server's timezone.
+ * The Hebrew week: Sunday to Saturday. `getUTCDay` is read on a date built from
+ * the calendar parts, never on a local Date, so the answer does not depend on
+ * the server's timezone.
  */
 export function weekBounds(anchor: CalendarDate): RangeBounds {
   const weekday = utcDate(anchor).getUTCDay();
@@ -67,71 +74,188 @@ export function monthBounds(anchor: CalendarDate): RangeBounds {
   return { from, toExclusive: addDays(from, daysInMonth) };
 }
 
-export function rangeBounds(kind: RangeKind, anchor: CalendarDate): RangeBounds {
-  return kind === 'week' ? weekBounds(anchor) : monthBounds(anchor);
-}
-
 /** The anchor for the previous/next range, for the stepper. */
-export function shiftAnchor(kind: RangeKind, anchor: CalendarDate, delta: -1 | 1): CalendarDate {
-  const bounds = rangeBounds(kind, anchor);
+export function shiftWeek(anchor: CalendarDate, delta: -1 | 1): CalendarDate {
+  const bounds = weekBounds(anchor);
   return delta === 1 ? bounds.toExclusive : addDays(bounds.from, -1);
 }
 
-export interface SummaryView {
-  kind: RangeKind;
+export function shiftMonth(anchor: CalendarDate, delta: -1 | 1): CalendarDate {
+  const bounds = monthBounds(anchor);
+  return delta === 1 ? bounds.toExclusive : addDays(bounds.from, -1);
+}
+
+/* ── Loading a range ──────────────────────────────────────────────────── */
+
+async function loadRange(
+  client: DbClient,
+  actor: Actor,
+  bounds: RangeBounds,
+): Promise<{ days: RangeDay[]; tasks: TaskSummaryRow[] }> {
+  const [days, tasks] = await Promise.all([
+    listRangeDays(client, actor, bounds.from, bounds.toExclusive),
+    listTasksInRange(client, actor, bounds.from, bounds.toExclusive),
+  ]);
+  return { days, tasks };
+}
+
+/* ── The week ─────────────────────────────────────────────────────────── */
+
+export interface WeekSummary {
   from: CalendarDate;
   toExclusive: CalendarDate;
   me: PartnerRef;
   partner: PartnerRef | null;
 
-  /** From the days both partners closed. Null when there are none. */
-  coupleAverage: number | null;
-  /** From every day I closed, revealed or not. */
-  myAverage: number | null;
+  completion: Completion;
+  executionAverage: number | null;
+  respectAverage: number | null;
+  myRespectAverage: number | null;
 
   days: RangeDay[];
-  daysClosedTogether: number;
   streak: number;
-  tasks: TaskCompletion;
-  /** Month view only. */
+  daysClosedTogether: number;
   bestDay: { date: string; average: number } | null;
+  unratedCompleted: number;
+  /** Completed, rated 5, and worth naming. */
+  perfectTaskTitle: string | null;
 
-  /** True when nothing in the range has been closed by anyone. */
+  insight: Insight;
   isEmpty: boolean;
 }
 
-export async function getSummary(
+export async function getWeekSummary(
   client: DbClient,
   actor: Actor,
-  kind: RangeKind,
   anchor: CalendarDate,
   now: Date = new Date(),
-): Promise<SummaryView> {
+): Promise<WeekSummary> {
   assertCan(actor, 'summaries.read');
 
-  const { from, toExclusive } = rangeBounds(kind, anchor);
-
-  const [{ me, other }, days, tasks] = await Promise.all([
+  const bounds = weekBounds(anchor);
+  const [{ me, other }, { days, tasks }] = await Promise.all([
     partnersOf(client, actor),
-    listRangeDays(client, actor, from, toExclusive),
-    listTasksInRange(client, actor, from, toExclusive),
+    loadRange(client, actor, bounds),
   ]);
 
-  const myRatings = days.flatMap((day) => (day.mine ? [day.mine] : []));
+  const done = completion(tasks, actor.id);
+  const perfect = tasks.find((task) => task.ratingValue === 5);
 
   return {
-    kind,
-    from,
-    toExclusive,
+    from: bounds.from,
+    toExclusive: bounds.toExclusive,
     me,
     partner: other,
-    coupleAverage: coupleRangeAverage(days),
-    myAverage: partnerRangeAverage(myRatings),
+    completion: done,
+    executionAverage: executionAverage(tasks),
+    respectAverage: coupleRespectAverage(days),
+    myRespectAverage: myRespectAverage(days),
     days,
-    daysClosedTogether: daysClosedTogether(days),
     streak: closedTogetherStreak(days, todayIn(undefined, now)),
-    tasks: taskCompletion(tasks, actor.id),
-    bestDay: kind === 'month' ? bestDay(days) : null,
-    isEmpty: days.every((day) => day.mine === null && !day.partnerSubmitted),
+    daysClosedTogether: daysClosedTogether(days),
+    bestDay: bestDay(days),
+    unratedCompleted: unratedCompletedCount(tasks),
+    perfectTaskTitle: perfect?.title ?? null,
+    insight: weeklyInsight({ tasks, days, completion: done, myId: actor.id }),
+    isEmpty: tasks.length === 0 && days.every((day) => day.mine === null && !day.partnerSubmitted),
+  };
+}
+
+/* ── The month ────────────────────────────────────────────────────────── */
+
+export interface WeekPoint {
+  /** 1-based index within the month, for the label. */
+  index: number;
+  from: CalendarDate;
+  completionPercent: number | null;
+  executionAverage: number | null;
+  respectAverage: number | null;
+}
+
+export interface MonthSummary {
+  from: CalendarDate;
+  toExclusive: CalendarDate;
+  me: PartnerRef;
+  partner: PartnerRef | null;
+
+  weeks: WeekPoint[];
+  completion: Completion;
+  executionAverage: number | null;
+  respectAverage: number | null;
+
+  completionTrend: TrendDirection;
+  respectTrend: TrendDirection;
+  isEmpty: boolean;
+}
+
+/**
+ * The month, as its weeks.
+ *
+ * The weeks are the month's own calendar weeks clipped to it, so the first and
+ * last are usually short. That is the honest shape: a "week 1" that borrowed
+ * three days from the previous month would make the trend line disagree with
+ * the weekly summary those days already appeared in.
+ */
+export async function getMonthSummary(
+  client: DbClient,
+  actor: Actor,
+  anchor: CalendarDate,
+): Promise<MonthSummary> {
+  assertCan(actor, 'summaries.read');
+
+  const bounds = monthBounds(anchor);
+  const [{ me, other }, { days, tasks }] = await Promise.all([
+    partnersOf(client, actor),
+    loadRange(client, actor, bounds),
+  ]);
+
+  // Walk the month in calendar weeks, clipped at both ends.
+  const weeks: WeekPoint[] = [];
+  let cursor = bounds.from;
+  let index = 1;
+  while (compareCalendarDates(cursor, bounds.toExclusive) < 0) {
+    const week = weekBounds(cursor);
+    const from = compareCalendarDates(week.from, bounds.from) < 0 ? bounds.from : week.from;
+    const toExclusive =
+      compareCalendarDates(week.toExclusive, bounds.toExclusive) > 0 ? bounds.toExclusive : week.toExclusive;
+
+    const weekDays = days.filter(
+      (day) => compareCalendarDates(day.date, from) >= 0 && compareCalendarDates(day.date, toExclusive) < 0,
+    );
+    const weekTasks = tasks.filter(
+      (task) =>
+        compareCalendarDates(task.taskDate, from) >= 0 && compareCalendarDates(task.taskDate, toExclusive) < 0,
+    );
+
+    weeks.push({
+      index,
+      from,
+      completionPercent: completion(weekTasks, actor.id).percent,
+      executionAverage: executionAverage(weekTasks),
+      respectAverage: coupleRespectAverage(weekDays),
+    });
+
+    cursor = toExclusive;
+    index += 1;
+  }
+
+  const done = completion(tasks, actor.id);
+
+  return {
+    from: bounds.from,
+    toExclusive: bounds.toExclusive,
+    me,
+    partner: other,
+    weeks,
+    completion: done,
+    executionAverage: executionAverage(tasks),
+    respectAverage: coupleRespectAverage(days),
+    completionTrend: trend(
+      weeks.map((week) => week.completionPercent),
+      // Percentages need a wider dead band than a 1–5 average.
+      8,
+    ),
+    respectTrend: trend(weeks.map((week) => week.respectAverage)),
+    isEmpty: tasks.length === 0 && days.every((day) => day.mine === null && !day.partnerSubmitted),
   };
 }

@@ -26,6 +26,7 @@ Rule IDs: `R-<AREA>-<NN>`. Areas: `TASK` (the shared list), `DAY` (closing the d
 | Edit a shared task | `tasks.edit` | ✓ | ✓ | `R-ACC-01` |
 | Complete / reopen any task | `tasks.complete` | ✓ | ✓ | `R-TASK-03` |
 | Archive / restore a task | `tasks.archive` | ✓ | ✓ | `R-TASK-05` |
+| Rate a completed task the other partner owns | `task_ratings.rate` | ✓ | ✓ | `R-RATE-01` |
 | Submit own day entry | `day_entries.submit` | ✓ | ✓ | `R-DAY-01` |
 | Read own day entry | `day_entries.read` | ✓ | ✓ | `R-DAY-04` |
 | Read the partner's day entry | *no permission — state, not role* | after the reveal only | after the reveal only | `R-DAY-05` |
@@ -62,9 +63,25 @@ a spare, a fixture, one never disabled — and breaks *asymmetrically*: the two
 people would disagree about who their partner is. Only `users.manage` (OWNER)
 may set the link, and it is audited (`partnership.linked`).
 
-**`R-TASK-01` — the shared list is genuinely shared.** `DailyTask` has no owner scope: both partners
-see and act on every task. `forWhom` is information shown on the row, never a permission. A partner
-may complete a task marked for the other — that is the point of a shared list.
+**`R-TASK-01` — the shared list is genuinely shared.** `DailyTask` has no owner *scope*: both partners
+see and may act on every task, and either can tick one off for the other. `ownerId` names
+**responsibility**, never permission.
+
+**`R-RATE-01` — a completed task is rated by the partner who does NOT own it.** One rating per task,
+1–5. That asymmetry is the feature: rating your own work is a self-assessment, and the daily entry is
+already one of those. This is the small piece of feedback that otherwise never gets said out loud.
+The service refuses three things a person could reasonably try — rating a task that is not finished,
+rating your own task, and rating one the other partner already rated.
+
+**`R-RATE-02`** — the value is an `Int` 1–5 with a database CHECK; it is the number the weekly
+"average task execution" figure is built from.
+
+**`R-RATE-03` — a rating may be changed by its author but never removed.** Changing your mind about
+yesterday's dishes is normal; a disappearing rating would move the week's average with nothing on
+screen to explain it.
+
+**`R-RATE-04` — a task's owner must be one of the two linked partners.** Otherwise a stale client
+could own a task to a spare account and the rating rule would have nobody on the other side.
 
 **`R-DAY-05` — the reveal rule (the product's one inviolable rule).** For a given `entryDate`, partner
 A may read partner B's `executionRating`, `respectRating` and `note` **only if A has also submitted an
@@ -120,8 +137,9 @@ is a business decision, not a mistake, and the reason is worth keeping. Nothing 
 Invariants:
 - `R-DAY-10` — unique `(entryDate, partnerId)`: one entry per partner per day, guaranteed by the
   database, not by a service check.
-- `R-DAY-11` — `executionRating BETWEEN 1 AND 5`.
-- `R-DAY-12` — `respectRating BETWEEN 1 AND 5`.
+- `R-DAY-12` — `respectRating BETWEEN 1 AND 5`. This is the **only** daily rating: task execution is
+  rated per task by the other partner, so a daily execution figure would be the same question asked
+  twice with a worse denominator.
 - `R-DAY-13` — `length(note) <= 1000` when present.
 
 Removal: **never**. A `DayEntry` is a diary page. No archive columns, no soft delete.
@@ -170,77 +188,83 @@ No state machine. Absent or submitted.
 All in `src/domain/summaries/calculations.ts` as pure functions. Worked examples below are copied
 verbatim into `tests/unit/summaries/calculations.test.ts`.
 
-### `R-CALC-01` — day average for a partner
-- Inputs: one `DayEntry` (`executionRating`, `respectRating`).
-- Formula: `(executionRating + respectRating) / 2`.
-- Rounding: one decimal, half away from zero, once at the end.
+Rounding, everywhere: one decimal, half away from zero, once at the end. Percentages are whole
+numbers, and a split's two percentages are computed as `x` and `100 − x` so the pair always sums to
+100.
+
+**This is not analytics.** Every figure answers a question a couple would ask out loud. Anything that
+needed a legend was left out.
+
+### `R-CALC-01` — how the list went (completion)
+- Completion = completed ÷ tasks in range, as a whole percentage. No tasks → `null`, never 0%.
+- The owner share is by **`ownerId`, not by who completed it**: either partner can tick anything off,
+  so counting completions would measure who happened to be holding the phone.
 
 | Case | Inputs | Expected |
 |---|---|---|
-| plain | 4, 3 | 3.5 |
-| equal | 5, 5 | 5.0 |
-| rounds up at the half | 4, 3 → 3.5 stays 3.5; 5,4 → 4.5 stays 4.5 | 3.5 / 4.5 |
-| lowest | 1, 1 | 1.0 |
+| nine of twelve done, eight owned by me | 12 tasks, 9 done, 8 mine | 75%, share 67 / 33 |
+| I completed both of their tasks | 2 tasks owned by them, both completed by me | share 0 / 100 |
+| no tasks | — | `null` |
 
-### `R-CALC-02` — range average for one partner
-- Inputs: every `DayEntry` that partner submitted with `entryDate` in the range.
-- Formula: mean of **all** their ratings (each entry contributes two numbers).
-- Rounding: one decimal, half away from zero, once at the end.
-- Edge case: no entries in range → `null` (not 0 — "no data" is not "bad").
+### `R-CALC-02` — average task-execution rating
+- Mean of every `TaskRating` value in the range. **An unrated completed task is silence, not a zero**
+  — treating it as 0 would make the figure punish the rater's forgetfulness.
 
 | Case | Inputs | Expected |
 |---|---|---|
-| three days | (4,3), (5,5), (2,2) | 21/6 = 3.5 |
-| one day | (3,4) | 3.5 |
-| none | — | null |
+| rated 5, 4, 3 | three ratings | 4.0 |
+| two 5s and one unrated | 5, 5, — | 5.0 (and 1 waiting) |
+| 4, 3, 3, 3 | 13 over 4 = 3.25 | 3.3 |
+| nothing rated | — | `null` |
 
-### `R-CALC-03` — range average for the couple
-- Inputs: the dates in range on which **both** partners submitted; all four ratings per such date.
-- Formula: mean of every rating on those dates only. Dates where one partner submitted are excluded.
-- Rounding: as above. No both-closed dates → `null`.
+### `R-CALC-03` — average mutual-respect rating
+- Couple average: mean of both partners' `respectRating` on the dates **both** closed. A day only one
+  of them closed is not a data point about the couple.
+- My own average: every day I closed, revealed or not. Two questions, two denominators; the labels
+  say which.
 
 | Case | Inputs | Expected |
 |---|---|---|
-| one day both, one day single | Mon A(4,3) B(3,3); Tue A(5,5) only | mean of 4,3,3,3 = 3.25 → 3.3 |
-| nothing mutual | Mon A only | null |
-
-*Note the contrast with `R-CALC-02`: on the same data, A's own average is mean of 4,3,5,5 = 4.25 → 4.3.
-Two different questions, two different denominators; the summary labels say which.*
+| Mon both (4 / 3), Tue only me (5) | — | couple 3.5, mine 4.5 |
+| only they closed | — | couple `null` |
 
 ### `R-CALC-04` — closed-together streak
-- Inputs: the range's dates in ascending order, each with "did A submit" and "did B submit"; plus
-  which date is today.
-- Formula: walk backwards from the last date. If the last date is today and not both-closed, skip it
-  once (a live day is not yet a gap). Then count consecutive both-closed dates; stop at the first date
-  that is not both-closed.
+Walk back from the end. Today is skipped once if it is not closed yet (a live day is not a broken
+streak); any earlier gap stops the count.
 
-| Case | Inputs | Expected |
-|---|---|---|
-| five both, today open | d1–d5 both, d6=today nobody | 5 |
-| gap before today | d1–d5 both, d6 A only, d7=today nobody | 0 |
-| unbroken including today | d1–d6 both, d7=today both | 7 |
-| nothing | all open | 0 |
+| Case | Expected |
+|---|---|
+| five both, today open | 5 |
+| gap before today | 0 |
+| unbroken including today | 7 |
+| only one of us closed today | earlier days still count |
+| an unclosed day that is not today | 0 |
 
-### `R-CALC-05` — task completion for a range
-- Inputs: tasks whose `taskDate` is in the range and that are **not archived**; each with
-  `completedById` or null.
-- Formula: `completed / total` as a percentage, rounded to the nearest whole number. The per-partner
-  split is each partner's completions over the completed total; the **second** percentage is computed
-  as `100 − first` so the two shown values always sum to 100.
-- Edge cases: no tasks in range → `null` percentage and no split. No completions → 0% and no split.
+### `R-CALC-05` — the best day
+Highest couple respect average among revealed days; a tie resolves to the **later** date.
 
-| Case | Inputs | Expected |
-|---|---|---|
-| nine of twelve, 6/3 | 12 tasks, 9 done (A 6, B 3) | 75%, split A 67% / B 33% |
-| thirds | 3 done (A 1, B 2) of 3 | 100%, split A 33% / B 67% |
-| none in range | 0 tasks | null |
-| none done | 5 tasks, 0 done | 0%, no split |
+### `R-CALC-06` — did respect dip?
+Compare the first half of the closed days with the last half. Reported only with **at least four**
+closed days and a drop of **a whole point or more** — below that it is noise, and a product that tells
+two people their relationship is declining had better be sure.
 
-### `R-CALC-06` — the best day of the month (monthly summary only)
-- Inputs: both-closed dates in the month with their four ratings.
-- Formula: the date with the highest mean of the four; ties resolve to the **later** date (the more
-  recent good day is the one worth remembering).
-- No both-closed dates → `null`.
+### `R-CALC-07` — the one gentle insight
+Exactly one, chosen by "cheapest thing that would most change next week". A list of five things to do
+better is a performance review, and nobody opens a couple app to get one.
+
+1. `unratedTasks` — a five-second fix, and the other person is waiting for it
+2. `lowCompletion` (< 50%, at least 4 tasks) — the list is too long, not the people
+3. `unbalancedTasks` (one owner ≥ 75%, at least 4 tasks) — a conversation worth having
+4. `fewClosedDays` (< 3 closed together) — the ritual is what makes the rest work
+5. `respectDip` — last, because the others are likelier to be the cause
+6. `allGood` — say so, and say nothing else
+
+### `R-CALC-08` — monthly trend
+Weekly figures, compared last against first. A change below the dead band is `flat` (0.3 for a 1–5
+average, 8 points for a percentage), because a trend arrow that flickers on 0.1 is worse than no
+arrow. The month's weeks are its own calendar weeks **clipped to the month**, so the first and last
+are usually short — a "week 1" that borrowed days from the previous month would disagree with the
+weekly summary those days already appeared in.
 
 ---
 
@@ -311,6 +335,7 @@ Recorded (in the same transaction as the write), registered in `src/domain/audit
 | `task.updated` | no | changed field names and values (domestic detail, not sensitive) |
 | `task.completed` / `task.reopened` | no | task id and title |
 | `task.archived` / `task.restored` | **yes** | task id, title, reason |
+| `task_rating.given` / `task_rating.changed` | no | task title and the 1–5 value — ordinary feedback about a chore, not a private self-assessment |
 | `day_entry.submitted` | no | `entryDate` **only** |
 | `day_entry.amended` | no | `entryDate` **only**, plus `ratingsChanged: true` / `noteChanged: true` |
 
@@ -350,7 +375,7 @@ The implementation chose the safest generic behaviour for each. The product owne
 | D-4 | Do summaries ever become authoritative (snapshot + lock)? | **No.** Always recomputed live; nothing locks. | product owner | when/if figures are used outside the app |
 | D-5 | The nightly reminder | **Not built.** The foundation has no outbound notification capability (FOUNDATION §12) and adding one needs a provider choice, an ADR and secrets. This is the product's biggest functional gap: a nightly ritual without a nudge depends on habit alone. | product owner | before launch |
 | D-6 | Data export / erasure when a partner leaves | **Not built.** No export route, no erasure flow. Entries are never deleted (§28). | product owner | before real personal data accumulates |
-| D-7 | What exactly does the respect rating rate? | **"How much respect I felt from my partner today."** Chosen as the least harmful reading of "independent mutual-respect rating": each partner reports their own experience rather than scoring the other's character. If the intent was "how well I treated my partner", it is a copy change in one strings file — the schema does not change. | product owner | before launch |
+| D-7 | What exactly does the daily rating rate? | **Resolved 2026-09-22.** Mutual respect and the quality of communication that day, reported as my own experience ("הרגשתי מכובד/ת, ודיברנו טוב") rather than as a score of the other's character. Task *execution* moved out of the daily entry entirely and is now rated per task by the other partner (`R-RATE-01`), which is both more specific and less loaded. | — | done |
 | D-8 | i18n | **Hebrew-first, i18n-ready.** All domain copy lives in one module (`src/domain/copy.ts`) keyed by concept, direction and language come from `businessLocale` in `src/brand/brand.ts`, and every layout uses logical properties. Adding English means adding a second dictionary and flipping `direction` — not a rewrite. Core's own Hebrew copy (`src/core/copy.ts`) would need the same treatment, which is a core change and therefore an ADR. | product owner | when a non-Hebrew user is real |
 
 ---

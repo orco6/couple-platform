@@ -23,7 +23,8 @@ const items: Array<NavItem & { permission?: Permission }> = [
   // the natural fit and is a candidate generic addition to core — noted, not
   // taken, because one business wanting a nicer glyph is not a platform gap.
   { href: '/review', label: copy.nav.review, icon: 'flag', mobile: 'bar' },
-  { href: '/summaries', label: copy.nav.summaries, icon: 'chart', mobile: 'bar' },
+  { href: '/week', label: copy.nav.week, icon: 'chart', mobile: 'bar' },
+  { href: '/month', label: copy.nav.month, icon: 'layers', mobile: 'bar' },
 
   { href: '/attention', label: 'ימים פתוחים', icon: 'list', mobile: 'more', group: 'אישי' },
   { href: '/settings', label: 'הגדרות', icon: 'settings', mobile: 'more', group: 'אישי' },

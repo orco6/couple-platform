@@ -51,7 +51,6 @@ const RATING = z.number().int().min(1).max(5);
 export const submitDayEntrySchema = z
   .object({
     entryDate: fields.calendarDate(),
-    executionRating: RATING,
     respectRating: RATING,
     note: fields.optionalText({ label: copy.day.noteLabel, max: 1000, multiline: true }),
   })
@@ -60,7 +59,6 @@ export const submitDayEntrySchema = z
 export const amendDayEntrySchema = z
   .object({
     entryDate: fields.calendarDate(),
-    executionRating: RATING,
     respectRating: RATING,
     note: fields.optionalText({ label: copy.day.noteLabel, max: 1000, multiline: true }),
   })
@@ -72,7 +70,7 @@ export type AmendDayEntryInput = z.infer<typeof amendDayEntrySchema>;
 /* ── Views ─────────────────────────────────────────────────────────────── */
 
 export interface DayEntryValues {
-  executionRating: number;
+  /** Mutual respect and communication, 1–5. The one daily rating. */
   respectRating: number;
   note: string | null;
   submittedAt: string;
@@ -144,20 +142,13 @@ export async function reviewTimeOf(client: DbClient): Promise<LocalTime> {
 /* ── Reads ─────────────────────────────────────────────────────────────── */
 
 const VALUE_SELECT = {
-  executionRating: true,
   respectRating: true,
   note: true,
   submittedAt: true,
 } as const;
 
-function toValues(row: {
-  executionRating: number;
-  respectRating: number;
-  note: string | null;
-  submittedAt: Date;
-}): DayEntryValues {
+function toValues(row: { respectRating: number; note: string | null; submittedAt: Date }): DayEntryValues {
   return {
-    executionRating: row.executionRating,
     respectRating: row.respectRating,
     note: row.note,
     submittedAt: row.submittedAt.toISOString(),
@@ -238,10 +229,10 @@ export async function getDay(
  */
 export interface RangeDay {
   date: CalendarDate;
-  mine: { executionRating: number; respectRating: number } | null;
+  mine: { respectRating: number } | null;
   partnerSubmitted: boolean;
   /** Present only when the date is revealed to this actor. */
-  theirs?: { executionRating: number; respectRating: number };
+  theirs?: { respectRating: number };
 }
 
 export async function listRangeDays(
@@ -257,7 +248,7 @@ export async function listRangeDays(
 
   const mineRows = await client.dayEntry.findMany({
     where: { partnerId: actor.id, entryDate: window },
-    select: { entryDate: true, executionRating: true, respectRating: true },
+    select: { entryDate: true, respectRating: true },
   });
   const mineByDate = new Map(mineRows.map((row) => [fromDbDate(row.entryDate), row]));
 
@@ -265,7 +256,7 @@ export async function listRangeDays(
   const partnerRows = other
     ? await client.dayEntry.findMany({
         where: { partnerId: other.id, entryDate: window },
-        select: { entryDate: true, executionRating: true, respectRating: true },
+        select: { entryDate: true, respectRating: true },
       })
     : [];
 
@@ -276,12 +267,12 @@ export async function listRangeDays(
 
     const day: RangeDay = {
       date,
-      mine: mine ? { executionRating: mine.executionRating, respectRating: mine.respectRating } : null,
+      mine: mine ? { respectRating: mine.respectRating } : null,
       partnerSubmitted: partnerRow !== null,
     };
     // The same gate as getDay: my entry must exist for theirs to be readable.
     if (mine && partnerRow) {
-      day.theirs = { executionRating: partnerRow.executionRating, respectRating: partnerRow.respectRating };
+      day.theirs = { respectRating: partnerRow.respectRating };
     }
     days.push(day);
   }
@@ -314,7 +305,6 @@ export async function submitDayEntry(
           entryDate: toDbDate(date),
           // From the session, never from the body.
           partnerId: actor.id,
-          executionRating: input.executionRating,
           respectRating: input.respectRating,
           note,
           submittedAt: now,
@@ -359,7 +349,7 @@ export async function amendDayEntry(
 
     const existing = await tx.dayEntry.findUnique({
       where: { entryDate_partnerId: { entryDate: toDbDate(date), partnerId: actor.id } },
-      select: { id: true, executionRating: true, respectRating: true, note: true },
+      select: { id: true, respectRating: true, note: true },
     });
     // Only your own entry, and only if it exists (R-DAY-03).
     if (!existing) throw errors.notFound();
@@ -377,7 +367,6 @@ export async function amendDayEntry(
     await tx.dayEntry.update({
       where: { id: existing.id },
       data: {
-        executionRating: input.executionRating,
         respectRating: input.respectRating,
         note,
       },
@@ -391,8 +380,7 @@ export async function amendDayEntry(
       entityId: existing.id,
       after: {
         entryDate: date,
-        ratingsChanged:
-          existing.executionRating !== input.executionRating || existing.respectRating !== input.respectRating,
+        ratingsChanged: existing.respectRating !== input.respectRating,
         noteChanged: (existing.note ?? null) !== note,
       },
     });

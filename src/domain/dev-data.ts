@@ -9,9 +9,9 @@
  * The data is deliberately awkward, because DESIGN_REVIEW.md judges screens
  * against realistic content: the longest title the schema allows, a task with
  * nothing but a title, a multi-line note, an archived task with its reason, a
- * day only one partner closed (so the waiting state is visible), a day neither
- * closed (so the attention rule has something to find), and today left open so
- * the review screen has work to do.
+ * completed task still waiting for the other partner's rating, a task rated 5,
+ * a day only one partner closed, a day neither closed, and today left open so
+ * both the list and the review screen have work to do.
  */
 
 import type { DomainSeeder } from '@/core/dev-data/types';
@@ -20,6 +20,7 @@ import { localToInstant, type LocalTime } from '@/core/dates/local-time';
 
 import { submitDayEntry } from './day-entries/day-entries';
 import { linkPartner } from './partners';
+import { rateTask } from './tasks/task-ratings';
 import { createTask, transitionTask } from './tasks/tasks';
 
 /** A plausible submission instant for a past day: that evening, 22:10. */
@@ -32,32 +33,33 @@ export const seedDomainData: DomainSeeder = async (db, users) => {
   const partner = users.byRole.PARTNER?.[0];
   if (!partner) return;
 
-  // The couple itself. Everything below depends on the link existing, because
-  // the reveal rule pairs rows by it.
+  // The couple itself. Everything below depends on the link existing: the
+  // reveal rule pairs day entries by it, and a task's owner must be one of the
+  // two people in it.
   await linkPartner(db, owner, { partnerId: partner.id });
 
   const today = todayIn();
   const day = (offset: number) => addDays(today, offset);
 
-  /* ── The shared list ──────────────────────────────────────────────────── */
+  /* ── Today's list ─────────────────────────────────────────────────────── */
 
-  const openToday = [
-    { title: 'לאסוף את הכביסה מהמכבסה', forWhom: 'ME' as const, dueTime: '19:00' as LocalTime, note: null },
+  const openToday: Array<{ title: string; ownerId: string; dueTime: LocalTime | null; note: string | null }> = [
+    { title: 'לאסוף את הכביסה מהמכבסה', ownerId: owner.id, dueTime: '19:00' as LocalTime, note: null },
     {
       title: 'להזמין מקום לשבת',
-      forWhom: 'BOTH' as const,
+      ownerId: partner.id,
       dueTime: null,
       note: 'דיברנו על זה שלושה שבועות.\nאם אין מקום, נשמח גם במשהו קטן בשכונה.',
     },
-    { title: 'לשלם ארנונה', forWhom: 'PARTNER' as const, dueTime: '23:59' as LocalTime, note: null },
+    { title: 'לשלם ארנונה', ownerId: partner.id, dueTime: '23:59' as LocalTime, note: null },
     // Nothing but a title: the row must still read well with no metadata.
-    { title: 'לקנות קפה', forWhom: 'ME' as const, dueTime: null, note: null },
+    { title: 'לקנות קפה', ownerId: owner.id, dueTime: null, note: null },
     {
       // The longest title the schema allows (200 characters), so the list and
       // the phone row are judged against the worst case, not a short label.
       title:
         'להתקשר למוסך בעניין הרעש מהגלגל הקדמי הימני ולשאול אם צריך להחליף את המסבים או רק להדק, ולבדוק כמה זמן זה לוקח ואם אפשר להשאיר את הרכב בבוקר ולאסוף אותו אחרי העבודה באותו יום עצמו',
-      forWhom: 'BOTH' as const,
+      ownerId: owner.id,
       dueTime: null,
       note: null,
     },
@@ -66,36 +68,50 @@ export const seedDomainData: DomainSeeder = async (db, users) => {
   for (const task of openToday) {
     await createTask(db, owner, {
       title: task.title,
-      forWhom: task.forWhom,
+      ownerId: task.ownerId,
       taskDate: day(0),
       dueTime: task.dueTime,
       note: task.note,
     });
   }
 
-  // One closed by each partner today, so the completion split is not 100/0.
-  const closedByPartner = await createTask(db, partner, {
+  // Completed and already rated by the other partner — the settled state.
+  const ratedTask = await createTask(db, owner, {
     title: 'להתקשר לאמא',
-    forWhom: 'PARTNER',
+    ownerId: partner.id,
     taskDate: day(0),
     dueTime: null,
     note: null,
   });
-  await transitionTask(db, partner, { id: closedByPartner.id, version: closedByPartner.version, to: 'COMPLETED' });
+  await transitionTask(db, partner, { id: ratedTask.id, version: ratedTask.version, to: 'COMPLETED' });
+  await rateTask(db, owner, { taskId: ratedTask.id, value: 5 });
 
-  const closedByOwner = await createTask(db, owner, {
+  // Completed and NOT rated — this is what "ממתין לדירוג" has to render, and
+  // the owner sees it as waiting on the other person, not as a chase.
+  const awaitingTask = await createTask(db, owner, {
     title: 'להוציא את האופניים מהמחסן',
-    forWhom: 'ME',
+    ownerId: owner.id,
     taskDate: day(0),
     dueTime: null,
     note: null,
   });
-  await transitionTask(db, owner, { id: closedByOwner.id, version: closedByOwner.version, to: 'COMPLETED' });
+  await transitionTask(db, owner, { id: awaitingTask.id, version: awaitingTask.version, to: 'COMPLETED' });
+
+  // One the *partner* finished, waiting for the owner's rating: the prompt the
+  // signature interaction is launched from.
+  const toRateTask = await createTask(db, owner, {
+    title: 'לתלות את המדף בסלון',
+    ownerId: partner.id,
+    taskDate: day(0),
+    dueTime: null,
+    note: null,
+  });
+  await transitionTask(db, partner, { id: toRateTask.id, version: toRateTask.version, to: 'COMPLETED' });
 
   // An archived task, with the reason the archive screen shows.
   const archived = await createTask(db, owner, {
     title: 'לבדוק מחירים לחופשה באוגוסט',
-    forWhom: 'BOTH',
+    ownerId: owner.id,
     taskDate: day(-6),
     dueTime: null,
     note: null,
@@ -107,56 +123,74 @@ export const seedDomainData: DomainSeeder = async (db, users) => {
     reason: 'החלטנו לדחות את החופשה לשנה הבאה.',
   });
 
-  // Past days, so the weekly and monthly summaries have a real shape.
-  for (let offset = -20; offset <= -1; offset += 1) {
+  /* ── Past days, so the week and the month have a real shape ──────────── */
+
+  const pastTitles = ['קניות לשבוע', 'לתלות את הכיבוס', 'לתאם עם השכנים', 'להחזיר ספרים לספרייה', 'לקבוע רופא שיניים'];
+
+  for (let offset = -27; offset <= -1; offset += 1) {
     const count = (Math.abs(offset) % 3) + 1;
     for (let index = 0; index < count; index += 1) {
-      const task = await createTask(db, index % 2 === 0 ? owner : partner, {
-        title: ['קניות לשבוע', 'לתלות את הכיבוס', 'לתאם עם השכנים', 'להחזיר ספרים לספרייה'][(index + count) % 4]!,
-        forWhom: (['ME', 'PARTNER', 'BOTH'] as const)[(index + count) % 3]!,
+      const ownedByOwner = (index + Math.abs(offset)) % 2 === 0;
+      const task = await createTask(db, owner, {
+        title: pastTitles[(index + Math.abs(offset)) % pastTitles.length]!,
+        ownerId: ownedByOwner ? owner.id : partner.id,
         taskDate: day(offset),
         dueTime: null,
         note: null,
       });
+
       // Most get done, some do not — a 100% list is not a real list.
-      if ((index + Math.abs(offset)) % 4 !== 0) {
-        await transitionTask(db, index % 2 === 0 ? owner : partner, {
-          id: task.id,
-          version: task.version,
-          to: 'COMPLETED',
-        });
-      }
+      if ((index + Math.abs(offset)) % 4 === 0) continue;
+
+      await transitionTask(db, ownedByOwner ? owner : partner, {
+        id: task.id,
+        version: task.version,
+        to: 'COMPLETED',
+      });
+
+      // Most completed tasks get rated by the other partner; some are left
+      // waiting, which is what drives the weekly insight.
+      if ((index + Math.abs(offset)) % 5 === 0) continue;
+      const rater = ownedByOwner ? partner : owner;
+      await rateTask(db, rater, { taskId: task.id, value: 3 + ((Math.abs(offset) + index) % 3) });
     }
   }
 
   /* ── Closing the days ─────────────────────────────────────────────────── */
 
-  // execution / respect per day, both partners. Varied on purpose: a product
-  // whose fixtures are all fours and fives looks like it cannot render a bad
-  // day, and the bad days are the ones that matter.
-  const closings: Array<{ offset: number; owner?: [number, number]; partner?: [number, number]; note?: string }> = [
-    { offset: -20, owner: [3, 3], partner: [3, 4] },
-    { offset: -19, owner: [4, 4], partner: [4, 4] },
-    { offset: -18, owner: [2, 2], partner: [2, 3], note: 'יום ארוך. נדבר על זה מחר.' },
-    { offset: -17, owner: [4, 5], partner: [5, 5] },
-    { offset: -16, owner: [5, 5], partner: [5, 5] },
-    { offset: -15, owner: [3, 4], partner: [4, 4] },
-    { offset: -14, owner: [4, 4], partner: [3, 4] },
-    { offset: -13, owner: [1, 2], partner: [2, 2], note: 'לא יום טוב. שנינו היינו עייפים והכל יצא חד.' },
-    { offset: -12, owner: [3, 3], partner: [3, 3] },
-    { offset: -11, owner: [4, 4], partner: [4, 5] },
-    { offset: -10, owner: [5, 5], partner: [4, 5] },
-    { offset: -9, owner: [4, 3], partner: [4, 4] },
-    { offset: -8, owner: [3, 4], partner: [3, 3] },
-    { offset: -7, owner: [4, 4], partner: [5, 4] },
-    { offset: -6, owner: [5, 5], partner: [5, 5], note: 'יצאנו לסיבוב בלי לתכנן וחזרנו אחרי חצות.\nכזה שכדאי לזכור.' },
+  // Mutual respect per day, both partners. Varied on purpose: a product whose
+  // fixtures are all fours and fives looks like it cannot render a bad day, and
+  // the bad days are the ones that matter.
+  const closings: Array<{ offset: number; owner?: number; partner?: number; note?: string }> = [
+    { offset: -27, owner: 3, partner: 4 },
+    { offset: -26, owner: 4, partner: 4 },
+    { offset: -25, owner: 2, partner: 3, note: 'יום ארוך. נדבר על זה מחר.' },
+    { offset: -24, owner: 5, partner: 5 },
+    { offset: -23, owner: 4, partner: 4 },
+    { offset: -22, owner: 3, partner: 3 },
+    { offset: -21, owner: 4, partner: 5 },
+    { offset: -20, owner: 3, partner: 3 },
+    { offset: -19, owner: 4, partner: 4 },
+    { offset: -18, owner: 2, partner: 2, note: 'לא יום טוב. שנינו היינו עייפים והכל יצא חד.' },
+    { offset: -17, owner: 4, partner: 5 },
+    { offset: -16, owner: 5, partner: 5 },
+    { offset: -15, owner: 4, partner: 4 },
+    { offset: -14, owner: 3, partner: 4 },
+    { offset: -13, owner: 4, partner: 4 },
+    { offset: -12, owner: 5, partner: 4 },
+    { offset: -11, owner: 4, partner: 4 },
+    { offset: -10, owner: 3, partner: 3 },
+    { offset: -9, owner: 4, partner: 4 },
+    { offset: -8, owner: 5, partner: 5 },
+    { offset: -7, owner: 4, partner: 4 },
+    { offset: -6, owner: 5, partner: 5, note: 'יצאנו לסיבוב בלי לתכנן וחזרנו אחרי חצות.\nכזה שכדאי לזכור.' },
     // Nobody closed this one: the attention rule has to find something.
     { offset: -5 },
-    { offset: -4, owner: [4, 4], partner: [4, 4] },
+    { offset: -4, owner: 4, partner: 4 },
     // Only the partner closed it, so the "waiting for you" state is visible.
-    { offset: -3, partner: [4, 5] },
-    { offset: -2, owner: [4, 5], partner: [5, 5] },
-    { offset: -1, owner: [3, 4], partner: [4, 4] },
+    { offset: -3, partner: 4 },
+    { offset: -2, owner: 4, partner: 5 },
+    { offset: -1, owner: 4, partner: 4 },
     // Today is left open on purpose — the review screen needs work to do.
   ];
 
@@ -164,26 +198,11 @@ export const seedDomainData: DomainSeeder = async (db, users) => {
     const date = day(closing.offset);
     const now = eveningOf(date);
 
-    if (closing.owner) {
-      await submitDayEntry(
-        db,
-        owner,
-        {
-          entryDate: date,
-          executionRating: closing.owner[0],
-          respectRating: closing.owner[1],
-          note: closing.note ?? null,
-        },
-        now,
-      );
+    if (closing.owner !== undefined) {
+      await submitDayEntry(db, owner, { entryDate: date, respectRating: closing.owner, note: closing.note ?? null }, now);
     }
-    if (closing.partner) {
-      await submitDayEntry(
-        db,
-        partner,
-        { entryDate: date, executionRating: closing.partner[0], respectRating: closing.partner[1], note: null },
-        now,
-      );
+    if (closing.partner !== undefined) {
+      await submitDayEntry(db, partner, { entryDate: date, respectRating: closing.partner, note: null }, now);
     }
   }
 };

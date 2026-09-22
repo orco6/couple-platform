@@ -5,7 +5,7 @@
  *   • Speak to the two of them ("שלנו"), not to a user ("שלך").
  *   • Warm, but never gushing. No exclamation marks, no emoji as icons, none
  *     of the banned filler ("ברוכים הבאים", "כל מה שצריך במקום אחד").
- *   • Their words: משימה, הרשימה שלנו, סגירת היום, ביצוע, כיבוד, פתק, רצף.
+ *   • Their words: משימה, הרשימה שלנו, סגירת היום, כיבוד, פתק, רצף.
  *     Never רשומה / ישות / פריט / משתמש when a partner is meant.
  *   • Buttons are verb + object. Empty states say what, why, and what to do.
  *   • Read at 23:40 in bed. Short wins.
@@ -18,7 +18,7 @@
 export const he = {
   common: {
     partnerFallback: 'הפרטנר',
-    you: 'אני',
+    me: 'אני',
     both: 'שנינו',
     cancel: 'ביטול',
     save: 'שמירה',
@@ -27,14 +27,14 @@ export const he = {
     reason: 'סיבה',
     today: 'היום',
     yesterday: 'אתמול',
-    waiting: 'ממתין',
-    notYet: 'עוד לא',
+    outOfFive: 'מתוך 5',
   },
 
   nav: {
     today: 'היום',
     review: 'סגירת היום',
-    summaries: 'סיכומים',
+    week: 'השבוע',
+    month: 'החודש',
   },
 
   tasks: {
@@ -45,17 +45,9 @@ export const he = {
     closedToday: 'נסגר היום',
     archived: 'בארכיון',
 
-    forWhom: {
-      ME: 'עליי',
-      PARTNER: (name: string) => `על ${name}`,
-      BOTH: 'שנינו',
-    },
-    forWhomLabel: 'בשביל מי',
-    forWhomChoice: {
-      ME: 'עליי',
-      PARTNER: 'על הפרטנר',
-      BOTH: 'שנינו',
-    },
+    ownerLabel: 'באחריות',
+    ownerMe: 'עליי',
+    ownerPartner: (name: string) => `על ${name}`,
 
     titleLabel: 'מה צריך לעשות',
     titlePlaceholder: 'לאסוף את הכביסה',
@@ -74,13 +66,9 @@ export const he = {
     reopenAction: 'פתיחה מחדש',
     archiveAction: 'העברה לארכיון',
     archiveTitle: 'העברה לארכיון',
-    archiveBody:
-      'המשימה תצא מהרשימה ולא תיספר בסיכומים. היא לא נמחקת, ואפשר להחזיר אותה.',
+    archiveBody: 'המשימה תצא מהרשימה ולא תיספר בסיכומים. היא לא נמחקת, ואפשר להחזיר אותה.',
     archiveReasonLabel: 'למה היא כבר לא רלוונטית',
     restoreAction: 'החזרה לרשימה',
-    restoreTitle: 'החזרה לרשימה',
-    restoreBody: 'המשימה תחזור לרשימה כפתוחה ותיספר שוב בסיכומים.',
-    restoreReasonLabel: 'למה היא חוזרת',
 
     emptyTitle: 'אין משימות ליום הזה',
     emptyWhy: 'כל מה שתוסיפו יופיע כאן לשניכם.',
@@ -88,31 +76,50 @@ export const he = {
     emptyArchiveWhy: 'משימות שתעבירו לארכיון יישמרו כאן.',
   },
 
+  taskRating: {
+    /** Shown to the owner after they finish: it is the other person's turn. */
+    awaiting: (name: string) => `ממתין לדירוג של ${name}`,
+    awaitingShort: 'ממתין לדירוג',
+    /** Shown to the partner who may rate. */
+    prompt: 'איך יצא?',
+    promptFor: (name: string) => `${name} סגר/ה את זה. איך יצא?`,
+    ratedBy: (name: string, value: number) => `${name} נתן/ה ${value}`,
+    myRating: (value: number) => `נתתי ${value}`,
+    change: 'שינוי הדירוג',
+    saved: 'נשמר',
+    /** The five steps. Kind, but honest enough to be worth giving. */
+    scale: {
+      1: 'לא יצא',
+      2: 'ככה ככה',
+      3: 'בסדר',
+      4: 'טוב',
+      5: 'מושלם',
+    },
+    nothingToRate: 'אין כרגע משימות לדירוג',
+    nothingToRateWhy: 'כשהפרטנר יסגור משימה, היא תופיע כאן.',
+    sectionTitle: 'מחכה לדירוג שלי',
+  },
+
   day: {
     pageTitle: 'סגירת היום',
-    question: 'איך היה היום שלנו?',
+    question: 'איך היה בינינו היום?',
 
-    executionLabel: 'ביצוע',
-    executionQuestion: 'עמדתי בצד שלי של היום',
-    respectLabel: 'כיבוד',
-    respectQuestion: 'הרגשתי מכובד/ת על ידי הפרטנר',
+    respectLabel: 'כיבוד ותקשורת',
+    respectQuestion: 'הרגשתי מכובד/ת, ודיברנו טוב',
     noteLabel: 'פתק',
     noteHint: 'לא חייב. רק אם יש משהו שכדאי לזכור.',
     notePlaceholder: 'משהו מהיום',
 
-    /** The five steps. Same wording in both scales, so the scale is learned once. */
     scale: {
-      1: 'בכלל לא',
-      2: 'מעט',
+      1: 'היה קשה',
+      2: 'לא פשוט',
       3: 'בסדר',
       4: 'טוב',
-      5: 'לגמרי',
+      5: 'מעולה',
     },
-    scaleHint: 'גררו למעלה או למטה',
 
     submitAction: 'סגירת היום',
     amendAction: 'שינוי מה שכתבתי',
-    amendTitle: 'שינוי הסגירה',
 
     notOpenYetTitle: 'עוד מוקדם',
     notOpenYetWhy: (time: string) => `אפשר לסגור את היום מ-${time}.`,
@@ -121,7 +128,6 @@ export const he = {
     waitingTitle: (name: string) => `${name} עוד לא סגר/ה את היום`,
     waitingWhy: 'מה שכתבתם יתגלה לשניכם ברגע ששניכם תסגרו.',
     partnerClosedAlready: (name: string) => `${name} כבר סגר/ה. מה שנכתב יתגלה כשתסגרו גם אתם.`,
-    partnerNotClosedYet: (name: string) => `${name} עוד לא סגר/ה.`,
 
     revealedTitle: 'שניכם סגרתם',
     frozenNotice: 'אחרי שהיום נגלה, מה שנכתב נשאר כמו שהוא.',
@@ -131,57 +137,77 @@ export const he = {
     gapFar: 'היום הזה נראה לכם אחרת.',
 
     alreadyClosed: 'סגרתם את היום הזה.',
-    noteFrom: (name: string) => `הפתק של ${name}`,
     myNote: 'הפתק שלי',
+    noteFrom: (name: string) => `הפתק של ${name}`,
 
     emptyTitle: 'היום הזה לא נסגר',
     emptyWhy: 'אף אחד מכם לא סגר אותו, ואפשר עוד להשלים.',
   },
 
-  summaries: {
-    pageTitle: 'הסיכומים שלנו',
-    week: 'שבוע',
-    month: 'חודש',
-    rangeLabel: 'טווח',
+  week: {
+    pageTitle: 'השבוע שלנו',
+    /** Saturday is the end of the Hebrew week, so that is when it is ready. */
+    readyOn: 'הסיכום מתעדכן בכל שבת',
+    range: (from: string, to: string) => `${from} — ${to}`,
 
-    coupleAverage: 'הממוצע שלנו',
-    coupleAverageHint: 'מהימים ששניכם סגרתם.',
-    myAverage: 'הממוצע שלי',
-    partnerAverage: (name: string) => `הממוצע של ${name}`,
-    outOfFive: 'מתוך 5',
+    completionTitle: 'הרשימה',
+    completionRate: (percent: number) => `${percent}% נסגרו`,
+    completionDetail: (done: number, total: number) => `${done} מתוך ${total}`,
 
-    pulseTitle: 'הקצב שלנו',
-    pulseHint: 'ביצוע וכיבוד, יום אחר יום.',
+    executionTitle: 'ביצוע',
+    executionHint: 'הממוצע של דירוגי המשימות.',
 
-    streakTitle: 'רצף',
-    streakDays: (n: number) => (n === 1 ? 'יום אחד' : `${n} ימים`),
-    streakNone: 'עוד אין רצף',
-    streakHint: 'ימים רצופים ששניכם סגרתם.',
+    respectTitle: 'כיבוד',
+    respectHint: 'הממוצע של סגירות היום.',
 
-    tasksTitle: 'משימות',
-    tasksDone: (done: number, total: number) => `${done} מתוך ${total} נסגרו`,
-    tasksSplit: 'מי סגר מה',
+    highlightsTitle: 'מה עבד',
+    streakDays: (n: number) => (n === 1 ? 'יום אחד רצוף' : `${n} ימים רצופים`),
+    streakHint: 'ששניכם סגרתם.',
+    bestDay: (date: string) => `היום הטוב: ${date}`,
+    allTasksDone: 'סגרתם את כל הרשימה',
+    perfectTask: (title: string) => `«${title}» קיבלה 5`,
 
-    bestDayTitle: 'היום הטוב של החודש',
-    bestDayNone: 'עוד אין יום ששניכם סגרתם',
+    insightTitle: 'מחשבה אחת לשבוע הבא',
+    insight: {
+      unbalancedTasks: (name: string) => `רוב המשימות היו על ${name}. שווה לחלק אחרת.`,
+      lowCompletion: 'נסגרה פחות מחצי מהרשימה. אולי כדאי לשים פחות משימות ליום.',
+      unratedTasks: (n: number) =>
+        n === 1 ? 'משימה אחת שנסגרה עוד מחכה לדירוג. זה לוקח שנייה.' : `${n} משימות שנסגרו מחכות לדירוג. זה לוקח שנייה.`,
+      fewClosedDays: 'סגרתם ביחד מעט ימים. אפילו שלוש פעמים בשבוע משנה את התמונה.',
+      respectDip: 'הכיבוד ירד לקראת סוף השבוע. שווה לשים לב לימים העמוסים.',
+      allGood: 'שבוע טוב. אין מה לשפר — תמשיכו ככה.',
+    },
 
-    daysClosed: (n: number) => (n === 1 ? 'יום אחד נסגר על ידי שניכם' : `${n} ימים נסגרו על ידי שניכם`),
+    emptyTitle: 'השבוע עוד לא התחיל להתמלא',
+    emptyWhy: 'הסיכום נבנה מהמשימות שסגרתם ומהימים שדירגתם.',
+    emptyWhat: 'סגרו משימה אחת או יום אחד ונתחיל.',
+  },
 
-    emptyTitle: 'עוד אין מה לסכם',
-    emptyWhy: 'הסיכום נבנה מהימים שסגרתם.',
-    emptyWhat: 'סגרו יום אחד ונתחיל.',
+  month: {
+    pageTitle: 'החודש שלנו',
+    weeklyAveragesTitle: 'שבוע אחר שבוע',
+    completionTrendTitle: 'מגמת הרשימה',
+    toneTrendTitle: 'מגמת הכיבוד',
+    weekLabel: (index: number) => `שבוע ${index}`,
+    trendUp: 'במגמת עלייה',
+    trendDown: 'במגמת ירידה',
+    trendFlat: 'יציב',
+    noData: 'אין נתונים',
 
-    previousRange: 'הטווח הקודם',
-    nextRange: 'הטווח הבא',
+    emptyTitle: 'עוד אין חודש לסכם',
+    emptyWhy: 'הסיכום החודשי נבנה מהשבועות שכבר סיכמתם.',
+    emptyWhat: 'חזרו בסוף השבוע הראשון.',
   },
 
   settings: {
+    pageTitle: 'הגדרות',
     reviewTimeLabel: 'השעה שממנה אפשר לסגור את היום',
-    reviewTimeDescription:
-      'לפני השעה הזאת אי אפשר לסגור את היום. שינוי השעה לא משנה שום יום שנסגר בעבר.',
+    reviewTimeDescription: 'לפני השעה הזאת אי אפשר לסגור את היום. שינוי השעה לא משנה שום יום שנסגר בעבר.',
     reviewTimeReadOnly: 'רק הבעלים משנה את השעה המשותפת.',
-    displayOrderLabel: 'מי מוצג ראשון',
-    displayOrderDescription: 'בתצוגות שבהן שניכם מופיעים זה לצד זה.',
+    partnerTitle: 'הפרטנר',
+    partnerNone: 'עוד לא קישרתם פרטנר שני.',
+    partnerLinkAction: 'קישור פרטנר',
+    partnerLabel: 'מי הפרטנר',
   },
 
   attention: {
@@ -195,7 +221,10 @@ export const he = {
     frozenAfterReveal: 'היום הזה כבר נגלה לשניכם, ומה שנכתב נשאר כמו שהוא.',
     notYourEntry: 'אפשר לשנות רק את מה שאתם כתבתם.',
     taskChangedMeanwhile: 'המשימה השתנתה בינתיים. רעננו ונסו שוב.',
-    ratingOutOfRange: 'בחרו דירוג בין 1 ל-5.',
-    noPartnerYet: 'עוד אין פרטנר שני. הזמינו אותו כדי לסגור יום ביחד.',
+    noPartnerYet: 'עוד אין פרטנר שני. קשרו אותו בהגדרות.',
+    ownerMustBePartner: 'בחרו אחד משניכם.',
+    rateOnlyCompleted: 'אפשר לדרג רק משימה שנסגרה.',
+    rateNotOwnTask: 'את המשימות שלכם מדרג הצד השני.',
+    rateAlreadyRated: 'המשימה כבר דורגה.',
   },
 } as const;

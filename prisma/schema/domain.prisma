@@ -10,18 +10,13 @@
 // core.prisma. Then: npm run db:migrate:dev -- --name <business>_domain
 // ═══════════════════════════════════════════════════════════════════════════
 
-enum TaskFor {
-  ME
-  PARTNER
-  BOTH
-}
-
 /// A task on the couple's shared list — BUSINESS_RULES.md §3.
 ///
-/// Deliberately has NO owner column. The list is shared: either partner sees
-/// and acts on every task, and `forWhom` is information printed on the row,
-/// never a permission (R-TASK-01). The whole point of a shared list is that one
-/// partner can pick up the other's errand.
+/// Both partners SEE and may act on every task (R-TASK-01): the list is shared,
+/// and either of them can tick something off for the other. What `ownerId` adds
+/// is *responsibility*, not permission — it names whose task this is, which is
+/// what makes the rating meaningful: the partner who does NOT own a task is the
+/// one who rates how it went (R-RATE-01).
 ///
 /// Carries `version` because both partners edit the same list at the same time
 /// on two phones.
@@ -29,8 +24,10 @@ model DailyTask {
   id String @id @default(cuid())
 
   title String
-  /// Who the task is for, as written by whoever added it. ME means the creator.
-  forWhom TaskFor
+
+  /// The responsible partner. Required: an unowned task has nobody to rate.
+  ownerId String
+  owner   User   @relation("DailyTaskOwner", fields: [ownerId], references: [id], onDelete: Restrict)
 
   /// The business day this task belongs to (R-TASK-01). Never createdAt.
   taskDate DateTime @db.Date
@@ -61,13 +58,45 @@ model DailyTask {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  rating TaskRating?
+
   /// The list is read one day at a time, and the summaries read a date range;
   /// both want taskDate first. archivedAt is in the index because every
   /// working-list query excludes archived rows.
   @@index([taskDate, archivedAt])
+  @@index([ownerId])
   /// The completion split in the summaries counts by who closed it.
   @@index([completedById])
   @@index([createdById])
+}
+
+/// How the other partner felt a completed task went — BUSINESS_RULES.md §3.
+///
+/// One rating per task (`taskId @unique`), given by the partner who does NOT
+/// own it. That asymmetry is the point: rating your own work is a self-
+/// assessment, and the product already has one of those in the daily entry.
+/// This is the small, fast piece of feedback that would otherwise never be
+/// said out loud.
+///
+/// Editable by its author — changing your mind about yesterday's dishes is
+/// normal — but never deleted, because the averages in the summaries would
+/// then move for no visible reason.
+model TaskRating {
+  id String @id @default(cuid())
+
+  taskId String    @unique
+  task   DailyTask @relation(fields: [taskId], references: [id], onDelete: Restrict)
+
+  ratedById String
+  ratedBy   User   @relation("TaskRatingRatedBy", fields: [ratedById], references: [id], onDelete: Restrict)
+
+  /// 1–5. A choice, not a measurement.
+  value Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ratedById])
 }
 
 /// One partner's closing of one day — BUSINESS_RULES.md §3.
@@ -77,7 +106,7 @@ model DailyTask {
 /// No `version` column, deliberately: only its author may write it (R-DAY-03),
 /// so two people cannot edit one row and there is nothing to race.
 ///
-/// The three value columns are the most sensitive data in the product. They are
+/// Its value columns are the most sensitive data in the product. They are
 /// readable by the other partner only once that partner has submitted their own
 /// entry for the same date (R-DAY-05), which the service enforces by leaving
 /// them out of the view entirely. They never enter an audit payload (R-DAY-30).
@@ -91,9 +120,11 @@ model DayEntry {
   partnerId String
   partner   User   @relation("DayEntryPartner", fields: [partnerId], references: [id], onDelete: Restrict)
 
-  /// 1–5. A choice, not a measurement: Int with a CHECK, never money.
-  executionRating Int
-  respectRating   Int
+  /// 1–5, mutual respect and the quality of communication that day. This is
+  /// the ONLY daily rating: task execution is rated per task by the other
+  /// partner (TaskRating), so a daily execution figure would be the same
+  /// question asked twice with a worse denominator.
+  respectRating Int
 
   note String?
 

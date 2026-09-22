@@ -18,6 +18,7 @@ describe('R-ACC-01 both partners hold the whole shared day', () => {
     'tasks.edit',
     'tasks.complete',
     'tasks.archive',
+    'task_ratings.rate',
     'day_entries.submit',
     'day_entries.read',
     'summaries.read',

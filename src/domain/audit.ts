@@ -23,6 +23,7 @@ export const domainAuditVocabulary = defineAuditVocabulary({
   entityTypes: {
     daily_task: 'משימה',
     day_entry: 'סגירת יום',
+    task_rating: 'דירוג משימה',
     partnership: 'הקישור בין הפרטנרים',
   },
   actions: {
@@ -32,6 +33,8 @@ export const domainAuditVocabulary = defineAuditVocabulary({
     'task.reopened': { label: 'משימה נפתחה מחדש' },
     'task.archived': { label: 'משימה הועברה לארכיון', requiresReason: true },
     'task.restored': { label: 'משימה הוחזרה לרשימה', requiresReason: true },
+    'task_rating.given': { label: 'משימה דורגה' },
+    'task_rating.changed': { label: 'דירוג משימה שונה' },
     'day_entry.submitted': { label: 'היום נסגר' },
     'day_entry.amended': { label: 'סגירת היום שונתה' },
     'partnership.linked': { label: 'הפרטנר השני קושר' },
@@ -47,6 +50,10 @@ export const domainAuditVocabulary = defineAuditVocabulary({
     taskDate: { label: 'ליום', format: 'calendar_date' },
     dueTime: { label: 'עד שעה', format: 'instant' },
     note: { label: 'פתק' },
+    ownerId: { label: 'באחריות', format: 'reference' },
+    // Safe in the log: how the dishes went is ordinary feedback about a chore,
+    // not the private self-assessment the daily entry holds.
+    ratingValue: { label: 'דירוג' },
 
     // Day-entry fields. `entryDate` is the only value ever recorded; the two
     // markers below exist so an amendment is visible without its content.

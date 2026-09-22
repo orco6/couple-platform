@@ -1,11 +1,8 @@
--- CreateEnum
-CREATE TYPE "TaskFor" AS ENUM ('ME', 'PARTNER', 'BOTH');
-
 -- CreateTable
 CREATE TABLE "DailyTask" (
     "id" TEXT NOT NULL,
     "title" TEXT NOT NULL,
-    "forWhom" "TaskFor" NOT NULL,
+    "ownerId" TEXT NOT NULL,
     "taskDate" DATE NOT NULL,
     "dueTime" TIMESTAMP(3),
     "note" TEXT,
@@ -23,11 +20,22 @@ CREATE TABLE "DailyTask" (
 );
 
 -- CreateTable
+CREATE TABLE "TaskRating" (
+    "id" TEXT NOT NULL,
+    "taskId" TEXT NOT NULL,
+    "ratedById" TEXT NOT NULL,
+    "value" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "TaskRating_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "DayEntry" (
     "id" TEXT NOT NULL,
     "entryDate" DATE NOT NULL,
     "partnerId" TEXT NOT NULL,
-    "executionRating" INTEGER NOT NULL,
     "respectRating" INTEGER NOT NULL,
     "note" TEXT,
     "submittedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -53,10 +61,19 @@ CREATE TABLE "Partnership" (
 CREATE INDEX "DailyTask_taskDate_archivedAt_idx" ON "DailyTask"("taskDate", "archivedAt");
 
 -- CreateIndex
+CREATE INDEX "DailyTask_ownerId_idx" ON "DailyTask"("ownerId");
+
+-- CreateIndex
 CREATE INDEX "DailyTask_completedById_idx" ON "DailyTask"("completedById");
 
 -- CreateIndex
 CREATE INDEX "DailyTask_createdById_idx" ON "DailyTask"("createdById");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "TaskRating_taskId_key" ON "TaskRating"("taskId");
+
+-- CreateIndex
+CREATE INDEX "TaskRating_ratedById_idx" ON "TaskRating"("ratedById");
 
 -- CreateIndex
 CREATE INDEX "DayEntry_partnerId_entryDate_idx" ON "DayEntry"("partnerId", "entryDate");
@@ -71,6 +88,9 @@ CREATE UNIQUE INDEX "Partnership_partnerAId_key" ON "Partnership"("partnerAId");
 CREATE UNIQUE INDEX "Partnership_partnerBId_key" ON "Partnership"("partnerBId");
 
 -- AddForeignKey
+ALTER TABLE "DailyTask" ADD CONSTRAINT "DailyTask_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "DailyTask" ADD CONSTRAINT "DailyTask_completedById_fkey" FOREIGN KEY ("completedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -78,6 +98,12 @@ ALTER TABLE "DailyTask" ADD CONSTRAINT "DailyTask_createdById_fkey" FOREIGN KEY 
 
 -- AddForeignKey
 ALTER TABLE "DailyTask" ADD CONSTRAINT "DailyTask_archivedById_fkey" FOREIGN KEY ("archivedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TaskRating" ADD CONSTRAINT "TaskRating_taskId_fkey" FOREIGN KEY ("taskId") REFERENCES "DailyTask"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "TaskRating" ADD CONSTRAINT "TaskRating_ratedById_fkey" FOREIGN KEY ("ratedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "DayEntry" ADD CONSTRAINT "DayEntry_partnerId_fkey" FOREIGN KEY ("partnerId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -94,7 +120,7 @@ ALTER TABLE "Partnership" ADD CONSTRAINT "Partnership_linkedById_fkey" FOREIGN K
 -- ═══════════════════════════════════════════════════════════════════════════
 -- Invariants (hand-written; BUSINESS_RULES.md §3).
 --
--- These are in the database, not only in the services, because they are true
+-- These live in the database, not only in the services, because they are true
 -- of the data regardless of which code path wrote it — a future script, a
 -- console fix or a bug in a service must not be able to leave a half-completed
 -- task, a rating of 9, or a second couple behind.
@@ -125,12 +151,12 @@ ALTER TABLE "DailyTask" ADD CONSTRAINT "DailyTask_note_length"
 ALTER TABLE "DailyTask" ADD CONSTRAINT "DailyTask_version_positive"
   CHECK ("version" >= 1);
 
--- R-DAY-11 / R-DAY-12 — the two ratings are a choice of five steps. The scale
--- is the product's only quantitative claim; a value outside it would poison
--- every average in the summaries.
-ALTER TABLE "DayEntry" ADD CONSTRAINT "DayEntry_execution_rating_range"
-  CHECK ("executionRating" BETWEEN 1 AND 5);
+-- R-RATE-02 — the task rating is a choice of five steps, and it is the number
+-- the weekly "average task execution" figure is built from.
+ALTER TABLE "TaskRating" ADD CONSTRAINT "TaskRating_value_range"
+  CHECK ("value" BETWEEN 1 AND 5);
 
+-- R-DAY-12 — the one daily rating: mutual respect and communication.
 ALTER TABLE "DayEntry" ADD CONSTRAINT "DayEntry_respect_rating_range"
   CHECK ("respectRating" BETWEEN 1 AND 5);
 

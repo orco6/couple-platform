@@ -1,10 +1,14 @@
 /**
  * THE SHARED LIST — שנינו. BUSINESS_RULES.md §2, §3, §4.
  *
- * R-TASK-01: the list is genuinely shared. There is no owner column and no
- * per-row scope, because either partner may act on any task — that is the
- * point of a shared list, not an oversight. `forWhom` is information printed
- * on the row, never a permission.
+ * R-TASK-01: the list is genuinely shared. Both partners see every task and
+ * either may tick one off — that is the point of a shared list, not an
+ * oversight. `ownerId` names *responsibility*, never permission.
+ *
+ * What ownership buys is the rating: the partner who does NOT own a task is the
+ * one who says how it went (R-RATE-01, src/domain/tasks/task-ratings.ts). So a
+ * task's owner is load-bearing for the product's signature interaction, while
+ * still not restricting who can complete it.
  *
  * The isolation boundary for this data is therefore the DEPLOYMENT (ADR 0009,
  * one database per business), not a where-clause. `taskScope` exists anyway,
@@ -29,6 +33,7 @@ import { errors } from '@/core/errors/errors';
 import type { Prisma } from '@/generated/prisma/client';
 
 import { copy } from '../copy';
+import { PARTNERSHIP_ID } from '../partners';
 import { taskLifecycle, taskStateOf, type TaskState } from './task-lifecycle';
 
 /* ── Scope ─────────────────────────────────────────────────────────────── */
@@ -43,8 +48,6 @@ export function taskScope(_actor: Pick<Actor, 'id' | 'role'>): Prisma.DailyTaskW
 }
 
 /* ── Request schemas ───────────────────────────────────────────────────── */
-
-const TASK_FOR = ['ME', 'PARTNER', 'BOTH'] as const;
 
 /**
  * "HH:MM" or cleared. Mirrors the shape of core's `optionalCalendarDate`:
@@ -69,7 +72,9 @@ function optionalLocalTime() {
 export const createTaskSchema = z
   .object({
     title: fields.text({ label: copy.tasks.titleLabel, max: 200 }),
-    forWhom: fields.oneOf(TASK_FOR),
+    // The responsible partner, chosen from the two. Validated for shape here
+    // and for existence by the service.
+    ownerId: fields.id(),
     taskDate: fields.calendarDate(),
     dueTime: optionalLocalTime(),
     note: fields.optionalText({ label: copy.tasks.noteLabel, max: 500, multiline: true }),
@@ -81,7 +86,7 @@ export const updateTaskSchema = z
     id: fields.id(),
     version: fields.version(),
     title: fields.text({ label: copy.tasks.titleLabel, max: 200 }).optional(),
-    forWhom: fields.oneOf(TASK_FOR).optional(),
+    ownerId: fields.id().optional(),
     taskDate: fields.optionalCalendarDate(),
     dueTime: optionalLocalTime(),
     note: fields.optionalText({ label: copy.tasks.noteLabel, max: 500, multiline: true }),
@@ -108,7 +113,8 @@ export type TaskTransitionInput = z.infer<typeof taskTransitionSchema>;
 export interface TaskView {
   id: string;
   title: string;
-  forWhom: (typeof TASK_FOR)[number];
+  ownerId: string;
+  ownerName: string;
   taskDate: CalendarDate;
   /** "HH:MM" in the business timezone, or null. */
   dueTime: LocalTime | null;
@@ -119,6 +125,14 @@ export interface TaskView {
   createdByName: string;
   archiveReason: string | null;
   version: number;
+
+  /** How the other partner said it went. Null until they rate it. */
+  rating: { value: number; ratedByName: string } | null;
+  /**
+   * The owner finished it and the other partner has not rated it yet. Shown to
+   * the owner as "waiting", never as a chase: it is the other person's turn.
+   */
+  awaitingPartnerRating: boolean;
   /**
    * What the server will actually accept for this row in this state. An
    * archived task offers no complete/reopen/edit, because those would be
@@ -131,13 +145,16 @@ export interface TaskView {
     edit: boolean;
     archive: boolean;
     restore: boolean;
+    /** Only the non-owner, only once it is finished (R-RATE-01). */
+    rate: boolean;
   };
 }
 
 const TASK_SELECT = {
   id: true,
   title: true,
-  forWhom: true,
+  ownerId: true,
+  owner: { select: { name: true } },
   taskDate: true,
   dueTime: true,
   note: true,
@@ -148,6 +165,7 @@ const TASK_SELECT = {
   archivedAt: true,
   archiveReason: true,
   version: true,
+  rating: { select: { value: true, ratedById: true, ratedBy: { select: { name: true } } } },
 } as const;
 
 type TaskRow = Prisma.DailyTaskGetPayload<{ select: typeof TASK_SELECT }>;
@@ -157,10 +175,14 @@ function toView(row: TaskRow, actor: Pick<Actor, 'id' | 'role'>): TaskView {
   const can = permissionChecker(actor);
   const allowed = new Set(taskLifecycle.available(state, { can }).map((transition) => transition.name));
 
+  const rated = row.rating;
+  const isMine = row.ownerId === actor.id;
+
   return {
     id: row.id,
     title: row.title,
-    forWhom: row.forWhom,
+    ownerId: row.ownerId,
+    ownerName: row.owner.name,
     taskDate: fromDbDate(row.taskDate),
     // Stored as an instant; the form and the row both want the wall clock back.
     dueTime: row.dueTime ? instantToLocalTime(row.dueTime) : null,
@@ -171,12 +193,21 @@ function toView(row: TaskRow, actor: Pick<Actor, 'id' | 'role'>): TaskView {
     createdByName: row.createdBy.name,
     archiveReason: row.archiveReason,
     version: row.version,
+    rating: rated ? { value: rated.value, ratedByName: rated.ratedBy.name } : null,
+    awaitingPartnerRating: state === 'COMPLETED' && rated === null && isMine,
     permissions: {
       complete: allowed.has('complete'),
       reopen: allowed.has('reopen'),
       edit: state !== 'ARCHIVED' && can('tasks.edit'),
       archive: allowed.has('archive'),
       restore: allowed.has('restore'),
+      // The flag the UI renders from must match what rateTask() accepts, or
+      // the screen offers an action the server refuses.
+      rate:
+        state === 'COMPLETED' &&
+        !isMine &&
+        can('task_ratings.rate') &&
+        (rated === null || rated.ratedById === actor.id),
     },
   };
 }
@@ -227,21 +258,46 @@ export async function listArchivedTasks(client: DbClient, actor: Actor): Promise
   return rows.map((row) => toView(row, actor));
 }
 
+/** What a summary needs from a task. Deliberately small. */
+export interface TaskSummaryRow {
+  taskDate: CalendarDate;
+  title: string;
+  ownerId: string;
+  completedById: string | null;
+  /** The other partner's 1–5, or null while it is still waiting. */
+  ratingValue: number | null;
+}
+
 /** Non-archived tasks whose day falls in [from, toExclusive) — for summaries. */
 export async function listTasksInRange(
   client: DbClient,
   actor: Actor,
   from: CalendarDate,
   toExclusive: CalendarDate,
-): Promise<Array<{ completedById: string | null }>> {
+): Promise<TaskSummaryRow[]> {
   assertCan(actor, 'summaries.read');
 
-  return client.dailyTask.findMany({
+  const rows = await client.dailyTask.findMany({
     where: {
       AND: [taskScope(actor), activeOnly, { taskDate: { gte: toDbDate(from), lt: toDbDate(toExclusive) } }],
     },
-    select: { completedById: true },
+    select: {
+      taskDate: true,
+      title: true,
+      ownerId: true,
+      completedById: true,
+      rating: { select: { value: true } },
+    },
+    orderBy: [{ taskDate: 'asc' }, { id: 'asc' }],
   });
+
+  return rows.map((row) => ({
+    taskDate: fromDbDate(row.taskDate),
+    title: row.title,
+    ownerId: row.ownerId,
+    completedById: row.completedById,
+    ratingValue: row.rating?.value ?? null,
+  }));
 }
 
 export async function getTask(client: DbClient, actor: Actor, id: string): Promise<TaskView> {
@@ -280,11 +336,13 @@ export async function createTask(client: DbClient, actor: Actor, input: CreateTa
   const note = input.note ?? null;
 
   return inTransaction(client, async (tx) => {
+    await assertIsPartner(tx, input.ownerId);
+
     const created = await tx.dailyTask.create({
       // Explicit field list: never spread request input into `data`.
       data: {
         title,
-        forWhom: input.forWhom,
+        ownerId: input.ownerId,
         taskDate: toDbDate(taskDate),
         dueTime: dueInstant(taskDate, input.dueTime),
         note,
@@ -299,7 +357,7 @@ export async function createTask(client: DbClient, actor: Actor, input: CreateTa
       action: 'task.created',
       entityType: 'daily_task',
       entityId: created.id,
-      after: { title, forWhom: input.forWhom, taskDate },
+      after: { title, taskDate },
     });
 
     return toView(created, actor);
@@ -328,9 +386,12 @@ export async function updateTask(client: DbClient, actor: Actor, input: UpdateTa
       data.title = input.title;
       after.title = input.title;
     }
-    if (input.forWhom !== undefined) {
-      data.forWhom = input.forWhom;
-      after.forWhom = input.forWhom;
+    if (input.ownerId !== undefined) {
+      // Authority-carrying field: who owns a task decides who may rate it, so
+      // it is checked on its own rather than trusted from the body.
+      await assertIsPartner(tx, input.ownerId);
+      data.ownerId = input.ownerId;
+      after.ownerId = input.ownerId;
     }
     if (input.taskDate !== undefined) {
       data.taskDate = toDbDate(taskDate);
@@ -446,4 +507,22 @@ export async function transitionTask(
 
     return toView(row, actor);
   });
+}
+
+/**
+ * A task's owner must be one of the two linked partners.
+ *
+ * Without this, a stale or hostile client could own a task to a disabled
+ * account or to a spare user, and the rating rule ("the partner who is not the
+ * owner rates it") would have nobody on the other side.
+ */
+async function assertIsPartner(client: DbClient, userId: string): Promise<void> {
+  const link = await client.partnership.findUnique({
+    where: { id: PARTNERSHIP_ID },
+    select: { partnerAId: true, partnerBId: true },
+  });
+  if (!link) throw errors.businessRule('NO_PARTNERSHIP', copy.errors.noPartnerYet);
+  if (userId !== link.partnerAId && userId !== link.partnerBId) {
+    throw errors.validation(undefined, { ownerId: copy.errors.ownerMustBePartner });
+  }
 }
