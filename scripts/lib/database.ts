@@ -56,6 +56,23 @@ export function run(command: string, env: NodeJS.ProcessEnv = process.env): void
   execSync(command, { stdio: 'inherit', env });
 }
 
+/**
+ * Run a command for its OUTPUT, not for its exit code.
+ *
+ * `prisma migrate status` exits 1 whenever migrations are pending — which is
+ * always true on a fresh database. Running it through `run()` therefore threw
+ * before `migrate deploy` was ever reached, so the first deployment to a new
+ * database could not be made with the guarded script. Its report is still
+ * printed: it is what tells the operator what is about to be applied.
+ */
+export function report(command: string, env: NodeJS.ProcessEnv = process.env): void {
+  try {
+    execSync(command, { stdio: 'inherit', env });
+  } catch {
+    // The status itself is the answer; a non-zero exit is part of it.
+  }
+}
+
 export const RESET_SCHEMA_SQL = join(process.cwd(), 'scripts', 'sql', 'reset-schema.sql');
 
 /**

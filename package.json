@@ -27,6 +27,7 @@
     "db:deploy": "tsx scripts/db.ts deploy",
     "db:reset:local": "tsx scripts/db.ts reset-local",
     "db:seed:dev": "tsx scripts/db.ts seed-dev",
+    "db:seed:preview": "tsx scripts/seed-preview.ts",
     "db:bootstrap-owner": "tsx scripts/bootstrap-owner.ts",
     "db:backup": "tsx scripts/backup.ts",
     "db:push": "node -e \"console.error('prisma db push is disabled in this project. Create a migration: npm run db:migrate:dev -- --name <change>'); process.exit(1)\"",
@@ -34,6 +35,7 @@
     "postinstall": "prisma generate",
     "foundation:new-business": "tsx scripts/new-business.ts",
     "qa:screenshots": "playwright test -c playwright.qa.config.ts",
+    "smoke": "playwright test -c playwright.smoke.config.ts",
     "qa:brand-proof": "node scripts/qa/brand-proof.mjs"
   },
   "dependencies": {

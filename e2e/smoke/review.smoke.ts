@@ -1,0 +1,189 @@
+/**
+ * The deployed review environment, checked the way a reviewer will use it.
+ *
+ * Scope is deliberately narrow: this is not the E2E suite (CI already ran it
+ * against the same commit). It answers one question — does the real product,
+ * on the real database, behind the real proxy, work on a phone?
+ *
+ * It writes only its own rows, and it does not spend the demo: today is left
+ * unclosed so the reviewer can close it themselves, and the reveal is checked
+ * on a day the fixtures already revealed.
+ */
+
+import { expect, test, type Page } from '@playwright/test';
+
+import { copy } from '@/domain/copy';
+
+const A = 'review-partner-a';
+const B = 'review-partner-b';
+
+const PASSWORD_A = process.env.REVIEW_PASSWORD_A ?? '';
+const PASSWORD_B = process.env.REVIEW_PASSWORD_B ?? '';
+
+function today(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' });
+}
+
+function daysAgo(n: number): string {
+  const date = new Date(`${today()}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - n);
+  return date.toISOString().slice(0, 10);
+}
+
+/** Console errors, uncaught exceptions and failed application requests. */
+function watch(page: Page) {
+  const problems: string[] = [];
+  page.on('console', (message) => {
+    if (message.type() !== 'error') return;
+    const text = message.text();
+    // A 4xx on an API call is the product refusing something on purpose; the
+    // specs below assert those outcomes directly. 5xx is caught separately.
+    if (/status of 4\d\d/.test(text)) return;
+    problems.push(`console: ${text.slice(0, 200)}`);
+  });
+  page.on('pageerror', (error) => problems.push(`pageerror: ${error.message.slice(0, 200)}`));
+  page.on('response', (response) => {
+    if (response.status() >= 500) problems.push(`${response.status()} ${response.url()}`);
+    if (response.status() === 404 && new URL(response.url()).pathname.startsWith('/api/')) {
+      problems.push(`404 ${response.url()}`);
+    }
+  });
+  return { assertClean: () => expect(problems, problems.join('\n')).toEqual([]) };
+}
+
+async function signIn(page: Page, username: string, password: string) {
+  await page.goto('/login');
+  await page.getByLabel('שם משתמש').fill(username);
+  await page.getByLabel('סיסמה', { exact: true }).fill(password);
+  await page.getByRole('button', { name: 'כניסה' }).click();
+  await page.waitForURL((url) => !url.pathname.startsWith('/login'));
+}
+
+async function signOut(page: Page) {
+  await page.getByRole('button', { name: 'עוד' }).click();
+  await page.getByTestId('mobile-more-sheet').getByRole('button', { name: 'יציאה' }).click();
+  await page.waitForURL(/\/login/);
+}
+
+function card(page: Page, title: string) {
+  return page.getByRole('listitem').filter({ hasText: title });
+}
+
+/** Adds a task through the sheet and returns its title. */
+async function addTask(page: Page, title: string, owner: 'me' | 'partner') {
+  await page.goto('/');
+  await page.getByRole('button', { name: copy.tasks.addAction }).first().click();
+  const sheet = page.getByRole('dialog');
+  await sheet.getByLabel(copy.tasks.titleLabel).fill(title);
+  await sheet.getByRole('group', { name: copy.tasks.ownerLabel }).locator('label').nth(owner === 'me' ? 0 : 1).click();
+  await sheet.getByRole('button', { name: copy.common.add }).click();
+  await expect(sheet).toBeHidden();
+  await expect(page.getByText(title, { exact: true })).toBeVisible();
+  return title;
+}
+
+test.beforeAll(() => {
+  expect(PASSWORD_A, 'REVIEW_PASSWORD_A is required').not.toBe('');
+  expect(PASSWORD_B, 'REVIEW_PASSWORD_B is required').not.toBe('');
+});
+
+test('the deployment answers and serves its own security headers', async ({ request }) => {
+  const health = await request.get('/api/health');
+  expect(health.status()).toBe(200);
+  expect((await health.json()).status).toBe('ok');
+
+  const page = await request.get('/login');
+  expect(page.status()).toBe(200);
+  const headers = page.headers();
+  expect(headers['content-security-policy'], 'CSP is served').toMatch(/script-src[^;]*'nonce-/);
+  expect(headers['x-frame-options']).toBe('DENY');
+  // HSTS is only sent over HTTPS, which is the only way the deployment is
+  // reached; a local dry-run of this file over http has nothing to assert.
+  if (page.url().startsWith('https://')) {
+    expect(headers['strict-transport-security'], 'HSTS').toBeTruthy();
+  }
+});
+
+test('both partners sign in, and the list is genuinely shared', async ({ page }) => {
+  const problems = watch(page);
+  const stamp = Date.now().toString(36).slice(-4);
+
+  // ── Partner A ──────────────────────────────────────────────────────────
+  await signIn(page, A, PASSWORD_A);
+  await expect(page.getByRole('heading', { level: 1, name: copy.tasks.pageTitle })).toBeVisible();
+
+  // A task A owns: A finishes it and is told they are waiting. No stars for
+  // the person whose task it is.
+  const mine = await addTask(page, `בדיקה ${stamp} — שלי`, 'me');
+  await card(page, mine).getByRole('button', { name: copy.tasks.completeAction }).click();
+  await expect(card(page, mine).getByText(copy.taskRating.awaitingShort, { exact: false })).toBeVisible();
+  await expect(card(page, mine).getByRole('radio')).toHaveCount(0);
+
+  // A task B owns: A finishes it, and A may rate it.
+  const theirs = await addTask(page, `בדיקה ${stamp} — של הפרטנר`, 'partner');
+  await card(page, theirs).getByRole('button', { name: copy.tasks.completeAction }).click();
+  await card(page, theirs).getByRole('radio').nth(3).click();
+  await expect(card(page, theirs).getByRole('radio', { checked: true })).toHaveAttribute('aria-label', /^4 —/);
+
+  // The write survived the round trip, not just the optimistic render.
+  await page.reload();
+  await expect(card(page, theirs).getByRole('radio', { checked: true })).toHaveAttribute('aria-label', /^4 —/);
+
+  // ── Partner B ──────────────────────────────────────────────────────────
+  await signOut(page);
+  await signIn(page, B, PASSWORD_B);
+  await page.goto('/');
+
+  // B sees A's list, and may rate the task A owns — which A could not.
+  await expect(card(page, mine).getByRole('radio')).toHaveCount(5);
+  await card(page, mine).getByRole('radio').nth(4).click();
+  await expect(card(page, mine).getByRole('radio', { checked: true })).toHaveAttribute('aria-label', /^5 —/);
+
+  problems.assertClean();
+});
+
+test('the day closes, waits, and reveals', async ({ page }) => {
+  const problems = watch(page);
+  await signIn(page, A, PASSWORD_A);
+
+  // A day neither of them closed, so this can run at any hour and does not
+  // spend today — the reviewer closes today themselves.
+  await page.goto(`/review?date=${daysAgo(5)}`);
+  await page.getByRole('radio', { name: /^4 —/ }).click();
+  await page.getByRole('button', { name: copy.day.submitAction }).click();
+  await expect(page.getByText(copy.day.waitingTitle('מיכל ביטון'))).toBeVisible();
+
+  // A day both of them closed: both answers, and no way back.
+  await page.goto(`/review?date=${daysAgo(2)}`);
+  await expect(page.getByText(copy.day.revealedTitle)).toBeVisible();
+  await expect(page.getByRole('button', { name: copy.common.save })).toHaveCount(0);
+
+  problems.assertClean();
+});
+
+test('the summaries load and the phone bar reaches every screen', async ({ page }) => {
+  const problems = watch(page);
+  await signIn(page, A, PASSWORD_A);
+
+  const bar = page.locator('[data-mobile-tab-bar]');
+  await expect(bar).toBeVisible();
+
+  for (const [label, url, heading] of [
+    [copy.nav.week, /\/week$/, copy.week.pageTitle],
+    [copy.nav.month, /\/month$/, copy.month.pageTitle],
+    [copy.nav.review, /\/review$/, copy.day.pageTitle],
+    [copy.nav.today, /\/$/, copy.tasks.pageTitle],
+  ] as const) {
+    await bar.getByRole('link', { name: label }).click();
+    await page.waitForURL(url);
+    await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible();
+  }
+
+  // The summaries have real figures behind them, not empty states.
+  await page.goto('/week');
+  await expect(page.getByText(/^\d{1,3}%$/)).toBeVisible();
+  await page.goto('/month');
+  await expect(page.getByText(copy.month.weeklyAveragesTitle).first()).toBeVisible();
+
+  problems.assertClean();
+});

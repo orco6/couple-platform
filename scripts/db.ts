@@ -12,7 +12,7 @@
  * migration file, which is how production drifts from the repository.
  */
 
-import { printTarget, guard, rebuildSchema, requireDatabaseUrl, run } from './lib/database';
+import { printTarget, guard, rebuildSchema, report, requireDatabaseUrl, run } from './lib/database';
 import { seedDevData } from './lib/fixtures';
 
 const [command, ...rest] = process.argv.slice(2);
@@ -61,7 +61,7 @@ async function main() {
         console.error('Before production: take a backup, read PRODUCTION_READINESS.md → Migrations.\n');
         process.exit(2);
       }
-      run('npx prisma migrate status', { ...process.env, DIRECT_URL: deployUrl });
+      report('npx prisma migrate status', { ...process.env, DIRECT_URL: deployUrl });
       run('npx prisma migrate deploy', { ...process.env, DIRECT_URL: deployUrl });
       return;
     }
