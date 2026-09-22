@@ -208,8 +208,24 @@ export const he = {
     emptyWhat: 'חזרו בסוף השבוע הראשון.',
   },
 
+  archivePage: {
+    pageTitle: 'בארכיון',
+    description: 'משימות שהוצאתם מהרשימה. הן לא נספרות בסיכומים, והן לא נמחקות.',
+    emptyTitle: 'הארכיון ריק',
+    emptyWhy: 'משימה שיוצאת מהרשימה מופיעה כאן, עם הסיבה שכתבתם.',
+    reasonGiven: 'הסיבה שנכתבה',
+    restoreTitle: 'החזרה לרשימה',
+    restoreBody: 'המשימה תחזור לרשימה כפתוחה, ביום שהיא הייתה משויכת אליו.',
+    restoreReasonLabel: 'למה היא חוזרת',
+  },
+
   settings: {
     pageTitle: 'הגדרות',
+    reviewTimeSaved: 'השעה נשמרה',
+    partnerSaved: 'הפרטנר קושר',
+    partnerBoth: (a: string, b: string) => `${a} ו${b}`,
+    partnerLinkHint: 'הפרטנר צריך חשבון פעיל. חשבון חדש נוצר במסך המשתמשים.',
+    noLinkableUsers: 'אין עוד חשבון פעיל לקשר. צרו אחד במסך המשתמשים.',
     reviewTimeLabel: 'השעה שממנה אפשר לסגור את היום',
     reviewTimeDescription: 'לפני השעה הזאת אי אפשר לסגור את היום. שינוי השעה לא משנה שום יום שנסגר בעבר.',
     reviewTimeReadOnly: 'רק הבעלים משנה את השעה המשותפת.',

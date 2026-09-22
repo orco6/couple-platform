@@ -38,9 +38,21 @@ export async function completeTask(page: Page, title: string): Promise<void> {
   await taskCard(page, title).getByRole('button', { name: copy.tasks.completeAction }).click();
 }
 
-/** Signs out through the UI, the way a person does. */
+/**
+ * Signs out through the UI, the way a person does — which is a different
+ * gesture on each layout: the sidebar holds it on a desktop, and on a phone it
+ * is inside the "more" sheet.
+ */
 export async function signOut(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'יציאה' }).first().click();
+  const more = page.getByRole('button', { name: 'עוד' });
+  if (await more.isVisible()) {
+    await more.click();
+    const sheet = page.getByTestId('mobile-more-sheet');
+    await expect(sheet).toBeVisible();
+    await sheet.getByRole('button', { name: 'יציאה' }).click();
+  } else {
+    await page.getByRole('button', { name: 'יציאה' }).first().click();
+  }
   await page.waitForURL(/\/login/);
 }
 

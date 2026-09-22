@@ -20,6 +20,7 @@ import { defineAttentionRule, type AttentionRule } from '@/core/follow-ups/atten
 import { formatCalendarDate } from '@/core/dates/calendar-date';
 
 import { copy } from './copy';
+import { coupleIds, isInCouple } from './partners';
 
 /** How far back it is still worth offering to fill a day in. */
 const WINDOW_DAYS = 14;
@@ -34,6 +35,13 @@ const unclosedDays = defineAttentionRule({
     // past days at all".
     if (!can(actor, 'summaries.read')) return { items: [], total: 0 };
 
+    // And the link is what says WHICH days. Without this the rule would read
+    // every DayEntry row on the deployment, so a signed-in account outside the
+    // couple would be told, day by day, which evenings these two closed — the
+    // dates alone, but the dates alone are still theirs.
+    const link = await coupleIds(client);
+    if (!isInCouple(link, actor.id) || !link) return { items: [], total: 0 };
+
     const today = todayIn();
     // Yesterday is excluded: a day that only ended a few hours ago is not yet
     // something to be reminded about.
@@ -41,7 +49,10 @@ const unclosedDays = defineAttentionRule({
     const oldest = addDays(today, -(WINDOW_DAYS + 1));
 
     const rows = await client.dayEntry.findMany({
-      where: { entryDate: { gte: toDbDate(oldest), lte: toDbDate(newest) } },
+      where: {
+        partnerId: { in: [link.partnerAId, link.partnerBId] },
+        entryDate: { gte: toDbDate(oldest), lte: toDbDate(newest) },
+      },
       select: { entryDate: true },
     });
     const closed = new Set(rows.map((row) => fromDbDate(row.entryDate)));
