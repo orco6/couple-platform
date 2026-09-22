@@ -1,0 +1,250 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// CORE PLATFORM MODELS
+//
+// Rarely modified. A new business project should not need to edit this file
+// except for the clearly marked "domain back-relations" block on User, which
+// Prisma requires for every relation a domain model declares to User.
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+/// A person who can sign in.
+///
+/// Never hard-deleted: history (audit, authored records, snapshots) must keep
+/// resolving. Removal is status = DISABLED, which ends every session at once.
+model User {
+  id                 String     @id @default(cuid())
+  /// Display name as the business writes it (usually Hebrew).
+  name               String
+  /// Sign-in identifier. Stored normalized (lowercase latin). Unique.
+  username           String     @unique
+  email              String?    @unique
+  /// scrypt hash with its parameters (src/core/auth/password-hash.ts).
+  /// Never selected into anything that leaves the server.
+  passwordHash       String
+  /// Role key defined by the domain (src/domain/access.ts). A string rather
+  /// than an enum so each business defines its roles without a core migration.
+  role               String
+  status             UserStatus @default(ACTIVE)
+  /// True for every account whose password was set by someone else
+  /// (creation, admin reset). Enforced on every page AND every API call.
+  mustChangePassword Boolean    @default(true)
+  passwordChangedAt  DateTime?
+  lastLoginAt        DateTime?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  sessions          Session[]
+  auditEvents       AuditEvent[] @relation("AuditActor")
+  settingsChanged   Setting[]    @relation("SettingEditor")
+  periodsClosed     PeriodLock[] @relation("PeriodCloser")
+  periodsReopened   PeriodLock[] @relation("PeriodReopener")
+  snapshotsTaken    Snapshot[]   @relation("SnapshotCreator")
+  followUpsCreated  FollowUp[]   @relation("FollowUpCreator")
+  followUpsAssigned FollowUp[]   @relation("FollowUpAssignee")
+  followUpsResolved FollowUp[]   @relation("FollowUpResolver")
+
+  // ── Domain back-relations (edit per project) ─────────────────────────────
+  // Prisma requires the other side of every relation a domain model declares
+  // to User. Keep them in this block so the rest of the model stays stable.
+  customersOwned    Customer[] @relation("CustomerOwner")
+  customersCreated  Customer[] @relation("CustomerCreator")
+  customersArchived Customer[] @relation("CustomerArchiver")
+  tasksAssigned     Task[]     @relation("TaskAssignee")
+  tasksCreated      Task[]     @relation("TaskCreator")
+  tasksUpdated      Task[]     @relation("TaskUpdater")
+  tasksArchived     Task[]     @relation("TaskArchiver")
+  notesWritten      Note[]     @relation("NoteAuthor")
+  notesDeleted      Note[]     @relation("NoteDeleter")
+  // ─────────────────────────────────────────────────────────────────────────
+
+  @@index([role, status])
+}
+
+/// Server-side session. The cookie holds a 256-bit random token; only its
+/// SHA-256 digest is stored, so a database leak cannot be replayed as a login.
+model Session {
+  id                String   @id @default(cuid())
+  tokenHash         String   @unique
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+  lastSeenAt        DateTime @default(now())
+  /// Sliding idle expiry, extended (at most once per refresh interval) on use.
+  expiresAt         DateTime
+  /// Hard cap. A session never lives past this, however active it is.
+  absoluteExpiresAt DateTime
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+/// Failed sign-in counters. Database-backed so throttling holds across
+/// serverless instances and restarts (an in-memory Map does not).
+/// Keys are hashed; no raw username or IP address is stored.
+model LoginThrottle {
+  key         String    @id
+  failures    Int
+  windowStart DateTime
+  lockedUntil DateTime?
+  updatedAt   DateTime  @updatedAt
+
+  @@index([updatedAt])
+}
+
+/// Append-only record of meaningful actions.
+///
+/// Append-only is enforced by the database, not just by convention: a trigger
+/// rejects UPDATE and DELETE (see the core migration). Secrets never enter:
+/// payloads pass through src/core/audit/redact.ts.
+model AuditEvent {
+  id            String   @id @default(cuid())
+  occurredAt    DateTime @default(now())
+  /// Namespaced verb, e.g. "user.password_reset", "customer.archived".
+  action        String
+  /// E.g. "user", "customer". Vocabulary lives in core + domain registries.
+  entityType    String
+  entityId      String
+  /// Null only for system actions (bootstrap scripts).
+  actorId       String?
+  actor         User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: Restrict)
+  /// Actor display name AT THE TIME. Renaming someone must not rewrite history.
+  actorLabel    String
+  /// The user an event is about, when that is not the actor (e.g. a reset).
+  subjectUserId String?
+  before        Json?
+  after         Json?
+  metadata      Json?
+  /// Required for actions registered as reason-required.
+  reason        String?
+
+  @@index([entityType, entityId, occurredAt])
+  @@index([actorId, occurredAt])
+  @@index([subjectUserId, occurredAt])
+  @@index([action, occurredAt])
+  @@index([occurredAt])
+}
+
+/// Business settings changeable without a deploy. Typed and defaulted in code
+/// (src/core/settings); a missing row means "default".
+model Setting {
+  key         String   @id
+  value       Json
+  updatedById String?
+  updatedBy   User?    @relation("SettingEditor", fields: [updatedById], references: [id], onDelete: Restrict)
+  updatedAt   DateTime @updatedAt
+}
+
+enum PeriodLockStatus {
+  OPEN
+  CLOSED
+}
+
+/// Closing a period (a month) for a named ledger scope, e.g. "revenue".
+/// While CLOSED, writes that would change that period's figures are refused.
+/// A missing row means the period has never been closed (i.e. OPEN).
+model PeriodLock {
+  id           String           @id @default(cuid())
+  scope        String
+  year         Int
+  month        Int
+  status       PeriodLockStatus
+  closedAt     DateTime?
+  closedById   String?
+  closedBy     User?            @relation("PeriodCloser", fields: [closedById], references: [id], onDelete: Restrict)
+  reopenedAt   DateTime?
+  reopenedById String?
+  reopenedBy   User?            @relation("PeriodReopener", fields: [reopenedById], references: [id], onDelete: Restrict)
+  reopenReason String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@unique([scope, year, month])
+}
+
+/// A calculated result that became authoritative, stored instead of being
+/// recalculated forever. Written when a period closes (or a report is
+/// approved). Never edited: a re-close supersedes old rows, never deletes them.
+///
+/// `data` holds the figures AND the inputs that produced them, validated by a
+/// schema on read. Domains that need to query snapshot figures relationally
+/// should add their own typed snapshot table instead (FOUNDATION.md).
+model Snapshot {
+  id                 String    @id @default(cuid())
+  /// Namespaced kind, e.g. "revenue.monthly_by_assignee".
+  kind               String
+  periodYear         Int?
+  periodMonth        Int?
+  subjectType        String?
+  subjectId          String?
+  /// Bumped whenever the calculation changes meaningfully, so an old snapshot
+  /// can always be explained by the version that produced it.
+  calculationVersion Int
+  data               Json
+  createdAt          DateTime  @default(now())
+  createdById        String?
+  createdBy          User?     @relation("SnapshotCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  /// Set when a later close replaced this snapshot. Null = current.
+  supersededAt       DateTime?
+
+  @@index([kind, periodYear, periodMonth, supersededAt])
+  @@index([subjectType, subjectId])
+}
+
+enum FollowUpStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+/// A record that is VALID but NEEDS ATTENTION, raised by a person.
+/// Derived attention items (computed from current data) are not stored;
+/// see src/core/follow-ups/attention.ts.
+model FollowUp {
+  id           String         @id @default(cuid())
+  entityType   String
+  entityId     String
+  /// Domain vocabulary, e.g. "missing_document", "payment_delayed".
+  kind         String
+  note         String?
+  status       FollowUpStatus @default(OPEN)
+  dueDate      DateTime?      @db.Date
+  assigneeId   String?
+  assignee     User?          @relation("FollowUpAssignee", fields: [assigneeId], references: [id], onDelete: Restrict)
+  createdById  String
+  createdBy    User           @relation("FollowUpCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  resolvedById String?
+  resolvedBy   User?          @relation("FollowUpResolver", fields: [resolvedById], references: [id], onDelete: Restrict)
+  resolvedAt   DateTime?
+  resolution   String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([status, dueDate])
+  @@index([entityType, entityId])
+  @@index([assigneeId, status])
+}
+
+/// Duplicate-submission protection for create-style requests.
+/// The client sends an Idempotency-Key; the first request with a key wins and
+/// a repeat receives the stored response instead of creating a second record.
+model IdempotencyRecord {
+  id             String   @id @default(cuid())
+  key            String
+  userId         String
+  scope          String
+  /// SHA-256 of the request body. A key reused with a different body is refused
+  /// instead of replaying a response that belongs to other data.
+  /// Nullable only for rows written before this column existed.
+  fingerprint    String?
+  /// Null while the first request is still running.
+  responseStatus Int?
+  responseBody   Json?
+  createdAt      DateTime @default(now())
+
+  @@unique([userId, scope, key])
+  @@index([createdAt])
+}

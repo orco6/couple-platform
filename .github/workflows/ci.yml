@@ -1,0 +1,176 @@
+# Continuous integration: every push and pull request.
+#
+# Runs against a throwaway PostgreSQL service container. Holds no production
+# credential and deploys nothing. Migrations are replayed from scratch by the
+# integration suite, so a broken or out-of-order migration fails HERE.
+#
+# Production migrations are deliberately NOT automated (PRODUCTION_READINESS.md
+# → Migrations): a person runs `npm run db:deploy -- --confirm <db>` after a backup.
+
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: 'true'
+  APP_ENV: test
+  NEXT_TELEMETRY_DISABLED: '1'
+  # Only for `prisma generate` / build; each suite pins its own database.
+  DATABASE_URL: postgresql://bpf:bpf-local-only@127.0.0.1:5434/bpf_dev
+
+jobs:
+  checks:
+    name: Typecheck, lint, unit, integration, migrations, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: bpf
+          POSTGRES_PASSWORD: bpf-local-only
+          POSTGRES_DB: bpf_dev
+        ports: ['5434:5432']
+        options: >-
+          --health-cmd "pg_isready -U bpf -d bpf_dev"
+          --health-interval 3s --health-timeout 3s --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci --no-audit --fund=false
+
+      - name: Dependency audit (runtime dependencies)
+        # Dev tooling advisories are reviewed manually; anything shipped to users must be clean.
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Create test databases
+        run: psql "postgresql://bpf:bpf-local-only@127.0.0.1:5434/bpf_dev" -v ON_ERROR_STOP=1 -f scripts/sql/init-local-databases.sql
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint (ESLint + invisible-character check)
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: Integration tests (real PostgreSQL, migrations replayed)
+        run: npm run test:integration
+
+      - name: Schema matches migrations (no un-migrated schema change)
+        env:
+          DATABASE_URL: postgresql://bpf:bpf-local-only@127.0.0.1:5434/bpf_test
+          DIRECT_URL: postgresql://bpf:bpf-local-only@127.0.0.1:5434/bpf_test
+        run: npx prisma migrate diff --from-config-datasource --to-schema prisma/schema --exit-code
+
+      - name: Production build
+        run: npm run build
+
+  e2e:
+    name: End-to-end (Playwright, production build)
+    runs-on: ubuntu-latest
+    needs: checks
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: bpf
+          POSTGRES_PASSWORD: bpf-local-only
+          POSTGRES_DB: bpf_dev
+        ports: ['5434:5432']
+        options: >-
+          --health-cmd "pg_isready -U bpf -d bpf_dev"
+          --health-interval 3s --health-timeout 3s --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --fund=false
+      - name: Create test databases
+        run: psql "postgresql://bpf:bpf-local-only@127.0.0.1:5434/bpf_dev" -v ON_ERROR_STOP=1 -f scripts/sql/init-local-databases.sql
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Playwright
+        run: npm run e2e
+      - name: Keep the report and traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
+  blank-foundation:
+    # Proves the path every real project takes: remove the sample domain with
+    # `foundation:new-business`, then the blank foundation must still typecheck,
+    # lint, pass every CORE test (unit, integration, E2E) and build. If a core
+    # test secretly depends on the sample, this job fails.
+    name: Blank foundation (sample removed)
+    runs-on: ubuntu-latest
+    needs: checks
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: bpf
+          POSTGRES_PASSWORD: bpf-local-only
+          POSTGRES_DB: bpf_dev
+        ports: ['5434:5432']
+        options: >-
+          --health-cmd "pg_isready -U bpf -d bpf_dev"
+          --health-interval 3s --health-timeout 3s --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --fund=false
+      - name: Remove the sample domain
+        run: npm run foundation:new-business -- --skip-rename
+      - name: Create test databases
+        run: psql "postgresql://bpf:bpf-local-only@127.0.0.1:5434/bpf_dev" -v ON_ERROR_STOP=1 -f scripts/sql/init-local-databases.sql
+      - run: npx prisma generate
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test:unit
+      - run: npm run test:integration
+      - name: Schema matches migrations
+        env:
+          DATABASE_URL: postgresql://bpf:bpf-local-only@127.0.0.1:5434/bpf_test
+          DIRECT_URL: postgresql://bpf:bpf-local-only@127.0.0.1:5434/bpf_test
+        run: npx prisma migrate diff --from-config-datasource --to-schema prisma/schema --exit-code
+      - run: npx playwright install --with-deps chromium
+      - name: Core E2E on the blank foundation
+        run: npm run e2e
+      - name: Keep the report and traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-blank-foundation
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14

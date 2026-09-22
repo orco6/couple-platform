@@ -1,0 +1,26 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// Prisma schema — split by ownership.
+//
+//   schema.prisma   generator + datasource (rarely touched)
+//   core.prisma     CORE PLATFORM models: users, sessions, audit, settings,
+//                   period locks, snapshots, follow-ups, idempotency.
+//                   Stable. Change only with an ADR.
+//   domain.prisma   BUSINESS DOMAIN models. Replace per project.
+//
+// Conventions (docs/adr/0004-database-conventions.md):
+//   • Money is Int minor units (agorot). Never Float.
+//   • Business calendar dates use @db.Date. Instants use DateTime.
+//   • createdAt/updatedAt are bookkeeping, never a business date.
+//   • Nothing financially meaningful is hard-deleted: archive or soft-delete.
+//   • Every schema change is a migration. `prisma db push` is disabled.
+// ═══════════════════════════════════════════════════════════════════════════
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}

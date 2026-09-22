@@ -1,0 +1,105 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   BRAND THEME — replace per project.
+
+   Raw values only. Components never read these directly; they use the semantic
+   tokens mapped in src/core/ui/styles/foundation.css (bg-surface, text-ink,
+   border-rule, bg-accent…). Changing a business's visual identity means editing
+   this file, brand/brand.ts, brand/Logo.tsx and app/icon.svg — nothing else.
+
+   The default identity ("יסוד") is intentionally restrained: warm stone paper,
+   near-black ink, one deep green accent used sparingly. It is a neutral
+   starting point, not a template to keep. Give every business its own.
+   See DESIGN_REVIEW.md → "Giving a business its identity".
+
+   Contrast (checked against #ffffff unless noted):
+     ink          #1c1c1a  17.2:1
+     ink-muted    #55534e   7.6:1
+     ink-subtle   #6b6861   5.4:1  (AA for body text — never go lighter for text)
+     accent       #1f5a4c   8.1:1
+     danger-text  #a8290b   7.0:1
+     warning-text #8a4b06   6.6:1
+     success-text #1d6b45   6.4:1
+   On the inverse surface (#1c1c1a, toasts):
+     on-inverse          #ffffff 17.1:1
+     on-inverse-muted    #c9c6bf 10.0:1
+     on-inverse-danger   #ffb4a1 10.0:1
+     on-inverse-success  #9fd8c2 10.6:1
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Surfaces */
+  --brand-canvas: #f2f1ec;
+  --brand-surface: #ffffff;
+  --brand-sunken: #f7f6f2;
+  --brand-hover: #f5f4ef;
+  --brand-selected: #edf3f0;
+
+  /* Ink */
+  --brand-ink: #1c1c1a;
+  --brand-ink-muted: #55534e;
+  --brand-ink-subtle: #6b6861;
+  --brand-ink-on-accent: #ffffff;
+
+  /* Rules — three weights so a row separator and a section edge never look alike */
+  --brand-rule-faint: #ecebe5;
+  --brand-rule: #dddad2;
+  --brand-rule-strong: #bfbbb1;
+
+  /* Accent — one colour, used for primary action, focus, current location */
+  --brand-accent: #1f5a4c;
+  --brand-accent-hover: #174538;
+  --brand-accent-tint: #e5eeea;
+  --brand-accent-text: #1a4c40;
+  --brand-focus: #2b7a66;
+
+  /* Status — text / fill / tint. Fill is for small marks, text for words. */
+  --brand-danger: #c63b16;
+  --brand-danger-text: #a8290b;
+  --brand-danger-tint: #fbefea;
+  --brand-warning: #c9800e;
+  --brand-warning-text: #8a4b06;
+  --brand-warning-tint: #fbf3e4;
+  --brand-success: #2e8a5c;
+  --brand-success-text: #1d6b45;
+  --brand-success-tint: #eaf4ee;
+  --brand-info-text: #2d4f6b;
+  --brand-info-tint: #ebf1f5;
+
+  /* Inverse surface — dark notices on the paper (toasts). Icons keep their meaning
+     with lightened status hues that pass contrast on the dark fill. */
+  --brand-inverse: #1c1c1a;
+  --brand-on-inverse: #ffffff;
+  --brand-on-inverse-muted: #c9c6bf;
+  --brand-on-inverse-danger: #ffb4a1;
+  --brand-on-inverse-success: #9fd8c2;
+
+  /* Overlay scrim */
+  --brand-scrim: rgb(24 24 22 / 0.46);
+
+  /* Typography — the font variables are provided by next/font in app/layout.tsx.
+     Display is the face of page and section titles (a law office may set titles in a
+     serif over a sans body); by default it is the body face. Hierarchy comes from
+     weight first — keep the title size modest (Tovli tops out at ~22px). */
+  --brand-font-sans: var(--font-brand-sans), 'Segoe UI', 'Arial Hebrew', system-ui, sans-serif;
+  --brand-font-display: var(--brand-font-sans);
+  --brand-title-weight: 700;
+  --brand-section-weight: 600;
+  --brand-text-title: 1.375rem;
+  --brand-text-section: 1.0625rem;
+
+  /* Density — vertical padding of table and list rows. 0.5rem reads as a dense ledger
+     (office screens, many rows); 1rem as spacious (few records, calmer). */
+  --brand-row-padding-y: 0.75rem;
+
+  /* Chrome — the sidebar and phone bars. The surface colour makes them a panel; the
+     canvas colour makes them part of the desk so only documents are white (Koma). */
+  --brand-chrome: var(--brand-surface);
+
+  /* Shape — differentiated by kind: documents are nearly square, controls soft,
+     overlays rounder. One radius for everything is a template tell. */
+  --brand-radius-chip: 4px;
+  --brand-radius-control: 8px;
+  --brand-radius-surface: 8px;
+  --brand-radius-dialog: 14px;
+  --brand-radius-sheet: 18px;
+}

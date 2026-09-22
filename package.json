@@ -1,0 +1,72 @@
+{
+  "name": "business-platform-foundation",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Reusable production foundation for bespoke small-business applications.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --max-warnings=0 && node scripts/escape-invisible.mjs --check src scripts tests e2e",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:watch": "vitest --project unit",
+    "e2e": "playwright test",
+    "check": "npm run typecheck && npm run lint && npm run test",
+    "db:up": "docker compose up -d --wait",
+    "db:down": "docker compose down",
+    "db:generate": "prisma generate",
+    "db:migrate:dev": "tsx scripts/db.ts migrate-dev",
+    "db:migrate:status": "prisma migrate status",
+    "db:deploy": "tsx scripts/db.ts deploy",
+    "db:reset:local": "tsx scripts/db.ts reset-local",
+    "db:seed:dev": "tsx scripts/db.ts seed-dev",
+    "db:bootstrap-owner": "tsx scripts/bootstrap-owner.ts",
+    "db:backup": "tsx scripts/backup.ts",
+    "db:push": "node -e \"console.error('prisma db push is disabled in this project. Create a migration: npm run db:migrate:dev -- --name <change>'); process.exit(1)\"",
+    "qa:data": "tsx scripts/qa-data.ts",
+    "postinstall": "prisma generate",
+    "foundation:new-business": "tsx scripts/new-business.ts",
+    "qa:screenshots": "playwright test -c playwright.qa.config.ts",
+    "qa:brand-proof": "node scripts/qa/brand-proof.mjs"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
+    "next": "^16.3.5",
+    "pg": "^8.23.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "server-only": "^0.0.1",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "1.63",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^22.20.3",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitest/coverage-v8": "^4.1.11",
+    "dotenv": "^17.4.2",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.3.5",
+    "prisma": "^7.10.0",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.13",
+    "typescript": "5.9",
+    "typescript-eslint": "^8.70.0",
+    "vitest": "^4.1.11"
+  },
+  "overrides": {
+    "mysql2": "^3.24.4",
+    "deepmerge-ts": "^8.0.2"
+  }
+}

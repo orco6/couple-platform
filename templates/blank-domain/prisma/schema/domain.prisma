@@ -1,0 +1,11 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// BUSINESS DOMAIN MODELS — this business.
+//
+// Conventions (docs/adr/0004): Int agorot for money, @db.Date for business
+// dates, explicit ownership columns with indexes, archivedAt/deletedAt instead
+// of hard deletes, `version Int @default(1)` for concurrently edited records,
+// onDelete: Restrict for anything historical.
+//
+// Every relation to User needs its back-relation in the marked block of
+// core.prisma. Then: npm run db:migrate:dev -- --name <business>_domain
+// ═══════════════════════════════════════════════════════════════════════════

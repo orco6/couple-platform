@@ -1,0 +1,647 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   FOUNDATION STYLES — core, rarely modified.
+
+   1. Semantic tokens (Tailwind theme) mapped from brand values
+   2. Type scale, spacing rhythm, motion tokens
+   3. Base: RTL, Hebrew typography, focus, numerals, bidi isolation
+   4. Surfaces and rules
+   5. Overlays (dialog / bottom sheet) and disclosure motion
+   6. Reduced motion
+   7. Print
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@theme inline {
+  /* Only semantic colours exist. Tailwind's default palette is removed so
+     "bg-blue-500" cannot creep in: every colour decision goes through a token. */
+  --color-*: initial;
+  --color-white: #ffffff;
+  --color-black: #000000;
+
+  --color-canvas: var(--brand-canvas);
+  --color-surface: var(--brand-surface);
+  --color-sunken: var(--brand-sunken);
+  --color-hover: var(--brand-hover);
+  --color-selected: var(--brand-selected);
+
+  --color-ink: var(--brand-ink);
+  --color-ink-muted: var(--brand-ink-muted);
+  --color-ink-subtle: var(--brand-ink-subtle);
+  --color-on-accent: var(--brand-ink-on-accent);
+
+  --color-rule-faint: var(--brand-rule-faint);
+  --color-rule: var(--brand-rule);
+  --color-rule-strong: var(--brand-rule-strong);
+
+  --color-accent: var(--brand-accent);
+  --color-accent-hover: var(--brand-accent-hover);
+  --color-accent-tint: var(--brand-accent-tint);
+  --color-accent-text: var(--brand-accent-text);
+  --color-focus: var(--brand-focus);
+
+  --color-danger: var(--brand-danger);
+  --color-danger-text: var(--brand-danger-text);
+  --color-danger-tint: var(--brand-danger-tint);
+  --color-warning: var(--brand-warning);
+  --color-warning-text: var(--brand-warning-text);
+  --color-warning-tint: var(--brand-warning-tint);
+  --color-success: var(--brand-success);
+  --color-success-text: var(--brand-success-text);
+  --color-success-tint: var(--brand-success-tint);
+  --color-info-text: var(--brand-info-text);
+  --color-info-tint: var(--brand-info-tint);
+
+  --color-chrome: var(--brand-chrome, var(--brand-surface));
+  --color-inverse: var(--brand-inverse);
+  --color-on-inverse: var(--brand-on-inverse);
+  --color-on-inverse-muted: var(--brand-on-inverse-muted);
+  --color-on-inverse-danger: var(--brand-on-inverse-danger);
+  --color-on-inverse-success: var(--brand-on-inverse-success);
+
+  --font-sans: var(--brand-font-sans);
+  --font-display: var(--brand-font-display);
+
+  --radius-chip: var(--brand-radius-chip);
+  --radius-control: var(--brand-radius-control);
+  --radius-surface: var(--brand-radius-surface);
+  --radius-dialog: var(--brand-radius-dialog);
+  --radius-sheet: var(--brand-radius-sheet);
+
+  /* Type scale. Hierarchy comes from weight and position before size; each
+     step has one job. 16px is reserved for form controls (iOS zooms below it). */
+  --text-micro: 0.6875rem;      /* 11 — column headers, legal lines        */
+  --text-meta: 0.75rem;         /* 12 — metadata, badges, helper text       */
+  --text-label: 0.8125rem;      /* 13 — field labels, captions              */
+  --text-body: 0.875rem;        /* 14 — body, table cells                   */
+  --text-row: 0.9375rem;        /* 15 — primary row text, buttons           */
+  --text-control: 1rem;         /* 16 — form controls ONLY                  */
+  --text-section: var(--brand-text-section, 1.0625rem);    /* 17 — section titles                      */
+  --text-title: var(--brand-text-title, 1.375rem);       /* 22 — page title                          */
+  --text-figure: 1.75rem;       /* 28 — the one number a screen is about    */
+
+  --shadow-overlay: 0 12px 32px rgb(20 20 18 / 0.16), 0 2px 6px rgb(20 20 18 / 0.08);
+  --shadow-raised: 0 2px 8px rgb(20 20 18 / 0.08);
+
+  --ease-enter: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+}
+
+/* ── Motion tokens ───────────────────────────────────────────────────────────
+   Mirrored in src/core/ui/motion.ts for the JS that has to wait for an exit;
+   a unit test keeps the two in sync. Principles (DESIGN_REVIEW.md → Motion):
+   things arrive softer than they leave; nothing decorative moves; operational
+   screens never wait on an animation to become usable. */
+:root {
+  --motion-sheet-enter: 340ms;
+  --motion-sheet-enter-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --motion-sheet-exit: 240ms;
+  --motion-sheet-exit-ease: cubic-bezier(0.4, 0, 1, 1);
+  --motion-backdrop: 200ms;
+  --motion-dialog-enter: 220ms;
+  --motion-dialog-enter-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-dialog-exit: 160ms;
+  --motion-dialog-exit-ease: cubic-bezier(0.4, 0, 1, 1);
+  --motion-disclosure-enter: 260ms;
+  --motion-disclosure-exit: 200ms;
+  --motion-feedback: 140ms;
+  --motion-reduced: 120ms;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Base
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    color-scheme: light;
+  }
+
+  /*
+   * Keyboard focus and anchor jumps must not land under the sticky chrome: the
+   * phone top bar (3.5rem) and bottom tab bar (~4.5rem incl. safe area). Without
+   * this, Tab into a field near the bottom of a long form scrolls it behind the
+   * tab bar, and a #section link puts its heading under the top bar.
+   */
+  @media (width < 48rem) {
+    html {
+      scroll-padding-block: 4.5rem 6rem;
+    }
+  }
+
+  /*
+   * While someone types on a phone, the bottom tab bar steps aside. On Android
+   * Chrome the keyboard shrinks the viewport and a fixed bar rides up above the
+   * keyboard, covering the field being typed into (the web version of the
+   * tab-bar hiding native apps do). Only for text entry — checkboxes, buttons and
+   * selects do not raise a keyboard.
+   */
+  @media (width < 48rem) {
+    body:has(:is(input:not([type='checkbox'], [type='radio'], [type='button'], [type='submit'], [type='hidden']), textarea):focus) [data-mobile-tab-bar] {
+      visibility: hidden;
+    }
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    /* Hebrew needs more leading than Latin to stay comfortable. */
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: clip;
+  }
+
+  /* Tracking and uppercase are meaningless or harmful in Hebrew. */
+  :lang(he) {
+    letter-spacing: normal;
+    text-transform: none;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    line-height: 1.3;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* iOS zooms the page when a focused control's text is under 16px. */
+  input,
+  select,
+  textarea {
+    font: inherit;
+    font-size: max(var(--text-control), 16px);
+  }
+
+  button {
+    font: inherit;
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+
+  /* Controls draw their own focus state (border + ring) — see Input. */
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: none;
+  }
+
+  ::selection {
+    background-color: var(--color-accent-tint);
+    color: var(--color-ink);
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Utilities
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@layer utilities {
+  /* Tabular figures: amounts in a column line up, totals don't jitter. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+  }
+
+  /* Latin/number runs inside Hebrew: isolate, do not force direction on the
+     surrounding block (which would flip text-align). See components/Ltr. */
+  .isolate-bidi {
+    unicode-bidi: isolate;
+  }
+
+  /* Headings take the brand's display face and weights (see brand/theme.css). */
+  .heading-title {
+    font-family: var(--font-display);
+    font-weight: var(--brand-title-weight, 700);
+  }
+  .heading-section {
+    font-family: var(--font-display);
+    font-weight: var(--brand-section-weight, 600);
+  }
+
+  /* Row density from the brand: table cells and list rows. */
+  .row-y {
+    padding-block: var(--brand-row-padding-y, 0.75rem);
+  }
+
+  /* A document surface: an edge, not a shadow. */
+  .surface {
+    background: var(--color-surface);
+    border: 1px solid var(--color-rule);
+    border-radius: var(--radius-surface);
+  }
+
+  .rule-b {
+    border-block-end: 1px solid var(--color-rule-faint);
+  }
+  .rule-b-strong {
+    border-block-end: 1px solid var(--color-rule);
+  }
+  .rule-t {
+    border-block-start: 1px solid var(--color-rule-faint);
+  }
+
+  .scroll-x {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .pb-safe {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  .touch-manipulation {
+    touch-action: manipulation;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Overlays — one DOM for dialog and bottom sheet (components/overlay).
+
+   data-presentation:
+     auto    bottom sheet below 640px, centred dialog at 640px and up
+     sheet   bottom sheet at every width (mobile-style pickers, action lists)
+     dialog  centred dialog at every width
+   data-state: "closed" while mounting/exiting, "open" when shown.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+dialog.overlay {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+dialog.overlay::backdrop {
+  background: transparent;
+}
+
+.overlay-scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--brand-scrim);
+  opacity: 0;
+  transition: opacity var(--motion-backdrop) linear;
+}
+
+.overlay[data-state='open'] .overlay-scrim {
+  opacity: 1;
+}
+
+/* Sheet presentation: slides from the bottom edge. Transform only — the panel
+   does not also fade; the scrim already says something arrived. */
+.overlay-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-height: calc(100dvh - 2.5rem);
+  background: var(--color-surface);
+  border-start-start-radius: var(--radius-sheet);
+  border-start-end-radius: var(--radius-sheet);
+  box-shadow: var(--shadow-overlay);
+  transform: translateY(100%);
+  transition: transform var(--motion-sheet-exit) var(--motion-sheet-exit-ease);
+  will-change: transform;
+}
+
+.overlay[data-state='open'] .overlay-panel {
+  transform: translateY(var(--sheet-drag, 0px));
+  transition: transform var(--motion-sheet-enter) var(--motion-sheet-enter-ease);
+}
+
+.overlay-panel[data-dragging] {
+  transition: none !important;
+}
+
+.overlay-handle {
+  display: flex;
+  justify-content: center;
+  padding-block: 0.625rem 0.25rem;
+  touch-action: none;
+  cursor: grab;
+}
+
+.overlay-handle > span {
+  width: 2.25rem;
+  height: 0.25rem;
+  border-radius: 999px;
+  background: var(--color-rule-strong);
+}
+
+.overlay[data-presentation='sheet'] .overlay-panel {
+  max-width: 34rem;
+}
+
+/* Dialog presentation: resolves in place — a fade with 2% of scale. */
+@media (min-width: 640px) {
+  .overlay[data-presentation='auto'] {
+    align-items: center;
+    padding: 1.5rem;
+  }
+  .overlay[data-presentation='auto'] .overlay-panel {
+    border-radius: var(--radius-dialog);
+    max-height: calc(100dvh - 3rem);
+    opacity: 0;
+    transform: scale(0.98);
+    transition:
+      opacity var(--motion-dialog-exit) var(--motion-dialog-exit-ease),
+      transform var(--motion-dialog-exit) var(--motion-dialog-exit-ease);
+  }
+  .overlay[data-presentation='auto'][data-state='open'] .overlay-panel {
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity var(--motion-dialog-enter) var(--motion-dialog-enter-ease),
+      transform var(--motion-dialog-enter) var(--motion-dialog-enter-ease);
+  }
+  .overlay[data-presentation='auto'] .overlay-handle {
+    display: none;
+  }
+}
+
+.overlay[data-presentation='dialog'] {
+  align-items: center;
+  padding: 1rem;
+}
+.overlay[data-presentation='dialog'] .overlay-panel {
+  border-radius: var(--radius-dialog);
+  opacity: 0;
+  transform: scale(0.98);
+  transition:
+    opacity var(--motion-dialog-exit) var(--motion-dialog-exit-ease),
+    transform var(--motion-dialog-exit) var(--motion-dialog-exit-ease);
+}
+.overlay[data-presentation='dialog'][data-state='open'] .overlay-panel {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity var(--motion-dialog-enter) var(--motion-dialog-enter-ease),
+    transform var(--motion-dialog-enter) var(--motion-dialog-enter-ease);
+}
+.overlay[data-presentation='dialog'] .overlay-handle {
+  display: none;
+}
+
+.overlay-panel[data-size='sm'] {
+  max-width: 26rem;
+}
+@media (min-width: 640px) {
+  .overlay-panel[data-size='md'] {
+    max-width: 34rem;
+  }
+  .overlay-panel[data-size='lg'] {
+    max-width: 46rem;
+  }
+}
+
+/* ── Disclosure ─────────────────────────────────────────────────────────── */
+
+.disclosure-region {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--motion-disclosure-exit) var(--ease-exit);
+}
+.disclosure-region[data-open='true'] {
+  grid-template-rows: 1fr;
+  transition: grid-template-rows var(--motion-disclosure-enter) var(--ease-enter);
+}
+.disclosure-region > div {
+  min-height: 0;
+  overflow: hidden;
+}
+.disclosure-chevron {
+  transition: transform var(--motion-disclosure-exit) var(--ease-exit);
+}
+[aria-expanded='true'] > .disclosure-chevron {
+  transform: rotate(180deg);
+  transition-duration: var(--motion-disclosure-enter);
+  transition-timing-function: var(--ease-enter);
+}
+
+/* ── Feedback ───────────────────────────────────────────────────────────── */
+
+@keyframes fade-rise {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-field-message {
+  animation: fade-rise 180ms var(--ease-enter) both;
+}
+
+/* Loading: after 150ms the label fades and the spinner appears (no flash on fast operations).
+   Shared by buttons and the search field. */
+@keyframes button-label-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes button-spinner-in {
+  from {
+    opacity: 0;
+  }
+}
+.button-loading-label {
+  animation: button-label-out 120ms linear 150ms both;
+}
+.spinner-delayed.animate-spin {
+  animation:
+    button-spinner-in 120ms linear 150ms both,
+    spin 0.8s linear infinite;
+}
+
+@keyframes route-settle {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-route-settle {
+  animation: route-settle 180ms var(--ease-enter) both;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-toast-in {
+  animation: toast-in 220ms var(--ease-enter) both;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 700ms linear infinite;
+}
+
+@keyframes shimmer {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-skeleton {
+  animation: shimmer 900ms ease-in-out infinite alternate;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Reduced motion: movement becomes a short opacity change. Opacity is kept —
+   a cross-fade is not what the setting protects against, and removing every
+   transition makes state changes harder to follow.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay .overlay-panel,
+  .overlay[data-presentation] .overlay-panel {
+    transform: none !important;
+    opacity: 0;
+    transition: opacity var(--motion-reduced) linear !important;
+  }
+  .overlay[data-state='open'] .overlay-panel {
+    opacity: 1;
+  }
+  .overlay-scrim {
+    transition-duration: var(--motion-reduced);
+  }
+  .disclosure-region,
+  .disclosure-chevron {
+    transition-duration: 1ms !important;
+  }
+  .animate-field-message,
+  .animate-toast-in,
+  .animate-route-settle {
+    animation: none;
+  }
+  .animate-spin {
+    animation-duration: 1.6s;
+  }
+  .animate-skeleton {
+    animation: none;
+  }
+  html:focus-within {
+    scroll-behavior: auto;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Print — documents laid out for paper, not screenshots of screens.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.print-only {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 12mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    font-size: 10.5pt;
+    line-height: 1.45;
+  }
+
+  .print-hide,
+  nav,
+  [data-app-chrome],
+  button:not(.print-keep),
+  dialog {
+    display: none !important;
+  }
+
+  .print-only {
+    display: revert !important;
+  }
+
+  .surface {
+    border: none !important;
+    border-radius: 0 !important;
+  }
+
+  tr,
+  .print-avoid-break {
+    break-inside: avoid;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  /* A document total belongs once at the end, not at the foot of every page. */
+  tfoot {
+    display: table-row-group;
+  }
+
+  .print-break-before {
+    break-before: page;
+  }
+
+  a[href]::after {
+    content: '';
+  }
+}

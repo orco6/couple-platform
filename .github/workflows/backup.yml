@@ -1,0 +1,100 @@
+# Database backup — NOT ACTIVE until configured.
+#
+# To enable (per project, see PRODUCTION_READINESS.md → Backups):
+#   1. Repository → Settings → Secrets → Actions: add BACKUP_DATABASE_URL
+#      (a READ-ONLY role's DIRECT connection string, not the owner role).
+#   2. Uncomment the `schedule` block below.
+#   3. Add BACKUP_ENCRYPTION_PASSPHRASE (long random string, stored ALSO outside
+#      GitHub — e.g. the owner's password manager; without it the backups are
+#      unreadable). With it, dumps are encrypted (AES-256, gpg symmetric) before
+#      upload and no plaintext is uploaded. Without it the job still runs but
+#      warns: artifacts would be readable by anyone with repository read access.
+#   4. Optional: repository variable BACKUP_RETENTION_DAYS (default 30, GitHub
+#      caps it by plan). Artifacts are a convenience layer, not an archive —
+#      see PRODUCTION_READINESS.md for monthly copies off GitHub.
+#   5. Run it once manually and complete a restore drill.
+
+name: Database backup
+
+on:
+  workflow_dispatch:
+  # schedule:
+  #   - cron: '17 1 * * *'   # 01:17 UTC ≈ 04:17 Israel
+
+permissions:
+  contents: read
+
+concurrency:
+  group: database-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Require the secret
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+        run: |
+          if [ -z "$BACKUP_DATABASE_URL" ]; then
+            echo "::error::BACKUP_DATABASE_URL is not configured. No backup was taken."
+            exit 1
+          fi
+
+      - name: Install a PostgreSQL client matching the server
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq
+          MAJOR=$(psql "$BACKUP_DATABASE_URL" -tAc "SHOW server_version_num" | cut -c1-2)
+          sudo apt-get install -y -qq "postgresql-client-${MAJOR}"
+          echo "/usr/lib/postgresql/${MAJOR}/bin" >> "$GITHUB_PATH"
+
+      - name: Dump and verify
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          STAMP=$(date -u +%Y%m%d-%H%M)
+          FILE="out/backup-${STAMP}.sql"
+          pg_dump --no-owner --no-privileges --file "$FILE" "$BACKUP_DATABASE_URL"
+          # A backup job that goes green on an empty or truncated dump is worse than none.
+          tail -5 "$FILE" | grep -q 'PostgreSQL database dump complete' || { echo "::error::dump truncated"; exit 1; }
+          for T in User AuditEvent _prisma_migrations; do
+            grep -q "CREATE TABLE public.\"${T}\"" "$FILE" || { echo "::error::missing table ${T}"; exit 1; }
+          done
+          USERS=$(awk '/^COPY public\."User" /{f=1;next} f&&/^\\.$/{f=0} f' "$FILE" | grep -c . || true)
+          [ "$USERS" -ge 1 ] || { echo "::error::dump contains no users"; exit 1; }
+          gzip "$FILE"
+          echo "users=${USERS}" > out/MANIFEST
+
+      - name: Encrypt (when a passphrase is configured)
+        env:
+          BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          cd out
+          FILE=$(ls backup-*.sql.gz)
+          if [ -n "$BACKUP_ENCRYPTION_PASSPHRASE" ]; then
+            printf '%s' "$BACKUP_ENCRYPTION_PASSPHRASE" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 \
+              --symmetric --cipher-algo AES256 --output "$FILE.gpg" "$FILE"
+            shred -u "$FILE"
+            sha256sum "$FILE.gpg" > "$FILE.gpg.sha256"
+            echo "encrypted=aes256-gpg" >> MANIFEST
+          else
+            echo "::warning::BACKUP_ENCRYPTION_PASSPHRASE is not set: this backup is uploaded UNENCRYPTED."
+            sha256sum "$FILE" > "$FILE.sha256"
+            echo "encrypted=no" >> MANIFEST
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: database-backup-${{ github.run_id }}
+          path: out/
+          retention-days: ${{ vars.BACKUP_RETENTION_DAYS || 30 }}
