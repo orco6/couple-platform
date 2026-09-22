@@ -1,3 +1,4 @@
 @import 'tailwindcss';
 @import '../brand/theme.css';
 @import '../core/ui/styles/foundation.css';
+@import '../domain/styles.css';

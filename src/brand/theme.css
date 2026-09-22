@@ -1,63 +1,123 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   BRAND THEME — replace per project.
+   BRAND THEME — שנינו
 
+   ── The visual direction ──────────────────────────────────────────────────
+   The concept is **a handwritten note left for each other at the end of the
+   day**: warm linen paper, soft ink, one ember mark. Not a dashboard about a
+   relationship — a note passed between two people. Everything else follows
+   from that image.
+
+   The one recurring object of this product is **the day**. A day is always
+   presented the same way: a warm surface carrying the two marks the partners
+   left on it, side by side, with the partner's side withheld until both have
+   written. The day is never a table row, never a chart point, never a
+   percentage on its own.
+
+   Density is **calm** (`--brand-row-padding-y: 1rem`): four to six items on a
+   screen, large targets, generous space. Both partners use this in bed, in the
+   dark, one-handed, at 23:40 — so the dark scheme below is the primary one, not
+   an inversion added later.
+
+   The accent's job is **ember**: the primary action, focus, the current
+   location, and the completion mark. Nothing else. It is warm because every
+   other warm thing here is paper and ink, and it has to read as the one live
+   thing on the page.
+
+   Two colours identify *people*, not states: `--brand-partner-a` (ember
+   family) and `--brand-partner-b` (plum). That is data encoding — whose rating
+   this is — in a product where telling the two apart at a glance is the whole
+   point. They are never used for decoration, and never as the only signal:
+   every mark also carries a name or an initial.
+
+   Deliberately NOT: the foundation's stone-and-green "יסוד" look, Koma's
+   ledger, the law office's serif authority. This product borrows their
+   engineering, not their face. No gradients as decoration, no glass, no glow,
+   no gamified badges.
+
+   ── How to change it ─────────────────────────────────────────────────────
    Raw values only. Components never read these directly; they use the semantic
    tokens mapped in src/core/ui/styles/foundation.css (bg-surface, text-ink,
-   border-rule, bg-accent…). Changing a business's visual identity means editing
-   this file, brand/brand.ts, brand/Logo.tsx and app/icon.svg — nothing else.
+   border-rule, bg-accent…) and the two partner classes in
+   src/domain/styles.css.
 
-   The default identity ("יסוד") is intentionally restrained: warm stone paper,
-   near-black ink, one deep green accent used sparingly. It is a neutral
-   starting point, not a template to keep. Give every business its own.
-   See DESIGN_REVIEW.md → "Giving a business its identity".
+   Contrast is measured, not guessed — every ratio below was computed against
+   the surface it is used on. `ink-subtle` is the lightest colour allowed for
+   text in either scheme.
 
-   Contrast (checked against #ffffff unless noted):
-     ink          #1c1c1a  17.2:1
-     ink-muted    #55534e   7.6:1
-     ink-subtle   #6b6861   5.4:1  (AA for body text — never go lighter for text)
-     accent       #1f5a4c   8.1:1
-     danger-text  #a8290b   7.0:1
-     warning-text #8a4b06   6.6:1
-     success-text #1d6b45   6.4:1
-   On the inverse surface (#1c1c1a, toasts):
-     on-inverse          #ffffff 17.1:1
-     on-inverse-muted    #c9c6bf 10.0:1
-     on-inverse-danger   #ffb4a1 10.0:1
-     on-inverse-success  #9fd8c2 10.6:1
+   LIGHT — against --brand-surface #fffdf9 unless noted:
+     ink            #2a211c  15.5:1   (14.3:1 on canvas)
+     ink-muted      #5c4f47   7.8:1
+     ink-subtle     #6f6057   5.9:1   (5.5:1 on canvas — AA floor for text)
+     accent         #b8492b   5.1:1   as text; white ON it 5.2:1
+     accent-text    #9c3d1c   6.7:1
+     partner-b      #6d3569   8.8:1   (8.0:1 on canvas)
+     danger-text    #a8320f   6.6:1
+     warning-text   #8a4a06   6.8:1
+     success-text   #1d6b45   6.4:1
+     info-text      #2d4f6b   8.5:1
+     rule-strong    #9c9081   3.1:1   (control borders — WCAG 1.4.11 non-text)
+   On the inverse surface (#2a211c, toasts):
+     on-inverse         #ffffff 15.8:1
+     on-inverse-muted   #d6cdc4 10.1:1
+
+   DARK — against --brand-surface #241d28 unless noted:
+     ink            #f6f0ea  14.5:1   (15.7:1 on canvas)
+     ink-muted      #c6b8b0   8.5:1
+     ink-subtle     #a4968e   5.7:1   (6.2:1 on canvas — AA floor for text)
+     accent         #b8492b           white ON it 5.2:1 (3.4:1 against canvas)
+     accent-text    #f0a184   7.9:1
+     focus          #f3a98d   8.5:1
+     partner-b      #c9a0c6   7.3:1   (7.9:1 on canvas)
+     danger-text    #ff9e86   8.2:1
+     warning-text   #e8bd7a   9.4:1
+     success-text   #8fd8b5   9.9:1
+     info-text      #9fc3e0   8.9:1
+     rule-strong    #7d6e8a   3.5:1   (control borders)
+   On the inverse surface (#f2ece4, toasts in dark):
+     on-inverse         #2a211c 13.4:1
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* Surfaces */
-  --brand-canvas: #f2f1ec;
-  --brand-surface: #ffffff;
-  --brand-sunken: #f7f6f2;
-  --brand-hover: #f5f4ef;
-  --brand-selected: #edf3f0;
+  color-scheme: light;
 
-  /* Ink */
-  --brand-ink: #1c1c1a;
-  --brand-ink-muted: #55534e;
-  --brand-ink-subtle: #6b6861;
+  /* Surfaces — linen canvas, paper surface. Only the note is near-white. */
+  --brand-canvas: #f7f3ec;
+  --brand-surface: #fffdf9;
+  --brand-sunken: #f1ece3;
+  --brand-hover: #f4efe6;
+  --brand-selected: #fbeee8;
+
+  /* Ink — warm near-black. Never blue-black: nothing here is clinical. */
+  --brand-ink: #2a211c;
+  --brand-ink-muted: #5c4f47;
+  --brand-ink-subtle: #6f6057;
   --brand-ink-on-accent: #ffffff;
 
-  /* Rules — three weights so a row separator and a section edge never look alike */
-  --brand-rule-faint: #ecebe5;
-  --brand-rule: #dddad2;
-  --brand-rule-strong: #bfbbb1;
+  /* Rules — three weights. Faint separates rows, rule bounds a section,
+     strong is a control border (and is the only one with a contrast duty). */
+  --brand-rule-faint: #ece5da;
+  --brand-rule: #ded5c8;
+  --brand-rule-strong: #9c9081;
 
-  /* Accent — one colour, used for primary action, focus, current location */
-  --brand-accent: #1f5a4c;
-  --brand-accent-hover: #174538;
-  --brand-accent-tint: #e5eeea;
-  --brand-accent-text: #1a4c40;
-  --brand-focus: #2b7a66;
+  /* Accent — ember. Primary action, focus, current location, completion mark. */
+  --brand-accent: #b8492b;
+  --brand-accent-hover: #9c3d1c;
+  --brand-accent-tint: #fbeae2;
+  --brand-accent-text: #9c3d1c;
+  --brand-focus: #c4512f;
 
-  /* Status — text / fill / tint. Fill is for small marks, text for words. */
+  /* The two people. Data encoding, never decoration, never the only signal. */
+  --brand-partner-a: #b8492b;
+  --brand-partner-a-tint: #fbeae2;
+  --brand-partner-b: #6d3569;
+  --brand-partner-b-tint: #f3eaf2;
+
+  /* Status */
   --brand-danger: #c63b16;
-  --brand-danger-text: #a8290b;
-  --brand-danger-tint: #fbefea;
+  --brand-danger-text: #a8320f;
+  --brand-danger-tint: #fbeeea;
   --brand-warning: #c9800e;
-  --brand-warning-text: #8a4b06;
+  --brand-warning-text: #8a4a06;
   --brand-warning-tint: #fbf3e4;
   --brand-success: #2e8a5c;
   --brand-success-text: #1d6b45;
@@ -65,41 +125,101 @@
   --brand-info-text: #2d4f6b;
   --brand-info-tint: #ebf1f5;
 
-  /* Inverse surface — dark notices on the paper (toasts). Icons keep their meaning
-     with lightened status hues that pass contrast on the dark fill. */
-  --brand-inverse: #1c1c1a;
+  /* Inverse surface — toasts. */
+  --brand-inverse: #2a211c;
   --brand-on-inverse: #ffffff;
-  --brand-on-inverse-muted: #c9c6bf;
+  --brand-on-inverse-muted: #d6cdc4;
   --brand-on-inverse-danger: #ffb4a1;
   --brand-on-inverse-success: #9fd8c2;
 
-  /* Overlay scrim */
-  --brand-scrim: rgb(24 24 22 / 0.46);
+  --brand-scrim: rgb(42 33 28 / 0.42);
 
-  /* Typography — the font variables are provided by next/font in app/layout.tsx.
-     Display is the face of page and section titles (a law office may set titles in a
-     serif over a sans body); by default it is the body face. Hierarchy comes from
-     weight first — keep the title size modest (Tovli tops out at ~22px). */
+  /* Depth — warm-tinted, never grey. Grey shadows are what make software look
+     like software. Shadows stay on things that float; rules do the rest. */
+  --brand-shadow-warm-soft: 0 1px 2px rgb(58 40 30 / 0.05), 0 10px 24px -14px rgb(58 40 30 / 0.13);
+  --brand-shadow-warm-lift: 0 2px 4px rgb(58 40 30 / 0.06), 0 22px 44px -18px rgb(58 40 30 / 0.2);
+
+  /* Typography — Assistant for the interface, Noto Serif Hebrew for anything
+     the couple reads emotionally (the day, the verdict, the figures). Both
+     designed with their Latin, both with real Hebrew. Set in app/layout.tsx.
+     Hierarchy from weight first; the title stays modest. */
   --brand-font-sans: var(--font-brand-sans), 'Segoe UI', 'Arial Hebrew', system-ui, sans-serif;
-  --brand-font-display: var(--brand-font-sans);
-  --brand-title-weight: 700;
+  --brand-font-display: var(--font-brand-display), var(--brand-font-sans), Georgia, serif;
+  --brand-title-weight: 600;
   --brand-section-weight: 600;
-  --brand-text-title: 1.375rem;
+  --brand-text-title: 1.5rem;
   --brand-text-section: 1.0625rem;
 
-  /* Density — vertical padding of table and list rows. 0.5rem reads as a dense ledger
-     (office screens, many rows); 1rem as spacious (few records, calmer). */
-  --brand-row-padding-y: 0.75rem;
+  /* Density — the calm end. Few items, big targets, read in the dark. */
+  --brand-row-padding-y: 1rem;
 
-  /* Chrome — the sidebar and phone bars. The surface colour makes them a panel; the
-     canvas colour makes them part of the desk so only documents are white (Koma). */
-  --brand-chrome: var(--brand-surface);
+  /* Chrome — canvas, so only the note is paper. */
+  --brand-chrome: var(--brand-canvas);
 
-  /* Shape — differentiated by kind: documents are nearly square, controls soft,
-     overlays rounder. One radius for everything is a template tell. */
-  --brand-radius-chip: 4px;
-  --brand-radius-control: 8px;
-  --brand-radius-surface: 8px;
-  --brand-radius-dialog: 14px;
-  --brand-radius-sheet: 18px;
+  /* Shape — softer than a ledger, still differentiated by kind. */
+  --brand-radius-chip: 999px;
+  --brand-radius-control: 12px;
+  --brand-radius-surface: 16px;
+  --brand-radius-dialog: 22px;
+  --brand-radius-sheet: 28px;
+}
+
+/* ── Dark — the primary scheme for this product (brief §17) ─────────────────
+   Deep warm plum-ink, not neutral charcoal: the paper is still paper at night.
+   Contrast re-measured above; the same accent carries over so the product has
+   one ember in both schemes. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --brand-canvas: #1b1620;
+    --brand-surface: #241d28;
+    --brand-sunken: #1f1923;
+    --brand-hover: #2b2330;
+    --brand-selected: #33212a;
+
+    --brand-ink: #f6f0ea;
+    --brand-ink-muted: #c6b8b0;
+    --brand-ink-subtle: #a4968e;
+    --brand-ink-on-accent: #ffffff;
+
+    --brand-rule-faint: #2c2434;
+    --brand-rule: #3a3040;
+    --brand-rule-strong: #7d6e8a;
+
+    --brand-accent: #b8492b;
+    --brand-accent-hover: #c95733;
+    --brand-accent-tint: #3a2119;
+    --brand-accent-text: #f0a184;
+    --brand-focus: #f3a98d;
+
+    --brand-partner-a: #e8875f;
+    --brand-partner-a-tint: #3a2119;
+    --brand-partner-b: #c9a0c6;
+    --brand-partner-b-tint: #2e2135;
+
+    --brand-danger: #d8532c;
+    --brand-danger-text: #ff9e86;
+    --brand-danger-tint: #3a1f1a;
+    --brand-warning: #d89a2e;
+    --brand-warning-text: #e8bd7a;
+    --brand-warning-tint: #362a17;
+    --brand-success: #3f9d6d;
+    --brand-success-text: #8fd8b5;
+    --brand-success-tint: #172e23;
+    --brand-info-text: #9fc3e0;
+    --brand-info-tint: #1b2733;
+
+    /* Toasts invert the other way at night. */
+    --brand-inverse: #f2ece4;
+    --brand-on-inverse: #2a211c;
+    --brand-on-inverse-muted: #5c4f47;
+    --brand-on-inverse-danger: #a8320f;
+    --brand-on-inverse-success: #1d6b45;
+
+    --brand-scrim: rgb(10 7 13 / 0.62);
+
+    --brand-shadow-warm-soft: 0 1px 2px rgb(8 5 12 / 0.4), 0 12px 28px -14px rgb(6 4 10 / 0.6);
+    --brand-shadow-warm-lift: 0 2px 6px rgb(8 5 12 / 0.45), 0 26px 50px -18px rgb(6 4 10 / 0.7);
+  }
 }

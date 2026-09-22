@@ -1,23 +1,32 @@
 import { brand } from './brand';
 
 /**
- * BRAND MARK — replace per project.
+ * BRAND MARK — שנינו.
  *
- * The default mark for "יסוד" (foundation): three courses of a wall, the top
- * one offset. Drawn in currentColor-free accent so it survives on any surface.
- * Keep a real business's logo as an inline SVG here (or next/image with a file
- * in public/brand/) so it renders crisp and needs no extra request.
+ * Two marks, just overlapping: the two people. The ember one sits in front,
+ * separated by a hairline in the surrounding colour — the same treatment the
+ * app uses wherever both partners appear together, so the logo is the product's
+ * own vocabulary rather than an unrelated emblem.
+ *
+ * The colours are the two partner tokens, which is why the mark cannot be
+ * recoloured independently of the people it stands for. In RTL the first mark
+ * read is the one on the right, so the ember (partner A) leads.
  */
 export function Logo({ withName = true, className }: { withName?: boolean; className?: string }) {
   return (
     <span className={`inline-flex items-center gap-2.5 ${className ?? ''}`}>
       <svg viewBox="0 0 24 24" className="size-6 shrink-0" aria-hidden="true">
-        <rect x="3" y="15" width="18" height="5" rx="1" fill="var(--color-accent)" />
-        <rect x="3" y="9" width="11" height="5" rx="1" fill="var(--color-accent)" opacity="0.72" />
-        <rect x="15" y="9" width="6" height="5" rx="1" fill="var(--color-accent)" opacity="0.72" />
-        <rect x="7" y="3" width="10" height="5" rx="1" fill="var(--color-accent)" opacity="0.45" />
+        <circle cx="9.6" cy="12" r="5.8" fill="var(--brand-partner-b)" />
+        <circle
+          cx="14.6"
+          cy="12"
+          r="5.8"
+          fill="var(--brand-partner-a)"
+          stroke="var(--color-chrome)"
+          strokeWidth="1.4"
+        />
       </svg>
-      {withName && <span className="text-row font-bold text-ink">{brand.appName}</span>}
+      {withName && <span className="text-row font-semibold text-ink">{brand.appName}</span>}
     </span>
   );
 }

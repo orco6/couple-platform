@@ -1,0 +1,85 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   DOMAIN STYLES — שנינו
+
+   Only what the brand layer and the foundation's semantic tokens cannot
+   express: the two people, and warm depth. Everything else is composed from
+   core tokens in the components.
+
+   Colour never appears here as a literal — every value comes from a
+   --brand-* token in src/brand/theme.css, so both schemes follow automatically.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Warm depth ────────────────────────────────────────────────────────────
+   The foundation's --shadow-raised / --shadow-overlay are neutral grey, which
+   is correct for a ledger on stone paper and wrong here: a grey shadow on
+   linen reads as software. These carry the canvas hue. Still only on things
+   that float or that are the screen's subject. */
+.shadow-warm-soft {
+  box-shadow: var(--brand-shadow-warm-soft);
+}
+
+.shadow-warm-lift {
+  box-shadow: var(--brand-shadow-warm-lift);
+}
+
+/* ── The two people ────────────────────────────────────────────────────────
+   A round mark carrying an initial. Colour identifies who, and is never the
+   only signal: every mark is accompanied by a name, or carries an accessible
+   name of its own. */
+.partner-mark {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  border-radius: 999px;
+  color: var(--color-white);
+  font-weight: 600;
+  line-height: 1;
+  /* Set by the component for the size it needs. */
+  inline-size: var(--mark-size, 2rem);
+  block-size: var(--mark-size, 2rem);
+  font-size: calc(var(--mark-size, 2rem) * 0.42);
+}
+
+.partner-mark--a {
+  background-color: var(--brand-partner-a);
+}
+
+.partner-mark--b {
+  background-color: var(--brand-partner-b);
+}
+
+/* In the dark scheme the partner colours lighten for contrast against the
+   canvas, so the initial inside them needs dark ink instead of white.
+   --brand-on-inverse is the dark ink in that scheme (see theme.css). */
+@media (prefers-color-scheme: dark) {
+  .partner-mark--a,
+  .partner-mark--b {
+    color: var(--brand-on-inverse);
+  }
+}
+
+/* Both marks together, slightly overlapping — "us" rather than two users.
+   The separating hairline must match whatever is actually behind the pair, so
+   the component sets --pair-ring; a hardcoded colour shows up as a halo on a
+   card and as a notch in the dark. `outline` is used rather than a wrapper so
+   the overlap costs no layout. */
+.partner-pair {
+  display: inline-flex;
+  align-items: center;
+}
+
+.partner-pair > :not(:first-child) {
+  margin-inline-start: -0.32em;
+  border-radius: 999px;
+  outline: 2px solid var(--pair-ring, var(--color-surface));
+}
+
+/* ── Tap targets ──────────────────────────────────────────────────────────
+   Used in the dark, one-handed, half asleep. No text selection on a control,
+   no blue flash, no accidental double-tap zoom. */
+.tap-quiet {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
+  touch-action: manipulation;
+}
