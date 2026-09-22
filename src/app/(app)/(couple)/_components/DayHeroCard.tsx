@@ -28,7 +28,7 @@ export function DayHeroCard({ day, dateLabel }: { day: DayView; dateLabel: strin
           rather than being a flat ramp. */}
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute -end-10 -top-16 size-44 rounded-full bg-white/20 blur-2xl"
+        className="on-accent-bloom pointer-events-none absolute -end-10 -top-16 size-44 rounded-full blur-2xl"
       />
 
       <div className="relative flex items-start justify-between gap-4">
@@ -50,7 +50,7 @@ export function DayHeroCard({ day, dateLabel }: { day: DayView; dateLabel: strin
       {cta && (
         <Link
           href="/review"
-          className="relative mt-4 inline-flex min-h-11 items-center gap-2 rounded-chip bg-white/18 px-4 text-row font-semibold text-on-accent backdrop-blur-sm transition-colors duration-200 hover:bg-white/26 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          className="on-accent-chip press relative mt-4 inline-flex min-h-11 items-center gap-2 rounded-chip px-4 text-row font-semibold text-on-accent backdrop-blur-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
         >
           {day.revealed ? <Sparkles aria-hidden="true" size={16} /> : <Moon aria-hidden="true" size={16} />}
           {cta}

@@ -73,7 +73,7 @@ export function CompletionHero({
     <section className="surface-aurora relative overflow-hidden p-5">
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute -end-10 -top-16 size-44 rounded-full bg-white/20 blur-2xl"
+        className="on-accent-bloom pointer-events-none absolute -end-10 -top-16 size-44 rounded-full blur-2xl"
       />
       <div className="relative">
         <p className="text-meta text-on-accent/80">{title}</p>
@@ -89,8 +89,8 @@ export function CompletionHero({
               <span className="text-body text-on-accent/80">{copy.week.completionDetail(done, total)}</span>
             </p>
 
-            <div className="mt-4 h-2 overflow-hidden rounded-chip bg-white/25">
-              <div className="h-full rounded-chip bg-white/90" style={{ width: `${percent}%` }} />
+            <div className="on-accent-track mt-4 h-2 overflow-hidden rounded-chip">
+              <div className="on-accent-fill h-full rounded-chip" style={{ width: `${percent}%` }} />
             </div>
           </>
         )}

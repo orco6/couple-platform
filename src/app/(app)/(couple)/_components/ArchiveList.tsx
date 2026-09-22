@@ -55,7 +55,7 @@ export function ArchiveList({
     }
     setRestoring(null);
     setReason('');
-    toast.show(copy.tasks.restoreAction);
+    toast.show(copy.archivePage.restoreDone);
     router.refresh();
   }
 

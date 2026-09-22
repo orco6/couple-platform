@@ -18,7 +18,7 @@ export function TooEarlyPanel({ reviewTime, openTasks }: { reviewTime: string; o
       <div className="surface-accent relative px-5 py-8 text-center">
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute -end-8 -top-12 size-40 rounded-full bg-white/20 blur-2xl"
+          className="on-accent-bloom pointer-events-none absolute -end-8 -top-12 size-40 rounded-full blur-2xl"
         />
         <div className="relative">
           <Clock aria-hidden="true" size={22} className="mx-auto mb-3 text-on-accent/80" />

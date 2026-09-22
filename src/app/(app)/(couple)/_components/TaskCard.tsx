@@ -72,7 +72,7 @@ export function TaskCard({
           onClick={() => onToggle(task)}
           aria-pressed={done}
           aria-label={done ? copy.tasks.reopenAction : copy.tasks.completeAction}
-          className="tap-quiet grid size-11 shrink-0 place-items-center rounded-control focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+          className="tap-quiet press grid size-11 shrink-0 place-items-center rounded-control focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
         >
           <CompletionMark done={done} sparking={sparking} />
         </button>
@@ -80,7 +80,7 @@ export function TaskCard({
         <button
           type="button"
           onClick={() => onOpen(task)}
-          className="tap-quiet flex min-w-0 flex-1 flex-col items-start gap-1.5 rounded-control py-0.5 text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+          className="tap-quiet press flex min-w-0 flex-1 flex-col items-start gap-1.5 rounded-control py-0.5 text-start focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
         >
           <span
             data-done={done}
@@ -155,18 +155,25 @@ export function TaskCard({
   );
 }
 
-/** Height-and-opacity entrance for the card's action area. */
+/**
+ * Entrance for the card's action area.
+ *
+ * Opacity and a 4px lift only — the card GROWING is animated by the `layout`
+ * prop on the <li> above, which Motion does with a transform rather than by
+ * interpolating height. Animating `height: 0 → auto` here (the obvious build,
+ * and what this was) makes the browser lay out the whole list on every frame
+ * of a 260ms animation, on a phone, while a finger is still on the card.
+ */
 function Reveal({ children }: { children: React.ReactNode }) {
   const reduced = useReducedMotion();
   if (reduced) return <div>{children}</div>;
 
   return (
     <motion.div
-      initial={{ opacity: 0, height: 0 }}
-      animate={{ opacity: 1, height: 'auto' }}
-      exit={{ opacity: 0, height: 0 }}
-      transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
-      className="overflow-hidden"
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -4 }}
+      transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
     >
       {children}
     </motion.div>

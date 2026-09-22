@@ -215,6 +215,7 @@ export const he = {
     emptyWhy: 'משימה שיוצאת מהרשימה מופיעה כאן, עם הסיבה שכתבתם.',
     reasonGiven: 'הסיבה שנכתבה',
     restoreTitle: 'החזרה לרשימה',
+    restoreDone: 'המשימה חזרה לרשימה',
     restoreBody: 'המשימה תחזור לרשימה כפתוחה, ביום שהיא הייתה משויכת אליו.',
     restoreReasonLabel: 'למה היא חוזרת',
   },

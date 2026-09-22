@@ -48,11 +48,11 @@
    Contrast is measured, not guessed. `ink-subtle` is the lightest colour
    allowed for text in either scheme.
 
-   LIGHT — against --brand-surface #ffffff unless noted:
-     ink            #1f1a2e  16.9:1   (16.0:1 on canvas)
-     ink-muted      #56506b   7.6:1
-     ink-subtle     #6e6784   5.3:1   (5.1:1 on canvas — AA floor for text)
-     accent         #7050dd   5.4:1   as white-on-fill; accent-text 7.1:1
+   LIGHT — against --brand-surface #fffcfb unless noted:
+     ink            #1f1a2e  16.5:1   (16.0:1 on canvas)
+     ink-muted      #56506b   7.5:1
+     ink-subtle     #6e6784   5.2:1   (5.1:1 on canvas — AA floor for text)
+     accent         #7050dd   5.4:1   as white-on-fill; accent-text 7.0:1
      partner-a      #d6394a   4.6:1   as white-on-fill
      partner-b      #2563c9   5.7:1   as white-on-fill
      danger         #b3261e   6.5:1   white-on-fill; danger-text 7.6:1
@@ -79,7 +79,7 @@
   /* Surfaces. The canvas is warm and very slightly pink so the aurora behind
      it has something to tint; cards are pure white and lift off it. */
   --brand-canvas: #fdf8f6;
-  --brand-surface: #ffffff;
+  --brand-surface: #fffcfb;
   --brand-sunken: #f6f1f6;
   --brand-hover: #f8f3f8;
   --brand-selected: #f1ecfd;
@@ -156,6 +156,20 @@
   --brand-shadow-lift: 0 2px 6px rgb(31 26 46 / 0.06), 0 22px 44px -18px rgb(31 26 46 / 0.22);
   --brand-shadow-float: 0 8px 18px -6px rgb(31 26 46 / 0.12), 0 28px 60px -24px rgb(31 26 46 / 0.28);
   --brand-edge-light: inset 0 1px 0 rgb(255 255 255 / 0.7);
+
+  /* LIGHT ON A LIT SURFACE.
+     The gradient surfaces are this product's subject, and what sits on top of
+     them is not another colour — it is light. Four alphas are the whole
+     vocabulary: a bloom behind the content, a track for a figure, the figure
+     itself, and a chip. They are named for the same reason every other colour
+     here is: so that a component never contains a one-off `bg-white/25`.
+     They do NOT change with the colour scheme, because they are relative to
+     the lit surface they sit on, not to the page. */
+  --brand-on-accent-bloom: rgb(255 255 255 / 0.2);
+  --brand-on-accent-track: rgb(255 255 255 / 0.25);
+  --brand-on-accent-fill: rgb(255 255 255 / 0.9);
+  --brand-on-accent-chip: rgb(255 255 255 / 0.18);
+  --brand-on-accent-chip-hover: rgb(255 255 255 / 0.26);
 
   /* Glows. Coloured light under a control that is genuinely active — the
      primary button, a chosen rating. Never decoration on a resting element. */

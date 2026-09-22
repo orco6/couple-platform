@@ -33,6 +33,20 @@ test('the four couple screens have no WCAG A/AA violations', async ({ page }) =>
   }
 });
 
+test('the same screens hold up in dark mode', async ({ page }) => {
+  // Contrast is the failure that ships: a scheme flips the surface and a text
+  // colour somewhere does not flip with it. The light pass above cannot see it,
+  // and neither can a reviewer who never changes their system setting.
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await login(page, OWNER);
+
+  for (const path of ['/', '/review', '/week', '/month', '/settings', '/archive']) {
+    await page.goto(path);
+    await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
+    expect(await violations(page), `${path} (dark)`).toEqual([]);
+  }
+});
+
 test('a task card offering its stars has no WCAG A/AA violations', async ({ page }) => {
   await login(page, OWNER);
   const title = await addTask(page, uniqueName('לשטוף כלים'), 'partner');
