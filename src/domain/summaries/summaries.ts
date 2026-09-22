@@ -139,7 +139,9 @@ export async function getWeekSummary(
   ]);
 
   const done = completion(tasks, actor.id);
-  const perfect = tasks.find((task) => task.ratingValue === 5);
+  // Completed, for the same reason the average is (R-CALC-02): a 5 on a task
+  // that has gone back to open is not a highlight of this week's work.
+  const perfect = tasks.find((task) => task.completedById !== null && task.ratingValue === 5);
 
   return {
     from: bounds.from,

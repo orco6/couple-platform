@@ -114,6 +114,22 @@ describe('R-CALC-02 the average task-execution rating', () => {
     expect(executionAverage([task({ completedById: ME })])).toBeNull();
   });
 
+  it('a rating on a task that was reopened does not count', () => {
+    // The rating row survives a reopen (R-RATE-03 removes nothing), but the
+    // figure is about finished work, and this task is back on the list.
+    const tasks = [
+      task({ completedById: ME, ratingValue: 4 }),
+      task({ completedById: null, ratingValue: 1 }),
+    ];
+    expect(executionAverage(tasks)).toBe(4);
+    // And it is not waiting for a rating either — it already has one.
+    expect(unratedCompletedCount(tasks)).toBe(0);
+  });
+
+  it('every rated task reopened → null, not a figure about nothing', () => {
+    expect(executionAverage([task({ completedById: null, ratingValue: 5 })])).toBeNull();
+  });
+
   it('rounds to one decimal, half away from zero', () => {
     // 4 + 3 + 3 + 3 = 13 over 4 → 3.25 → 3.3
     const tasks = [4, 3, 3, 3].map((value) => task({ completedById: ME, ratingValue: value }));

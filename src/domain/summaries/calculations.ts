@@ -81,9 +81,16 @@ export function completion(tasks: readonly TaskInput[], myId: string): Completio
  * Only rated tasks count. An unrated task is not a zero: it means the other
  * partner has not said anything yet, and treating silence as a bad score would
  * make the figure punish the rater's forgetfulness.
+ *
+ * And only tasks that are *currently* finished. A rating outlives its task
+ * being reopened, because nothing here is ever deleted (R-RATE-03) — so
+ * "rated" alone would let a task that went back on the list keep feeding a
+ * figure about work that got done. The week would then read "half the list
+ * closed, execution 4.0", where the 4.0 described something the same screen
+ * says is not closed.
  */
 export function executionAverage(tasks: readonly TaskInput[]): number | null {
-  const rated = tasks.filter((task) => task.ratingValue !== null);
+  const rated = tasks.filter((task) => task.completedById !== null && task.ratingValue !== null);
   let sum = 0;
   for (const task of rated) sum += task.ratingValue as number;
   return averageOf(sum, rated.length);

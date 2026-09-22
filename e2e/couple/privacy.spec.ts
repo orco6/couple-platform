@@ -35,12 +35,16 @@ async function seedTask(request: APIRequestContext, baseURL: string) {
   return { ...task, title, ownerId };
 }
 
-/** A date the fixtures left closed by one partner only. */
-function threeDaysAgo(): string {
-  const now = new Date(`${today()}T12:00:00Z`);
-  now.setUTCDate(now.getUTCDate() - 3);
-  return now.toISOString().slice(0, 10);
+function daysAgo(n: number): string {
+  const date = new Date(`${today()}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - n);
+  return date.toISOString().slice(0, 10);
 }
+
+/** The fixtures left this day closed by ONE partner, so there is an answer to withhold. */
+const HALF_CLOSED = () => daysAgo(3);
+/** And this one closed by neither, so it can still be submitted. */
+const UNCLOSED = () => daysAgo(5);
 
 test('a third account sees none of the couple’s list, by URL', async ({ page, request, baseURL }) => {
   const { title } = await seedTask(request, baseURL!);
@@ -159,7 +163,95 @@ test('a rating outside 1–5 is refused by the schema, and the reveal is not a q
   // days ago is a day the fixtures left closed by ONE partner, so there is a
   // real withheld answer behind this request.
   await apiLogin(request, baseURL!, OWNER);
-  const served = await request.get(`/review?reveal=1&date=${threeDaysAgo()}`);
+  const served = await request.get(`/review?reveal=1&date=${HALF_CLOSED()}`);
   expect(served.status()).toBe(200);
   expect(await served.text()).not.toContain(copy.day.revealedTitle);
+});
+
+/* ── The checklist's red-team script, for this domain's routes ──────────── */
+
+test('mass assignment: none of the authority-carrying columns can be set from a body', async ({
+  request,
+  baseURL,
+}) => {
+  const task = await seedTask(request, baseURL!);
+
+  // Every one of these is a column the services set from the SESSION or from
+  // the lifecycle, never from the request. A strict schema turns each into a
+  // 400 rather than an ignored key, which is the difference between "we did
+  // not read it" and "we cannot read it".
+  const forged = [
+    { createdById: task.ownerId },
+    { completedById: task.ownerId },
+    { completedAt: new Date().toISOString() },
+    { archivedAt: new Date().toISOString() },
+    { archiveReason: 'הושתל' },
+    { rating: { value: 5 } },
+  ];
+
+  for (const extra of forged) {
+    const response = await request.patch(`/api/tasks/${task.id}`, {
+      data: { id: task.id, version: task.version, title: 'שינוי', ...extra },
+      headers: { Origin: baseURL! },
+    });
+    expect(response.status(), JSON.stringify(extra)).toBe(400);
+  }
+
+  // And the row still has the version it started with — nothing partially
+  // applied on the way to the refusal.
+  const clean = await request.patch(`/api/tasks/${task.id}`, {
+    data: { id: task.id, version: task.version, title: 'שינוי מותר' },
+    headers: { Origin: baseURL! },
+  });
+  expect(clean.status()).toBe(200);
+});
+
+test('a replayed day-entry submission closes the day once', async ({ request, baseURL }) => {
+  await apiLogin(request, baseURL!, PARTNER);
+
+  const body = { entryDate: UNCLOSED(), respectRating: 3, note: null };
+  const key = `e2e-${Date.now()}`;
+  const send = () =>
+    request.post('/api/day-entries', {
+      data: body,
+      headers: { Origin: baseURL!, 'Idempotency-Key': key },
+    });
+
+  const first = await send();
+  const replay = await send();
+
+  // The button was pressed once, at night, on one bar of signal. A retry is
+  // the same submission, not a second one that then fails on the unique index.
+  expect(first.status()).toBe(201);
+  expect(replay.status()).toBe(201);
+  // Compared as data: the replay is served from the stored response, whose key
+  // order is its own.
+  expect(await replay.json()).toEqual(await first.json());
+
+  // The same key with a different body is a different intention, and refused.
+  const different = await request.post('/api/day-entries', {
+    data: { ...body, respectRating: 5 },
+    headers: { Origin: baseURL!, 'Idempotency-Key': key },
+  });
+  expect(different.status()).toBe(422);
+  expect(await different.text()).toContain('IDEMPOTENCY_KEY_REUSED');
+});
+
+test('a cross-origin write is refused on this domain’s routes too, valid session and all', async ({
+  request,
+  baseURL,
+}) => {
+  const task = await seedTask(request, baseURL!);
+
+  for (const route of [
+    { url: `/api/tasks/${task.id}/transition`, data: { id: task.id, version: task.version, to: 'COMPLETED' } },
+    { url: '/api/task-ratings', data: { taskId: task.id, value: 3 } },
+    { url: '/api/day-entries', data: { entryDate: today(), respectRating: 3 } },
+  ]) {
+    const response = await request.post(route.url, {
+      data: route.data,
+      headers: { Origin: 'https://evil.example.com' },
+    });
+    expect(response.status(), route.url).toBe(403);
+  }
 });

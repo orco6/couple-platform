@@ -50,7 +50,7 @@ reads PARTNER's unsubmitted-pair entry (`R-DAY-05`).
 
 | Entity | Owned by | "Own" means | Who sees all | Rule ID |
 |---|---|---|---|---|
-| `DailyTask` | the couple | nothing — the list is shared by design | both partners | `R-TASK-01` |
+| `DailyTask` | the couple | nothing — the list is shared by design | both partners, and nobody else with an account | `R-TASK-01`, `R-ACC-06` |
 | `DayEntry` | the authoring partner (`partnerId`) | `partnerId = actor.id` | nobody unconditionally; the partner's entry becomes visible only when both submitted | `R-DAY-05` |
 | `Partnership` | the deployment | the single row that names the two partners | both partners | `R-ACC-05` |
 
@@ -63,15 +63,43 @@ a spare, a fixture, one never disabled — and breaks *asymmetrically*: the two
 people would disagree about who their partner is. Only `users.manage` (OWNER)
 may set the link, and it is audited (`partnership.linked`).
 
-**`R-TASK-01` — the shared list is genuinely shared.** `DailyTask` has no owner *scope*: both partners
-see and may act on every task, and either can tick one off for the other. `ownerId` names
-**responsibility**, never permission.
+**`R-TASK-01` — the shared list is genuinely shared, between the two of them.** Both partners see and
+may act on every task, and either can tick one off for the other. `ownerId` names
+**responsibility**, never permission — it decides who *rates* the task, not who may touch it.
+
+**`R-ACC-06` — the couple is the scope.** Every task query is filtered to rows owned by the two
+people in the link (`taskScope`), and a signed-in account outside the link sees an empty product: no
+list, no summaries, no archive, no attention rows, and 404 on any single task. Writes are refused
+with `NOT_IN_PARTNERSHIP`.
+
+*This replaces an earlier reading of ADR 0009 that made the deployment the boundary and let
+`taskScope` return `{}`. ADR 0009 says one deployment per business — where the data lives, not who
+may read it. Those are different claims, and `access.defaultRole` is `PARTNER`, so every account the
+owner ever creates would have been inside the couple's evening. The reveal rule (`R-DAY-05`) was
+already structural; this brings the list up to the same standard. Recorded in SECURITY_REVIEW.md
+with the tests that hold it, four of which fail if the scope goes back to `{}`.*
 
 **`R-RATE-01` — a completed task is rated by the partner who does NOT own it.** One rating per task,
 1–5. That asymmetry is the feature: rating your own work is a self-assessment, and the daily entry is
 already one of those. This is the small piece of feedback that otherwise never gets said out loud.
-The service refuses three things a person could reasonably try — rating a task that is not finished,
-rating your own task, and rating one the other partner already rated.
+The service refuses four things, by a POSITIVE test — "this task is owned by MY partner" — rather
+than by excluding cases one at a time:
+
+| Attempt | Refusal |
+|---|---|
+| the task is not finished | `TASK_NOT_COMPLETED` |
+| the task is mine | `TASK_IS_MINE` |
+| the task belongs to neither of us | `NOT_MY_PARTNERS_TASK` |
+| nobody is linked yet | `NO_PARTNERSHIP` |
+| the other partner already rated it | `TASK_ALREADY_RATED` (409) |
+
+The last one can only be a stale client: there is exactly one non-owner, so "someone else rated it"
+and "I rated it" are the same person unless the link changed underneath.
+
+**The offer and the state move together.** `TaskView.permissions.rate` is true only while the server
+would accept a rating, so a card never shows five stars the API would refuse. In practice that means:
+completing a task hands the turn to the other partner (the owner sees *waiting*, never stars);
+reopening it withdraws the offer in the same breath; and re-completing it brings the offer back.
 
 **`R-RATE-02`** — the value is an `Int` 1–5 with a database CHECK; it is the number the weekly
 "average task execution" figure is built from.
@@ -80,12 +108,17 @@ rating your own task, and rating one the other partner already rated.
 yesterday's dishes is normal; a disappearing rating would move the week's average with nothing on
 screen to explain it.
 
+That includes reopening: the rating row outlives the completion it was given for, so re-completing
+the task brings the same rating back rather than asking for it again. What the *figures* do is a
+separate question, answered in `R-CALC-02` — a reopened task stops counting, because the average
+describes finished work.
+
 **`R-RATE-04` — a task's owner must be one of the two linked partners.** Otherwise a stale client
 could own a task to a spare account and the rating rule would have nobody on the other side.
 
 **`R-DAY-05` — the reveal rule (the product's one inviolable rule).** For a given `entryDate`, partner
-A may read partner B's `executionRating`, `respectRating` and `note` **only if A has also submitted an
-entry for that date**. Until then the service omits those three fields from the view entirely —
+A may read partner B's `respectRating` and `note` **only if A has also submitted an
+entry for that date**. Until then the service omits both fields from the view entirely —
 absent, not `null` — and the API response does not contain them. A may always see *whether* B has
 submitted (a boolean), because waiting for someone is not private. Enforced in
 `src/domain/day-entries/day-entries.ts`, never in the UI.
@@ -129,7 +162,6 @@ is a business decision, not a mistake, and the reason is worth keeping. Nothing 
 | `id` | cuid | ✓ | — |
 | `entryDate` | `@db.Date` | ✓ | the day being reviewed |
 | `partnerId` | ref `User` | ✓ | from the session, never from the request body |
-| `executionRating` | `Int` | ✓ | 1–5 |
 | `respectRating` | `Int` | ✓ | 1–5 |
 | `note` | text | — | 0–1000 chars |
 | `submittedAt` | `DateTime` | ✓ | server clock at submission |
@@ -207,15 +239,24 @@ needed a legend was left out.
 | no tasks | — | `null` |
 
 ### `R-CALC-02` — average task-execution rating
-- Mean of every `TaskRating` value in the range. **An unrated completed task is silence, not a zero**
-  — treating it as 0 would make the figure punish the rater's forgetfulness.
+- Mean of the `TaskRating` values on tasks that are **rated and currently completed** in the range.
+- **An unrated completed task is silence, not a zero** — treating it as 0 would make the figure
+  punish the rater's forgetfulness.
+- **A reopened task stops counting**, even though its rating survives (`R-RATE-03`). The figure is
+  about work that got done; leaving it in would let a week read "half the list closed, execution
+  4.0" where the 4.0 described something the same screen calls unfinished.
 
 | Case | Inputs | Expected |
 |---|---|---|
-| rated 5, 4, 3 | three ratings | 4.0 |
+| rated 5, 4, 3 | three ratings, all completed | 4.0 |
 | two 5s and one unrated | 5, 5, — | 5.0 (and 1 waiting) |
 | 4, 3, 3, 3 | 13 over 4 = 3.25 | 3.3 |
+| rated 4 completed, rated 1 reopened | — | 4.0 (and 0 waiting) |
+| every rated task reopened | 5 (open) | `null` |
 | nothing rated | — | `null` |
+
+The same clause applies to the week's "«title» got a 5" highlight: a 5 on a task that has gone back
+on the list is not a highlight of the week's work.
 
 ### `R-CALC-03` — average mutual-respect rating
 - Couple average: mean of both partners' `respectRating` on the dates **both** closed. A day only one
@@ -354,12 +395,18 @@ surveillance inside a relationship, and the log is OWNER-readable.
 | Key | Meaning | Default | Range | Affects history? |
 |---|---|---|---|---|
 | `review.daily_time` | the wall-clock time from which the day may be closed | `21:30` | `LocalTime` "HH:MM", any valid time; rejected if it falls in the DST spring-forward gap | **No** — an entry records its own `submittedAt`; changing the time never invalidates a past entry |
-| `partners.display_order` | which partner is shown first in side-by-side views | the OWNER first | one of the two partner ids | no |
 
 **`R-SET-01`** — the review time is read with `getSetting` on every submission (never cached), and the
 "can the day be closed yet" flag on the view is computed from the same value the service enforces.
 **`R-SET-02`** — only `settings.manage` (OWNER) may change it; the other partner sees the current value
-read-only, because a shared ritual time that one person can silently move is a trust problem.
+read-only, because a shared ritual time that one person can silently move is a trust problem. The
+screen is `/settings`, which renders a real `TimeInput` for the owner and the value as plain text
+with "only the owner changes the shared hour" for the other partner — the control is absent rather
+than present-and-refused.
+
+There is exactly one setting. A couple should not have a preferences screen, so `/settings` holds
+the hour and one other thing that is not a setting at all: who the couple is, shown as a fact,
+because it is the boundary every other screen is scoped by (`R-ACC-06`).
 
 ---
 
@@ -376,7 +423,7 @@ The implementation chose the safest generic behaviour for each. The product owne
 | D-5 | The nightly reminder | **Not built.** The foundation has no outbound notification capability (FOUNDATION §12) and adding one needs a provider choice, an ADR and secrets. This is the product's biggest functional gap: a nightly ritual without a nudge depends on habit alone. | product owner | before launch |
 | D-6 | Data export / erasure when a partner leaves | **Not built.** No export route, no erasure flow. Entries are never deleted (§28). | product owner | before real personal data accumulates |
 | D-7 | What exactly does the daily rating rate? | **Resolved 2026-09-22.** Mutual respect and the quality of communication that day, reported as my own experience ("הרגשתי מכובד/ת, ודיברנו טוב") rather than as a score of the other's character. Task *execution* moved out of the daily entry entirely and is now rated per task by the other partner (`R-RATE-01`), which is both more specific and less loaded. | — | done |
-| D-8 | i18n | **Hebrew-first, i18n-ready.** All domain copy lives in one module (`src/domain/copy.ts`) keyed by concept, direction and language come from `businessLocale` in `src/brand/brand.ts`, and every layout uses logical properties. Adding English means adding a second dictionary and flipping `direction` — not a rewrite. Core's own Hebrew copy (`src/core/copy.ts`) would need the same treatment, which is a core change and therefore an ADR. | product owner | when a non-Hebrew user is real |
+| D-8 | i18n | **Hebrew-first, i18n-ready.** All domain copy lives in one module (`src/domain/copy/`, one file per language behind `src/domain/copy/index.ts`) keyed by concept, direction and language come from `businessLocale` in `src/brand/brand.ts`, and every layout uses logical properties. Adding English means adding a second dictionary and flipping `direction` — not a rewrite. Core's own Hebrew copy (`src/core/copy.ts`) would need the same treatment, which is a core change and therefore an ADR. | product owner | when a non-Hebrew user is real |
 
 ---
 
@@ -420,3 +467,7 @@ there. Depth is done with warm-tinted shadows and radial gradients. Recorded so 
 | Date | Rule IDs | Change | Requested by |
 |---|---|---|---|
 | 2026-09-22 | all | First version, from the product owner's mandate | product owner |
+| 2026-09-22 | `R-RATE-01`, `R-RATE-03`, `R-DAY-05` | Task rating and the reveal written down as built: the four refusals as a positive "owned by MY partner" test, the capability flag that moves with the state (complete → waiting, reopen → offer withdrawn, re-complete → offer back), and a rating that outlives a reopen. `R-DAY-05` lost a stale mention of `executionRating`, which left the daily entry in the D-7 rework. | implementation |
+| 2026-09-22 | `R-ACC-06` (new) | **The couple is the scope, not the deployment.** `taskScope` had returned `{}` on the reading that ADR 0009 made the deployment the isolation boundary; with `defaultRole: PARTNER`, any account the owner created could read the household's list. Now filtered to the two people in the link. See SECURITY_REVIEW.md. | implementation (security walk) |
+| 2026-09-22 | `R-CALC-02` | A reopened task stops feeding the execution average and the weekly "got a 5" highlight, though its rating survives. Found while writing the rule down: "rated" and "finished" had quietly stopped being the same set. | implementation |
+| 2026-09-22 | `R-SET-02` | Named the screen that keeps the rule (`/settings`), which did not exist while the navigation linked to it. `partners.display_order` removed from the settings table — it was never built, and the side comes from the link (`R-ACC-05`). | implementation |
