@@ -2,224 +2,263 @@
    BRAND THEME — שנינו
 
    ── The visual direction ──────────────────────────────────────────────────
-   The concept is **a handwritten note left for each other at the end of the
-   day**: warm linen paper, soft ink, one ember mark. Not a dashboard about a
-   relationship — a note passed between two people. Everything else follows
-   from that image.
+   **Two people, two colours, one light.** The product's whole subject is a
+   pair, so the identity is built from a warm end and a cool end — coral and
+   blue — with a violet between them that belongs to neither and therefore does
+   every shared job: the primary action, focus, the current place. Surfaces are
+   lit rather than filled: a soft aurora of those three hues sits behind the
+   canvas, and cards lift off it with warm-tinted depth and a thin light edge.
 
-   The one recurring object of this product is **the day**. A day is always
-   presented the same way: a warm surface carrying the two marks the partners
-   left on it, side by side, with the partner's side withheld until both have
-   written. The day is never a table row, never a chart point, never a
-   percentage on its own.
+   The one recurring object is **the day**, and it is always presented the same
+   way: a lifted card carrying the two people's marks, with the partner's side
+   withheld until both have written.
 
-   Density is **calm** (`--brand-row-padding-y: 1rem`): four to six items on a
-   screen, large targets, generous space. Both partners use this in bed, in the
-   dark, one-handed, at 23:40 — so the dark scheme below is the primary one, not
-   an inversion added later.
+   Density is calm but not empty — Tovli's 8px rhythm, generous cards, large
+   targets. Both partners use this in bed, one-handed, at 23:40, so the dark
+   scheme is the primary one and the aurora is brighter there, not dimmer.
 
-   The accent's job is **ember**: the primary action, focus, the current
-   location, and the completion mark. Nothing else. It is warm because every
-   other warm thing here is paper and ink, and it has to read as the one live
-   thing on the page.
+   ── Typography: Tovli's approach ──────────────────────────────────────────
+   One family, **Rubik**, at four weights. Recorded in
+   docs/KOMA_TOVLI_EXTRACTION_REPORT.md §5 as Tovli's brand face (Koma later
+   moved to it too), and §2 records its discipline, which is what actually
+   makes it feel unified:
 
-   Two colours identify *people*, not states: `--brand-partner-a` (ember
-   family) and `--brand-partner-b` (plum). That is data encoding — whose rating
-   this is — in a product where telling the two apart at a glance is the whole
-   point. They are never used for decoration, and never as the only signal:
-   every mark also carries a name or an initial.
+     • the scale tops out at 20–22px — no 40px hero numbers;
+     • **weight 600 is dominant**; hierarchy comes from weight and position
+       before size;
+     • 8px is the default gap.
 
-   Deliberately NOT: the foundation's stone-and-green "יסוד" look, Koma's
-   ledger, the law office's serif authority. This product borrows their
-   engineering, not their face. No gradients as decoration, no glass, no glow,
-   no gamified badges.
+   Rubik is a geometric humanist sans designed with Hebrew from the start, so a
+   mixed Hebrew/Latin line shares one rhythm and one skeleton. What is NOT
+   borrowed from Tovli: its teal #00A896 identity, its folded-paper motif and
+   its feed/chat layouts — those belong to that product (same §5).
+
+   ── What this is not ─────────────────────────────────────────────────────
+   Not the foundation's stone-and-green default, not Koma's ledger, not the law
+   office's serif authority. No glassmorphism as decoration, no neon, no AI
+   sparkle: the gradients are light sources with a direction, and every one of
+   them sits *behind* content, never inside a text container.
 
    ── How to change it ─────────────────────────────────────────────────────
-   Raw values only. Components never read these directly; they use the semantic
-   tokens mapped in src/core/ui/styles/foundation.css (bg-surface, text-ink,
-   border-rule, bg-accent…) and the two partner classes in
-   src/domain/styles.css.
+   Raw values only. Components use the semantic tokens mapped in
+   src/core/ui/styles/foundation.css (bg-surface, text-ink, border-rule,
+   bg-accent…) plus the gradient, glow and partner tokens below, which reach
+   components through src/domain/styles.css. No component contains a colour.
 
-   Contrast is measured, not guessed — every ratio below was computed against
-   the surface it is used on. `ink-subtle` is the lightest colour allowed for
-   text in either scheme.
+   Contrast is measured, not guessed. `ink-subtle` is the lightest colour
+   allowed for text in either scheme.
 
-   LIGHT — against --brand-surface #fffdf9 unless noted:
-     ink            #2a211c  15.5:1   (14.3:1 on canvas)
-     ink-muted      #5c4f47   7.8:1
-     ink-subtle     #6f6057   5.9:1   (5.5:1 on canvas — AA floor for text)
-     accent         #b8492b   5.1:1   as text; white ON it 5.2:1
-     accent-text    #9c3d1c   6.7:1
-     partner-b      #6d3569   8.8:1   (8.0:1 on canvas)
-     danger-text    #a8320f   6.6:1
-     warning-text   #8a4a06   6.8:1
-     success-text   #1d6b45   6.4:1
-     info-text      #2d4f6b   8.5:1
-     rule-strong    #9c9081   3.1:1   (control borders — WCAG 1.4.11 non-text)
-   On the inverse surface (#2a211c, toasts):
-     on-inverse         #ffffff 15.8:1
-     on-inverse-muted   #d6cdc4 10.1:1
+   LIGHT — against --brand-surface #ffffff unless noted:
+     ink            #1f1a2e  16.9:1   (16.0:1 on canvas)
+     ink-muted      #56506b   7.6:1
+     ink-subtle     #6e6784   5.3:1   (5.1:1 on canvas — AA floor for text)
+     accent         #7050dd   5.4:1   as white-on-fill; accent-text 7.1:1
+     partner-a      #d6394a   4.6:1   as white-on-fill
+     partner-b      #2563c9   5.7:1   as white-on-fill
+     danger         #b3261e   6.5:1   white-on-fill; danger-text 7.6:1
+     warning-text   #b45309   5.0:1
+     success        #0c7f73   4.9:1   white-on-fill; success-text 5.2:1
+     rule-strong    #9c8fb0   3.0:1   (control borders — WCAG 1.4.11 non-text)
 
-   DARK — against --brand-surface #241d28 unless noted:
-     ink            #f6f0ea  14.5:1   (15.7:1 on canvas)
-     ink-muted      #c6b8b0   8.5:1
-     ink-subtle     #a4968e   5.7:1   (6.2:1 on canvas — AA floor for text)
-     accent         #b8492b           white ON it 5.2:1 (3.4:1 against canvas)
-     accent-text    #f0a184   7.9:1
-     focus          #f3a98d   8.5:1
-     partner-b      #c9a0c6   7.3:1   (7.9:1 on canvas)
-     danger-text    #ff9e86   8.2:1
-     warning-text   #e8bd7a   9.4:1
-     success-text   #8fd8b5   9.9:1
-     info-text      #9fc3e0   8.9:1
-     rule-strong    #7d6e8a   3.5:1   (control borders)
-   On the inverse surface (#f2ece4, toasts in dark):
-     on-inverse         #2a211c 13.4:1
+   DARK — against --brand-surface #231b36 unless noted:
+     ink            #ede7f5  13.5:1   (16.2:1 on canvas)
+     ink-muted      #b9afce   7.9:1
+     ink-subtle     #9c92b5   5.6:1   — AA floor for text
+     accent-text    #b9a6ff   7.8:1
+     partner-a-text #ff8fa0   7.6:1
+     partner-b-text #90c8ff   9.3:1
+     danger-text    #ff9e93   8.2:1
+     warning-text   #ffc98a  10.9:1
+     success-text   #7fe3d0  10.8:1
+     rule-strong    #7a6e90   3.5:1   (control borders)
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
   color-scheme: light;
 
-  /* Surfaces — linen canvas, paper surface. Only the note is near-white. */
-  --brand-canvas: #f7f3ec;
-  --brand-surface: #fffdf9;
-  --brand-sunken: #f1ece3;
-  --brand-hover: #f4efe6;
-  --brand-selected: #fbeee8;
+  /* Surfaces. The canvas is warm and very slightly pink so the aurora behind
+     it has something to tint; cards are pure white and lift off it. */
+  --brand-canvas: #fdf8f6;
+  --brand-surface: #ffffff;
+  --brand-sunken: #f6f1f6;
+  --brand-hover: #f8f3f8;
+  --brand-selected: #f1ecfd;
 
-  /* Ink — warm near-black. Never blue-black: nothing here is clinical. */
-  --brand-ink: #2a211c;
-  --brand-ink-muted: #5c4f47;
-  --brand-ink-subtle: #6f6057;
+  --brand-ink: #1f1a2e;
+  --brand-ink-muted: #56506b;
+  --brand-ink-subtle: #6e6784;
   --brand-ink-on-accent: #ffffff;
 
-  /* Rules — three weights. Faint separates rows, rule bounds a section,
-     strong is a control border (and is the only one with a contrast duty). */
-  --brand-rule-faint: #ece5da;
-  --brand-rule: #ded5c8;
-  --brand-rule-strong: #9c9081;
+  /* Rules. Faint separates rows, rule bounds a section, strong is a control
+     border and is the only one with a contrast duty. */
+  --brand-rule-faint: #f0eaf2;
+  --brand-rule: #e4dcea;
+  --brand-rule-strong: #9c8fb0;
 
-  /* Accent — ember. Primary action, focus, current location, completion mark. */
-  --brand-accent: #b8492b;
-  --brand-accent-hover: #9c3d1c;
-  --brand-accent-tint: #fbeae2;
-  --brand-accent-text: #9c3d1c;
-  --brand-focus: #c4512f;
+  /* The shared accent: violet, belonging to neither partner, so it can carry
+     the primary action, focus and the current location without taking sides. */
+  --brand-accent: #7050dd;
+  --brand-accent-hover: #5b3fc4;
+  --brand-accent-tint: #f1ecfd;
+  --brand-accent-text: #5b3fc4;
+  --brand-focus: #7c5ce6;
 
-  /* The two people. Data encoding, never decoration, never the only signal. */
-  --brand-partner-a: #b8492b;
-  --brand-partner-a-tint: #fbeae2;
-  --brand-partner-b: #6d3569;
-  --brand-partner-b-tint: #f3eaf2;
+  /* The two people. Warm end and cool end — maximally distinguishable at the
+     size of a 20px mark, and neither is the accent or the danger colour. */
+  --brand-partner-a: #d6394a;
+  --brand-partner-a-tint: #fdeef0;
+  --brand-partner-b: #2563c9;
+  --brand-partner-b-tint: #eaf1fd;
 
-  /* Status */
-  --brand-danger: #c63b16;
-  --brand-danger-text: #a8320f;
-  --brand-danger-tint: #fbeeea;
-  --brand-warning: #c9800e;
-  --brand-warning-text: #8a4a06;
-  --brand-warning-tint: #fbf3e4;
-  --brand-success: #2e8a5c;
-  --brand-success-text: #1d6b45;
-  --brand-success-tint: #eaf4ee;
-  --brand-info-text: #2d4f6b;
-  --brand-info-tint: #ebf1f5;
+  --brand-danger: #b3261e;
+  --brand-danger-text: #a31e17;
+  --brand-danger-tint: #fdeeec;
+  --brand-warning: #d97706;
+  --brand-warning-text: #b45309;
+  --brand-warning-tint: #fdf3e6;
+  --brand-success: #0c7f73;
+  --brand-success-text: #0a7a6e;
+  --brand-success-tint: #e6f6f3;
+  --brand-info-text: #2159b4;
+  --brand-info-tint: #eaf1fd;
 
   /* Inverse surface — toasts. */
-  --brand-inverse: #2a211c;
+  --brand-inverse: #1f1a2e;
   --brand-on-inverse: #ffffff;
-  --brand-on-inverse-muted: #d6cdc4;
-  --brand-on-inverse-danger: #ffb4a1;
-  --brand-on-inverse-success: #9fd8c2;
+  --brand-on-inverse-muted: #c9c2d8;
+  --brand-on-inverse-danger: #ff9e93;
+  --brand-on-inverse-success: #7fe3d0;
 
-  --brand-scrim: rgb(42 33 28 / 0.42);
+  --brand-scrim: rgb(24 18 38 / 0.46);
 
-  /* Depth — warm-tinted, never grey. Grey shadows are what make software look
-     like software. Shadows stay on things that float; rules do the rest. */
-  --brand-shadow-warm-soft: 0 1px 2px rgb(58 40 30 / 0.05), 0 10px 24px -14px rgb(58 40 30 / 0.13);
-  --brand-shadow-warm-lift: 0 2px 4px rgb(58 40 30 / 0.06), 0 22px 44px -18px rgb(58 40 30 / 0.2);
+  /* ── The signature gradients ──────────────────────────────────────────
+     Three hues, one direction of light. `aurora` is the product's face and
+     appears on exactly one element per screen; `warm` and `cool` belong to
+     the two partners; `ember` is the primary button. Every one of them is a
+     background behind content, never a fill inside a text container and never
+     a gradient on text itself. */
+  --brand-gradient-aurora: linear-gradient(135deg, #d6394a 0%, #7050dd 52%, #2563c9 100%);
+  --brand-gradient-accent: linear-gradient(140deg, #7c5ce6 0%, #6344d2 55%, #5b3fc4 100%);
+  --brand-gradient-warm: linear-gradient(140deg, #e8556a 0%, #d6394a 100%);
+  --brand-gradient-cool: linear-gradient(140deg, #3b7ce0 0%, #2563c9 100%);
+  --brand-gradient-success: linear-gradient(140deg, #14a08f 0%, #0c7f73 100%);
 
-  /* Typography — Assistant for the interface, Noto Serif Hebrew for anything
-     the couple reads emotionally (the day, the verdict, the figures). Both
-     designed with their Latin, both with real Hebrew. Set in app/layout.tsx.
-     Hierarchy from weight first; the title stays modest. */
+  /* The layered background. Three washes at low opacity, fixed behind
+     everything, giving the canvas a light source instead of a flat fill. */
+  --brand-wash-one: radial-gradient(60% 45% at 82% -4%, rgb(214 57 74 / 0.16), transparent 70%);
+  --brand-wash-two: radial-gradient(52% 40% at 6% 6%, rgb(112 80 221 / 0.14), transparent 72%);
+  --brand-wash-three: radial-gradient(70% 50% at 50% 104%, rgb(37 99 201 / 0.1), transparent 75%);
+
+  /* Depth. Warm-tinted, never grey: a grey shadow on a warm canvas is what
+     makes software look like software. `edge` is the thin light line along a
+     card's top that makes it read as lit rather than pasted on. */
+  --brand-shadow-card: 0 1px 2px rgb(31 26 46 / 0.04), 0 8px 20px -12px rgb(31 26 46 / 0.14);
+  --brand-shadow-lift: 0 2px 6px rgb(31 26 46 / 0.06), 0 22px 44px -18px rgb(31 26 46 / 0.22);
+  --brand-shadow-float: 0 8px 18px -6px rgb(31 26 46 / 0.12), 0 28px 60px -24px rgb(31 26 46 / 0.28);
+  --brand-edge-light: inset 0 1px 0 rgb(255 255 255 / 0.7);
+
+  /* Glows. Coloured light under a control that is genuinely active — the
+     primary button, a chosen rating. Never decoration on a resting element. */
+  --brand-glow-accent: 0 10px 30px -10px rgb(112 80 221 / 0.5);
+  --brand-glow-warm: 0 10px 30px -10px rgb(214 57 74 / 0.45);
+  --brand-glow-cool: 0 10px 30px -10px rgb(37 99 201 / 0.45);
+
+  /* ── Typography: Rubik, one family, weight-led (see the header) ──────── */
   --brand-font-sans: var(--font-brand-sans), 'Segoe UI', 'Arial Hebrew', system-ui, sans-serif;
-  --brand-font-display: var(--font-brand-display), var(--brand-font-sans), Georgia, serif;
+  --brand-font-display: var(--brand-font-sans);
   --brand-title-weight: 600;
   --brand-section-weight: 600;
-  --brand-text-title: 1.5rem;
+  /* 22px is Tovli's ceiling. Hierarchy comes from weight, not from size. */
+  --brand-text-title: 1.375rem;
   --brand-text-section: 1.0625rem;
 
-  /* Density — the calm end. Few items, big targets, read in the dark. */
-  --brand-row-padding-y: 1rem;
+  /* Density — Tovli's 8px rhythm, one notch calmer for a phone used at night. */
+  --brand-row-padding-y: 0.875rem;
 
-  /* Chrome — canvas, so only the note is paper. */
-  --brand-chrome: var(--brand-canvas);
+  /* Chrome — canvas, so only cards are surface and the aurora stays visible
+     through the shell. */
+  --brand-chrome: transparent;
 
-  /* Shape — softer than a ledger, still differentiated by kind. */
+  /* Shape — refined and rounded, still differentiated by kind. */
   --brand-radius-chip: 999px;
-  --brand-radius-control: 12px;
-  --brand-radius-surface: 16px;
-  --brand-radius-dialog: 22px;
-  --brand-radius-sheet: 28px;
+  --brand-radius-control: 14px;
+  --brand-radius-surface: 20px;
+  --brand-radius-dialog: 26px;
+  --brand-radius-sheet: 30px;
 }
 
-/* ── Dark — the primary scheme for this product (brief §17) ─────────────────
-   Deep warm plum-ink, not neutral charcoal: the paper is still paper at night.
-   Contrast re-measured above; the same accent carries over so the product has
-   one ember in both schemes. */
+/* ── Dark — the primary scheme for this product ─────────────────────────────
+   Deep indigo-plum, not neutral charcoal, and the aurora is *brighter* here:
+   at night the light is the only thing separating the surfaces. */
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
 
-    --brand-canvas: #1b1620;
-    --brand-surface: #241d28;
-    --brand-sunken: #1f1923;
-    --brand-hover: #2b2330;
-    --brand-selected: #33212a;
+    --brand-canvas: #1a1428;
+    --brand-surface: #231b36;
+    --brand-sunken: #1e1730;
+    --brand-hover: #2b2242;
+    --brand-selected: #322553;
 
-    --brand-ink: #f6f0ea;
-    --brand-ink-muted: #c6b8b0;
-    --brand-ink-subtle: #a4968e;
+    --brand-ink: #ede7f5;
+    --brand-ink-muted: #b9afce;
+    --brand-ink-subtle: #9c92b5;
     --brand-ink-on-accent: #ffffff;
 
-    --brand-rule-faint: #2c2434;
-    --brand-rule: #3a3040;
-    --brand-rule-strong: #7d6e8a;
+    --brand-rule-faint: #2a2140;
+    --brand-rule: #352a4e;
+    --brand-rule-strong: #7a6e90;
 
-    --brand-accent: #b8492b;
-    --brand-accent-hover: #c95733;
-    --brand-accent-tint: #3a2119;
-    --brand-accent-text: #f0a184;
-    --brand-focus: #f3a98d;
+    --brand-accent: #7050dd;
+    --brand-accent-hover: #8163e8;
+    --brand-accent-tint: #2c2150;
+    --brand-accent-text: #b9a6ff;
+    --brand-focus: #a68cff;
 
-    --brand-partner-a: #e8875f;
-    --brand-partner-a-tint: #3a2119;
-    --brand-partner-b: #c9a0c6;
-    --brand-partner-b-tint: #2e2135;
+    --brand-partner-a: #e8556a;
+    --brand-partner-a-tint: #3a1c27;
+    --brand-partner-b: #3b7ce0;
+    --brand-partner-b-tint: #16243f;
 
-    --brand-danger: #d8532c;
-    --brand-danger-text: #ff9e86;
-    --brand-danger-tint: #3a1f1a;
-    --brand-warning: #d89a2e;
-    --brand-warning-text: #e8bd7a;
-    --brand-warning-tint: #362a17;
-    --brand-success: #3f9d6d;
-    --brand-success-text: #8fd8b5;
-    --brand-success-tint: #172e23;
-    --brand-info-text: #9fc3e0;
-    --brand-info-tint: #1b2733;
+    --brand-danger: #c9352c;
+    --brand-danger-text: #ff9e93;
+    --brand-danger-tint: #3a1a19;
+    --brand-warning: #d97706;
+    --brand-warning-text: #ffc98a;
+    --brand-warning-tint: #3a2a14;
+    --brand-success: #0e9184;
+    --brand-success-text: #7fe3d0;
+    --brand-success-tint: #123230;
+    --brand-info-text: #90c8ff;
+    --brand-info-tint: #16243f;
 
     /* Toasts invert the other way at night. */
-    --brand-inverse: #f2ece4;
-    --brand-on-inverse: #2a211c;
-    --brand-on-inverse-muted: #5c4f47;
-    --brand-on-inverse-danger: #a8320f;
-    --brand-on-inverse-success: #1d6b45;
+    --brand-inverse: #f3eefa;
+    --brand-on-inverse: #1f1a2e;
+    --brand-on-inverse-muted: #56506b;
+    --brand-on-inverse-danger: #a31e17;
+    --brand-on-inverse-success: #0a7a6e;
 
-    --brand-scrim: rgb(10 7 13 / 0.62);
+    --brand-scrim: rgb(8 5 16 / 0.66);
 
-    --brand-shadow-warm-soft: 0 1px 2px rgb(8 5 12 / 0.4), 0 12px 28px -14px rgb(6 4 10 / 0.6);
-    --brand-shadow-warm-lift: 0 2px 6px rgb(8 5 12 / 0.45), 0 26px 50px -18px rgb(6 4 10 / 0.7);
+    --brand-gradient-aurora: linear-gradient(135deg, #e8556a 0%, #7c5ce6 52%, #3b7ce0 100%);
+    --brand-gradient-accent: linear-gradient(140deg, #8163e8 0%, #7050dd 55%, #5b3fc4 100%);
+    --brand-gradient-warm: linear-gradient(140deg, #f06a7e 0%, #d6394a 100%);
+    --brand-gradient-cool: linear-gradient(140deg, #4e8ceb 0%, #2563c9 100%);
+    --brand-gradient-success: linear-gradient(140deg, #14a08f 0%, #0c7f73 100%);
+
+    --brand-wash-one: radial-gradient(60% 45% at 82% -4%, rgb(232 85 106 / 0.26), transparent 70%);
+    --brand-wash-two: radial-gradient(52% 40% at 6% 6%, rgb(124 92 230 / 0.26), transparent 72%);
+    --brand-wash-three: radial-gradient(70% 50% at 50% 104%, rgb(59 124 224 / 0.2), transparent 75%);
+
+    --brand-shadow-card: 0 1px 2px rgb(5 3 12 / 0.5), 0 8px 20px -12px rgb(5 3 12 / 0.6);
+    --brand-shadow-lift: 0 2px 6px rgb(5 3 12 / 0.55), 0 22px 44px -18px rgb(5 3 12 / 0.7);
+    --brand-shadow-float: 0 8px 18px -6px rgb(5 3 12 / 0.6), 0 28px 60px -24px rgb(5 3 12 / 0.75);
+    /* At night the light edge is a highlight, not a white line. */
+    --brand-edge-light: inset 0 1px 0 rgb(255 255 255 / 0.08);
+
+    --brand-glow-accent: 0 10px 30px -10px rgb(124 92 230 / 0.6);
+    --brand-glow-warm: 0 10px 30px -10px rgb(232 85 106 / 0.55);
+    --brand-glow-cool: 0 10px 30px -10px rgb(59 124 224 / 0.55);
   }
 }

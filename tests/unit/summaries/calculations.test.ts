@@ -168,6 +168,32 @@ describe('R-CALC-04 closed-together streak', () => {
   it('nothing closed → 0', () => {
     expect(closedTogetherStreak([neither('d1')], 'd1')).toBe(0);
   });
+
+  it('days that have not happened yet are not gaps', () => {
+    // The current week's range runs to Saturday. On a Tuesday it contains four
+    // future days, and counting them as gaps showed "0" to a couple who had
+    // closed every day so far.
+    const week = [
+      bothClosed('2026-09-20'),
+      bothClosed('2026-09-21'),
+      bothClosed('2026-09-22'),
+      neither('2026-09-23'),
+      neither('2026-09-24'),
+      neither('2026-09-25'),
+      neither('2026-09-26'),
+    ];
+    expect(closedTogetherStreak(week, '2026-09-22')).toBe(3);
+  });
+
+  it('today still gets its one allowance, with future days after it', () => {
+    const week = [
+      bothClosed('2026-09-20'),
+      bothClosed('2026-09-21'),
+      neither('2026-09-22'),
+      neither('2026-09-23'),
+    ];
+    expect(closedTogetherStreak(week, '2026-09-22')).toBe(2);
+  });
 });
 
 describe('R-CALC-05 the best day', () => {

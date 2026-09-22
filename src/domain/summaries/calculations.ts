@@ -126,24 +126,35 @@ export function myRespectAverage(days: readonly RangeDayInput[]): number | null 
 /**
  * R-CALC-04 — consecutive days both partners closed, counting back.
  *
- * Today is skipped once if it is not closed yet: a day still in progress is not
- * a broken streak, and showing "0" at 18:00 every day would make the number
- * feel punitive. Any earlier gap does stop the count.
+ * Two kinds of day are skipped rather than counted as gaps:
+ *
+ *   • days that have not happened yet. The current week's range runs to
+ *     Saturday, so on a Tuesday it contains four future days; counting them as
+ *     gaps made a couple who had closed every day so far see "0".
+ *   • today, if it is not closed yet. A day still in progress is not a broken
+ *     streak, and showing "0" at 18:00 every day would make the number feel
+ *     punitive.
+ *
+ * Any gap before that does stop the count.
  */
 export function closedTogetherStreak(days: readonly RangeDayInput[], today: string): number {
   let streak = 0;
+
   for (let index = days.length - 1; index >= 0; index -= 1) {
     const day = days[index];
     if (!day) break;
-    const bothClosed = day.mine !== null && day.partnerSubmitted;
 
+    // ISO dates compare correctly as strings.
+    if (day.date > today) continue;
+
+    const bothClosed = day.mine !== null && day.partnerSubmitted;
     if (!bothClosed) {
-      // The one allowance: the live day, and only at the very end of the range.
-      if (day.date === today && index === days.length - 1) continue;
+      if (day.date === today) continue;
       break;
     }
     streak += 1;
   }
+
   return streak;
 }
 

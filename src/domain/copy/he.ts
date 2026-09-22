@@ -32,9 +32,10 @@ export const he = {
 
   nav: {
     today: 'היום',
-    review: 'סגירת היום',
-    week: 'השבוע',
-    month: 'החודש',
+    /** Four items share a 402px bar — the label has to be one short word. */
+    review: 'סגירה',
+    week: 'שבוע',
+    month: 'חודש',
   },
 
   tasks: {
@@ -118,12 +119,16 @@ export const he = {
       5: 'מעולה',
     },
 
+    chooseFirst: 'בחרו דירוג כדי לסגור את היום.',
     submitAction: 'סגירת היום',
     amendAction: 'שינוי מה שכתבתי',
 
     notOpenYetTitle: 'עוד מוקדם',
     notOpenYetWhy: (time: string) => `אפשר לסגור את היום מ-${time}.`,
     notOpenYetWhat: 'עד אז אפשר להמשיך לסמן משימות.',
+    notOpenYetOpenTasks: (n: number) => (n === 1 ? 'משימה אחת עוד פתוחה' : `${n} משימות עוד פתוחות`),
+    notOpenYetNothingOpen: 'הרשימה כבר ריקה.',
+    backToList: 'לרשימה',
 
     waitingTitle: (name: string) => `${name} עוד לא סגר/ה את היום`,
     waitingWhy: 'מה שכתבתם יתגלה לשניכם ברגע ששניכם תסגרו.',
@@ -142,6 +147,11 @@ export const he = {
 
     emptyTitle: 'היום הזה לא נסגר',
     emptyWhy: 'אף אחד מכם לא סגר אותו, ואפשר עוד להשלים.',
+  },
+
+  summariesNav: {
+    previous: 'הטווח הקודם',
+    next: 'הטווח הבא',
   },
 
   week: {

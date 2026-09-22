@@ -1,68 +1,121 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    DOMAIN STYLES — שנינו
 
-   Only what the brand layer and the foundation's semantic tokens cannot
-   express: the two people, and warm depth. Everything else is composed from
-   core tokens in the components.
+   What the brand layer and the foundation's semantic tokens cannot express on
+   their own: the lit background, the premium card, the two people, the glows,
+   and the bottom bar.
 
-   Colour never appears here as a literal — every value comes from a
-   --brand-* token in src/brand/theme.css, so both schemes follow automatically.
+   Colour never appears here as a literal — every value comes from a --brand-*
+   token in src/brand/theme.css, so both schemes follow automatically and the
+   "no raw colour" lint rule keeps meaning something.
+
+   Nothing here edits core. The bottom-bar rules below hook onto
+   `[data-mobile-tab-bar]`, which the foundation's shell exposes as a
+   documented attribute (DESIGN_PATTERN_LIBRARY §0: "tab bar steps aside while
+   typing" uses the same hook), so the shell keeps owning safe areas, the
+   keyboard behaviour and the scroll padding.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ── Warm depth ────────────────────────────────────────────────────────────
-   The foundation's --shadow-raised / --shadow-overlay are neutral grey, which
-   is correct for a ledger on stone paper and wrong here: a grey shadow on
-   linen reads as software. These carry the canvas hue. Still only on things
-   that float or that are the screen's subject. */
-.shadow-warm-soft {
-  box-shadow: var(--brand-shadow-warm-soft);
+/* ── The lit background ───────────────────────────────────────────────────
+   Three washes, fixed behind everything, pointer-transparent. This is what
+   stops a mostly-white consumer app from reading as a blank sheet, and it is
+   why cards need so little decoration of their own. */
+.aurora {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: var(--brand-wash-one), var(--brand-wash-two), var(--brand-wash-three);
+  background-color: var(--color-canvas);
 }
 
-.shadow-warm-lift {
-  box-shadow: var(--brand-shadow-warm-lift);
+/* ── Surfaces ─────────────────────────────────────────────────────────────
+   A card is a lit object: a soft warm shadow underneath, a hairline around it,
+   and a thin light edge along the top. The edge is what makes it read as lifted
+   rather than pasted on, and it costs one inset shadow. */
+.card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-surface);
+  box-shadow: var(--brand-shadow-card), var(--brand-edge-light);
 }
 
-/* ── The two people ────────────────────────────────────────────────────────
+.card-lift {
+  box-shadow: var(--brand-shadow-lift), var(--brand-edge-light);
+}
+
+.card-float {
+  box-shadow: var(--brand-shadow-float), var(--brand-edge-light);
+}
+
+/* The one gradient surface per screen. Text on it is always on-accent white,
+   which is checked in theme.css against the lightest stop. */
+.surface-aurora {
+  background-image: var(--brand-gradient-aurora);
+  color: var(--color-on-accent);
+  border-radius: var(--radius-surface);
+  box-shadow: var(--brand-shadow-lift);
+}
+
+.surface-accent {
+  background-image: var(--brand-gradient-accent);
+  color: var(--color-on-accent);
+}
+
+.surface-warm {
+  background-image: var(--brand-gradient-warm);
+  color: var(--color-on-accent);
+}
+
+.surface-cool {
+  background-image: var(--brand-gradient-cool);
+  color: var(--color-on-accent);
+}
+
+/* Glows. Coloured light under something genuinely active — never decoration
+   on a resting element. */
+.glow-accent {
+  box-shadow: var(--brand-glow-accent);
+}
+
+.glow-warm {
+  box-shadow: var(--brand-glow-warm);
+}
+
+.glow-cool {
+  box-shadow: var(--brand-glow-cool);
+}
+
+/* ── The two people ───────────────────────────────────────────────────────
    A round mark carrying an initial. Colour identifies who, and is never the
-   only signal: every mark is accompanied by a name, or carries an accessible
-   name of its own. */
+   only signal: every mark is next to a name or carries its own accessible
+   name. */
 .partner-mark {
   display: inline-grid;
   place-items: center;
   flex: none;
   border-radius: 999px;
-  color: var(--color-white);
+  color: var(--color-on-accent);
   font-weight: 600;
   line-height: 1;
-  /* Set by the component for the size it needs. */
   inline-size: var(--mark-size, 2rem);
   block-size: var(--mark-size, 2rem);
   font-size: calc(var(--mark-size, 2rem) * 0.42);
+  box-shadow: var(--brand-edge-light);
 }
 
 .partner-mark--a {
-  background-color: var(--brand-partner-a);
+  background-image: var(--brand-gradient-warm);
 }
 
 .partner-mark--b {
-  background-color: var(--brand-partner-b);
+  background-image: var(--brand-gradient-cool);
 }
 
-/* In the dark scheme the partner colours lighten for contrast against the
-   canvas, so the initial inside them needs dark ink instead of white.
-   --brand-on-inverse is the dark ink in that scheme (see theme.css). */
-@media (prefers-color-scheme: dark) {
-  .partner-mark--a,
-  .partner-mark--b {
-    color: var(--brand-on-inverse);
-  }
-}
-
-/* Both marks together, slightly overlapping — "us" rather than two users.
-   The separating hairline must match whatever is actually behind the pair, so
-   the component sets --pair-ring; a hardcoded colour shows up as a halo on a
-   card and as a notch in the dark. `outline` is used rather than a wrapper so
-   the overlap costs no layout. */
+/* Both marks together, slightly overlapping — "us" rather than two users. The
+   separating hairline must match whatever is actually behind the pair, so the
+   component sets --pair-ring; a hardcoded colour shows up as a halo on a card
+   and as a notch in the dark scheme. `outline` costs no layout. */
 .partner-pair {
   display: inline-flex;
   align-items: center;
@@ -74,6 +127,38 @@
   outline: 2px solid var(--pair-ring, var(--color-surface));
 }
 
+/* ── Completion ───────────────────────────────────────────────────────────
+   The line-through is drawn, not toggled: a pseudo-element scaled from the
+   inline start, which animates on the compositor and works on a title that
+   wraps to two lines (a positioned 1px div does not). */
+.strike {
+  position: relative;
+  transition: color 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.strike::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: 0.62em;
+  height: 1.5px;
+  border-radius: 1px;
+  background-color: currentColor;
+  transform: scaleX(0);
+  transform-origin: inline-start;
+  transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.strike[data-done='true']::after {
+  transform: scaleX(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .strike::after {
+    transition: none;
+  }
+}
+
 /* ── Tap targets ──────────────────────────────────────────────────────────
    Used in the dark, one-handed, half asleep. No text selection on a control,
    no blue flash, no accidental double-tap zoom. */
@@ -82,4 +167,77 @@
   -webkit-touch-callout: none;
   user-select: none;
   touch-action: manipulation;
+}
+
+/* ── The bottom bar ───────────────────────────────────────────────────────
+   The foundation draws a full-width slab, which is correct for an operational
+   tool and reads as browser chrome in a consumer app. These rules turn it into
+   a floating capsule without touching the shell: it keeps the safe-area
+   padding, the "step aside while the keyboard is open" behaviour and the
+   scroll padding that the shell already handles. */
+nav[data-mobile-tab-bar] {
+  inset-inline: 0.75rem;
+  bottom: 0.5rem;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-sheet);
+  background-color: color-mix(in oklab, var(--color-surface) 86%, transparent);
+  backdrop-filter: blur(18px) saturate(1.5);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  box-shadow: var(--brand-shadow-float), var(--brand-edge-light);
+  padding-block: 0.25rem;
+}
+
+nav[data-mobile-tab-bar] a,
+nav[data-mobile-tab-bar] button {
+  position: relative;
+  border-radius: var(--radius-control);
+  min-height: 3.25rem;
+  transition:
+    color 160ms ease-out,
+    transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+nav[data-mobile-tab-bar] a:active,
+nav[data-mobile-tab-bar] button:active {
+  transform: scale(0.94);
+  transition-duration: 40ms;
+}
+
+/* The current place gets the accent tint behind it — one accent, one job. */
+nav[data-mobile-tab-bar] a[aria-current='page']::before {
+  content: '';
+  position: absolute;
+  inset: 0.25rem 0.5rem;
+  border-radius: var(--radius-control);
+  background-color: var(--color-accent-tint);
+}
+
+nav[data-mobile-tab-bar] a[aria-current='page'] > * {
+  position: relative;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  nav[data-mobile-tab-bar] a:active,
+  nav[data-mobile-tab-bar] button:active {
+    transform: none;
+  }
+}
+
+/* The partner colours as text and fill. They are not in Tailwind's theme on
+   purpose — they identify *people*, not states, and keeping them out of the
+   semantic palette stops them being reached for as decoration. */
+.text-partner-a {
+  color: var(--brand-partner-a);
+}
+
+.text-partner-b {
+  color: var(--brand-partner-b);
+}
+
+.bg-partner-a-tint {
+  background-color: var(--brand-partner-a-tint);
+}
+
+.bg-partner-b-tint {
+  background-color: var(--brand-partner-b-tint);
 }
