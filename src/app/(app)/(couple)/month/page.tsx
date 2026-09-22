@@ -117,9 +117,12 @@ export default async function MonthPage({ searchParams }: { searchParams: Promis
                 <li key={week.from} className="flex items-center justify-between gap-3 px-4 py-3">
                   <span className="min-w-0">
                     <span className="text-body font-medium text-ink">{copy.month.weekLabel(week.index)}</span>
-                    <span className="ms-2 text-meta text-ink-subtle" dir="ltr">
+                    {/* <bdi>, not a span: "שבוע 4" ends in a digit and the date
+                        starts with one, so without isolation the two run
+                        together into "4 20.09.2026" as one number. */}
+                    <bdi className="ms-3 text-meta text-ink-subtle" dir="ltr">
                       {formatCalendarDate(week.from)}
-                    </span>
+                    </bdi>
                   </span>
 
                   <span className="flex shrink-0 items-center gap-3 tabular-nums" dir="ltr">

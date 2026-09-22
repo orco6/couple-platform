@@ -68,6 +68,58 @@ cp -r Nutlope-hallmark-*/skills/hallmark ~/.claude/skills/hallmark
   white document surfaces on a tinted canvas (the document is the only white — brand token per
   business); centred empty states (instruction, not decoration).
 
+## 0b. This business's reviews — שנינו
+
+**Hallmark audit (2026-09-23, `hallmark audit` against every couple screen).** Original repository,
+pinned commit `13ac0ec`, verified markdown-only before reading it (`find skills -type f ! -name '*.md'`
+printed nothing). Result: **0 critical · 4 major · 1 minor**, all fixed in one commit —
+
+| Gate | Finding | Fix |
+|---|---|---|
+| 48 tokens | Six components carried raw `bg-white/20`, `/25`, `/90`, `/18` on gradient surfaces | Four named tokens — bloom, track, fill, chip — and four classes. On a lit surface, white-at-alpha is light, not colour, so the tokens deliberately do not change with the scheme. |
+| 14 motion | The card's action area entered by animating `height: 0 → auto` | Fades and lifts 4px; the card growing is the `<li>`'s existing `layout` animation, which Motion does with a transform. |
+| 7 colour | `--brand-surface` was pure `#ffffff` | `#fffcfb`, warm like the canvas; the contrast table in `theme.css` re-measured. |
+| 26 states | The completion mark and the card body had no press | A `.press` utility, transform-only, with a reduced-motion branch. |
+| 16 feedback (minor) | Restoring a task toasted its own action label | Says the task is back on the list — the part that happened on another screen. |
+
+Two gaps were in the *checking*, not the product: axe ran in light mode only (it now runs in dark too),
+and nothing was tested at 320px (now swept for sideways scroll and two-line labels).
+
+**Intentional divergences** (a phone product for two people, not a landing page and not an operational
+tool). The ones in [BUSINESS_RULES.md §13](BUSINESS_RULES.md) stand; these are Hallmark's:
+
+- **Gate 6 (centred hero).** The "too early" panel centres four elements on one axis. It is not a hero
+  — it is a *moment*, one time set large on the day's own gradient, and the thing under it is a link
+  to the list rather than a CTA.
+- **Gate 23 (accent ≤ 5% of the viewport).** The day card and the completion hero are gradient
+  surfaces covering roughly a fifth of the first screen. In this product the day *is* the subject;
+  Hallmark's own atmospheric genre allows exactly this, and everything else on the screen is white.
+- **Gate 24 (4px spacing scale).** Tailwind's scale, including its half-steps (`p-3.5` = 14px, the
+  foundation's row padding). Named and consistent, not an arbitrary `17px`.
+
+**Screenshot critique (2026-09-23, `npm run qa:screenshots`, desktop 1440×900 and iPhone 13).** Read
+against the renders, not the source. Four findings, all fixed:
+
+1. **The empty star row was the quietest thing on the screen** — grey outline in a grey circle on a
+   white card, reading as disabled when it is the product's signature invitation. It is now a
+   surface-coloured pill outlined in its own tone, and the ring thickens under a pointer.
+2. **"Waiting for your rating" looked like every other row.** The one section that is waiting for
+   *this* person now sits on a warm tinted panel; a rating already given gets the quiet surface,
+   because nothing is waiting any more.
+3. **The day card's chip was a caption that happened to be tappable** — the page's name on a day
+   already closed, and a statement with a full stop on a day waiting for the partner. It now always
+   says what the tap does.
+4. **A card showed its rating twice** — the badge and the editable star row, for the person who gave
+   it. The badge is now only for the person who did not.
+
+Also from the renders: the month's weekly rows ran "שבוע 4" into "20.09.2026" as one number run —
+`<bdi>` isolates them.
+
+**Still open, deliberately:** WebKit. The iPhone shots are Chromium at the iPhone's size and pixel
+ratio (this machine cannot download WebKit); Safari's own rendering is a MANUAL_QA.md item.
+
+---
+
 ## 1. Anti-generic check (fail any → not finished)
 - [ ] No blue/purple gradients, glow, glassmorphism, neon accents, or "AI sparkle".
 - [ ] Not every block is a floating card. Surfaces have edges (rules), shadows only on overlays.

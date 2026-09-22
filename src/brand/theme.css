@@ -165,6 +165,18 @@
      here is: so that a component never contains a one-off `bg-white/25`.
      They do NOT change with the colour scheme, because they are relative to
      the lit surface they sit on, not to the page. */
+  /* THE EMPTY STAR.
+     A rating nobody has given yet is this product's most important
+     invitation, and the first build made it the quietest thing on the screen:
+     a grey ring on a grey circle on a white card, which reads as "disabled"
+     rather than "your answer goes here". An unfilled star is now a surface-
+     coloured pill outlined in its own tone. Light mode uses the tone itself;
+     dark mode uses the -text variant, because the accent at full strength
+     only clears 3.03:1 against the dark surface and a control's edge has to
+     clear 3:1 (WCAG 1.4.11) with room to spare. */
+  --brand-star-edge-warm: #d6394a;
+  --brand-star-edge-accent: #7050dd;
+
   --brand-on-accent-bloom: rgb(255 255 255 / 0.2);
   --brand-on-accent-track: rgb(255 255 255 / 0.25);
   --brand-on-accent-fill: rgb(255 255 255 / 0.9);
@@ -228,6 +240,9 @@
     --brand-accent-tint: #2c2150;
     --brand-accent-text: #b9a6ff;
     --brand-focus: #a68cff;
+
+    --brand-star-edge-warm: #ff8fa0;
+    --brand-star-edge-accent: #b9a6ff;
 
     --brand-partner-a: #e8556a;
     --brand-partner-a-tint: #3a1c27;

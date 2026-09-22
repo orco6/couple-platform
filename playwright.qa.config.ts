@@ -20,6 +20,16 @@ export default defineConfig({
   reporter: [['list']],
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } },
-    { name: 'iphone', use: { ...devices['iPhone 13'] } },
+    {
+      name: 'iphone',
+      use: {
+        ...devices['iPhone 13'],
+        // Same escape hatch as playwright.config.ts: where WebKit cannot be
+        // downloaded, fall back to Chromium at the iPhone's size and pixel
+        // ratio. An approximation — Safari's own rendering still has to be
+        // checked on a real machine (MANUAL_QA.md) — but better than no shots.
+        ...(process.env.PLAYWRIGHT_CHROMIUM_PATH ? { defaultBrowserType: 'chromium' as const } : {}),
+      },
+    },
   ],
 });

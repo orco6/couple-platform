@@ -132,7 +132,8 @@ export function Stars({
               <motion.span
                 className={cx(
                   'grid place-items-center rounded-full transition-colors duration-200',
-                  filled ? (tone === 'warm' ? 'surface-warm' : 'surface-accent') : 'bg-sunken ring-1 ring-rule',
+                  tone === 'warm' ? 'star-warm' : 'star-accent',
+                  filled ? (tone === 'warm' ? 'surface-warm' : 'surface-accent') : 'star-empty',
                 )}
                 style={{ width: size * 0.78, height: size * 0.78 }}
                 initial={false}
@@ -147,7 +148,7 @@ export function Stars({
                   aria-hidden="true"
                   size={size * 0.44}
                   strokeWidth={filled ? 0 : 1.75}
-                  className={filled ? 'fill-current text-on-accent' : 'text-ink-subtle/70'}
+                  className={filled ? 'fill-current text-on-accent' : undefined}
                 />
               </motion.span>
             </motion.button>

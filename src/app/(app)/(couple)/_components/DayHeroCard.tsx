@@ -61,13 +61,21 @@ export function DayHeroCard({ day, dateLabel }: { day: DayView; dateLabel: strin
   );
 }
 
-/** One sentence about where the day stands, and the action if there is one. */
+/**
+ * One sentence about where the day stands, and the action if there is one.
+ *
+ * The chip's label is always what the tap DOES. It carried the page's name
+ * ("סגירת היום") on a day that was already closed, and a statement with a full
+ * stop ("סגרתם את היום הזה.") on a day waiting for the other partner — both
+ * read as captions that happened to be tappable.
+ */
 function describe(day: DayView, partnerName: string): { line: string; cta: string | null } {
   if (day.revealed) {
-    return { line: copy.day.revealedTitle, cta: copy.day.pageTitle };
+    return { line: copy.day.revealedTitle, cta: copy.day.seeWhatYouWrote };
   }
   if (day.mine) {
-    return { line: copy.day.waitingTitle(partnerName), cta: copy.day.alreadyClosed };
+    // Amending is exactly what is still possible here, and only here.
+    return { line: copy.day.waitingTitle(partnerName), cta: copy.day.amendAction };
   }
   if (!day.canClose) {
     return { line: copy.day.notOpenYetWhy(day.reviewTime), cta: null };

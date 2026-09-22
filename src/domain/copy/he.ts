@@ -135,6 +135,7 @@ export const he = {
     partnerClosedAlready: (name: string) => `${name} כבר סגר/ה. מה שנכתב יתגלה כשתסגרו גם אתם.`,
 
     revealedTitle: 'שניכם סגרתם',
+    seeWhatYouWrote: 'לראות מה כתבתם',
     frozenNotice: 'אחרי שהיום נגלה, מה שנכתב נשאר כמו שהוא.',
 
     gapExact: 'אותו יום, אותה הרגשה.',

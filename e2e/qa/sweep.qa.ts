@@ -13,38 +13,7 @@
 
 import { expect, test, type Page } from '@playwright/test';
 import { CORE_USERS, login } from '../helpers';
-
-let counter = 0;
-
-async function capture(page: Page, name: string, problems: string[], options: { fullPage?: boolean } = {}) {
-  await page.waitForLoadState('networkidle').catch(() => {});
-  // Let route settle (180ms) and overlay entrances (≤340ms) finish.
-  await page.waitForTimeout(500);
-  counter += 1;
-  const project = test.info().project.name;
-  const file = `screenshots/qa/${project}/${String(counter).padStart(2, '0')}-${name}.png`;
-  await page.screenshot({ path: file, fullPage: options.fullPage ?? true }).catch(async () => {
-    await page.screenshot({ path: file });
-  });
-  const { scrollWidth, clientWidth } = await page.evaluate(() => ({
-    scrollWidth: document.documentElement.scrollWidth,
-    clientWidth: document.documentElement.clientWidth,
-  }));
-  if (scrollWidth > clientWidth + 1) problems.push(`${name}: scrolls sideways (${scrollWidth} > ${clientWidth})`);
-}
-
-function watch(page: Page, problems: string[]) {
-  page.on('console', (message) => {
-    if (message.type() === 'error' && !/status of 4\d\d/.test(message.text())) problems.push(`console: ${message.text().slice(0, 160)}`);
-  });
-  page.on('pageerror', (error) => {
-    // WebKit reports a Next.js route prefetch (?_rsc=) that was cancelled because the sweep
-    // navigated away as 'due to access control checks'. Verified: the requests fail with
-    // 'Load request cancelled', nothing functional breaks. Anything else still fails the sweep.
-    if (/\?_rsc=.*access control checks/.test(error.message)) return;
-    problems.push(`pageerror: ${error.message.slice(0, 160)}`);
-  });
-}
+import { capture, resetCounter, watch } from './capture';
 
 async function navigationHrefs(page: Page, isMobile: boolean): Promise<string[]> {
   const hrefs = new Set<string>();
@@ -71,7 +40,7 @@ test('sweep: every screen and key state', async ({ page, isMobile }) => {
   test.setTimeout(6 * 60_000);
   const problems: string[] = [];
   watch(page, problems);
-  counter = 0;
+  resetCounter();
 
   await page.goto('/login');
   await capture(page, 'sign-in', problems);

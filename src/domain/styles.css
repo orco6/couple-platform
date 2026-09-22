@@ -162,6 +162,31 @@
 /* ── Tap targets ──────────────────────────────────────────────────────────
    Used in the dark, one-handed, half asleep. No text selection on a control,
    no blue flash, no accidental double-tap zoom. */
+/*
+ * The empty star: a surface-coloured pill outlined in its own tone, so the
+ * row reads as five things waiting for an answer. The ring thickens under a
+ * pointer — the only hover this product has, and it is on the control whose
+ * whole job is to be tapped.
+ */
+.star-empty {
+  background-color: var(--color-surface);
+  box-shadow: inset 0 0 0 1.5px var(--star-edge);
+  color: var(--star-edge);
+  transition: box-shadow 160ms ease;
+}
+
+.star-empty:hover {
+  box-shadow: inset 0 0 0 2.5px var(--star-edge);
+}
+
+.star-warm {
+  --star-edge: var(--brand-star-edge-warm);
+}
+
+.star-accent {
+  --star-edge: var(--brand-star-edge-accent);
+}
+
 /* Light on a lit surface — the four alphas from src/brand/theme.css, as
    classes, so a gradient card never hard-codes an alpha of its own. */
 .on-accent-bloom {

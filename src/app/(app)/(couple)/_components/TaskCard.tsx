@@ -109,8 +109,10 @@ export function TaskCard({
         </button>
 
         {/* The settled rating: small, quiet, and on the end edge where the eye
-            already goes for a status. */}
-        {task.rating && (
+            already goes for a status. Shown only to the person who did NOT
+            give it — for the rater the star row below is already the value,
+            and a badge repeating it is the same fact twice on one card. */}
+        {task.rating && !task.permissions.rate && (
           <span
             className="flex shrink-0 items-center gap-1 rounded-chip bg-warning-tint px-2 py-1"
             title={copy.taskRating.ratedBy(task.rating.ratedByName, task.rating.value)}
@@ -136,8 +138,17 @@ export function TaskCard({
 
         {task.permissions.rate && (
           <Reveal key="rate">
-            <div className="mt-3 border-t border-rule-faint pt-3">
-              <p className="mb-1 text-center text-meta text-ink-muted">
+            {/* A tinted panel rather than a rule: on a list of white cards,
+                warmth is how the one section waiting for THIS person says so
+                without a word. Once it has been answered there is nothing
+                waiting, so changing a rating gets the quiet surface. */}
+            <div
+              className={cx(
+                'mt-3 rounded-control px-3 pt-2.5 pb-3',
+                task.rating ? 'bg-sunken' : 'bg-partner-a-tint',
+              )}
+            >
+              <p className="mb-1.5 text-center text-meta text-ink-muted">
                 {task.rating ? copy.taskRating.change : copy.taskRating.promptFor(ownerRef.name)}
               </p>
               <Stars
