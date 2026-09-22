@@ -1,102 +1,11 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// BUSINESS DOMAIN MODELS — SAMPLE: a small service business.
+// BUSINESS DOMAIN MODELS — this business.
 //
-// This whole file is replaceable. It exists to prove the core end to end:
-// ownership scoping, archive/restore, soft delete, lifecycle, money + VAT,
-// business dates, period close + snapshots, follow-ups.
+// Conventions (docs/adr/0004): Int agorot for money, @db.Date for business
+// dates, explicit ownership columns with indexes, archivedAt/deletedAt instead
+// of hard deletes, `version Int @default(1)` for concurrently edited records,
+// onDelete: Restrict for anything historical.
 //
-// To start a real project: delete these models, remove their back-relations
-// from User (core.prisma), delete src/domain/sample/, write your own.
-// See DOMAIN_IMPLEMENTATION_CHECKLIST.md.
+// Every relation to User needs its back-relation in the marked block of
+// core.prisma. Then: npm run db:migrate:dev -- --name <business>_domain
 // ═══════════════════════════════════════════════════════════════════════════
-
-/// A customer of the business. Owned by one staff member (the person
-/// responsible). Staff see their own customers; managers see all.
-model Customer {
-  id            String    @id @default(cuid())
-  name          String
-  /// As typed. Displayed inside an LTR isolate.
-  phone         String?
-  email         String?
-  city          String?
-  ownerId       String
-  owner         User      @relation("CustomerOwner", fields: [ownerId], references: [id], onDelete: Restrict)
-  createdById   String
-  createdBy     User      @relation("CustomerCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  /// Archive = reversible removal from working lists. History stays intact.
-  archivedAt    DateTime?
-  archivedById  String?
-  archivedBy    User?     @relation("CustomerArchiver", fields: [archivedById], references: [id], onDelete: Restrict)
-  archiveReason String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  tasks Task[]
-  notes Note[]
-
-  @@index([ownerId, archivedAt])
-  @@index([archivedAt, name])
-}
-
-enum TaskStatus {
-  OPEN
-  IN_PROGRESS
-  DONE
-  CANCELLED
-}
-
-/// A unit of paid work for a customer.
-model Task {
-  id           String     @id @default(cuid())
-  customerId   String
-  customer     Customer   @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  title        String
-  description  String?
-  status       TaskStatus @default(OPEN)
-  assigneeId   String?
-  assignee     User?      @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: Restrict)
-  /// Business date: when it is due. Calendar day, no time, no timezone.
-  dueDate      DateTime?  @db.Date
-  /// Business date: the day the work was completed. Decides which revenue
-  /// period the task belongs to. NOT updatedAt, NOT the moment of the click.
-  completedOn  DateTime?  @db.Date
-  /// Net price before VAT, integer agorot. Null = not priced yet.
-  priceAgorot  Int?
-  /// VAT rate applied to this task, basis points (1800 = 18%). Frozen on the
-  /// row when priced, so a later rate change never rewrites past work.
-  vatRateBps   Int?
-  /// Optimistic concurrency. Every update must name the version it read.
-  version      Int        @default(1)
-  createdById  String
-  createdBy    User       @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  updatedById  String
-  updatedBy    User       @relation("TaskUpdater", fields: [updatedById], references: [id], onDelete: Restrict)
-  archivedAt   DateTime?
-  archivedById String?
-  archivedBy   User?      @relation("TaskArchiver", fields: [archivedById], references: [id], onDelete: Restrict)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-
-  @@index([assigneeId, status, archivedAt])
-  @@index([customerId, archivedAt])
-  @@index([completedOn])
-  @@index([dueDate, status])
-}
-
-/// A free-text note on a customer. Soft-deleted (deletedAt/deletedById), never
-/// hard-deleted, so a removed note is still visible to an auditor.
-model Note {
-  id          String    @id @default(cuid())
-  customerId  String
-  customer    Customer  @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  body        String
-  authorId    String
-  author      User      @relation("NoteAuthor", fields: [authorId], references: [id], onDelete: Restrict)
-  deletedAt   DateTime?
-  deletedById String?
-  deletedBy   User?     @relation("NoteDeleter", fields: [deletedById], references: [id], onDelete: Restrict)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@index([customerId, deletedAt, createdAt])
-}

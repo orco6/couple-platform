@@ -34,7 +34,7 @@ Requirements: Node 22.12+, Docker.
 ```bash
 npm install                 # also generates the Prisma client
 cp .env.example .env        # local defaults work as-is
-npm run db:up               # PostgreSQL 17 on 127.0.0.1:5434 (bpf_dev, bpf_test, bpf_e2e)
+npm run db:up               # PostgreSQL 17 on 127.0.0.1:5436 (couple_platform_dev, couple_platform_test, couple_platform_e2e)
 npm run db:reset:local      # migrate + realistic sample data (local _dev database only)
 npm run dev                 # http://localhost:3000
 ```
@@ -60,8 +60,8 @@ Renames local infrastructure, removes the sample domain, installs the blank doma
 | `npm run check` | typecheck + lint + unit + integration |
 | `npm run typecheck` / `npm run lint` | TypeScript strict / ESLint + invisible-character check |
 | `npm run test:unit` | pure tests, no database |
-| `npm run test:integration` | real PostgreSQL (`bpf_test`, rebuilt from migrations, emptied before every test) |
-| `npm run e2e` | Playwright on a production build against `bpf_e2e` (desktop + mobile) |
+| `npm run test:integration` | real PostgreSQL (`couple_platform_test`, rebuilt from migrations, emptied before every test) |
+| `npm run e2e` | Playwright on a production build against `couple_platform_e2e` (desktop + mobile) |
 | `npm run qa:screenshots` | screenshot sweep for design review: every screen at 1440px and iPhone WebKit → `screenshots/qa/` |
 | `npm run db:migrate:dev -- --name <change>` | create and apply a migration (local `_dev` only) |
 | `npm run db:deploy -- --confirm <database>` | apply migrations to a named database, after printing the target |

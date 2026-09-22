@@ -1,8 +1,8 @@
 {
-  "name": "business-platform-foundation",
+  "name": "couple-platform",
   "version": "0.1.0",
   "private": true,
-  "description": "Reusable production foundation for bespoke small-business applications.",
+  "description": "שנינו — built on business-platform-foundation.",
   "type": "module",
   "engines": {
     "node": ">=22.12"

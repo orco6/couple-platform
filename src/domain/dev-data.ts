@@ -1,6 +1,14 @@
 /**
  * DEVELOPMENT / QA DATA FOR THIS BUSINESS — replace per project.
- * Called by `npm run db:reset:local`, `npm run qa:data -- realistic` and the E2E setup,
- * only ever against guarded local databases.
+ *
+ * Create realistic records THROUGH YOUR DOMAIN SERVICES so fixtures obey the
+ * same validation, lifecycle and audit rules as real use. Users are already
+ * created per role (users.byRole.<ROLE>[0|1], users.top, users.pending,
+ * users.disabled). Runs only against guarded local databases.
  */
-export { seedSampleData as seedDomainData } from './sample/dev-data';
+
+import type { DomainSeeder } from '@/core/dev-data/types';
+
+export const seedDomainData: DomainSeeder = async () => {
+  // Nothing yet.
+};

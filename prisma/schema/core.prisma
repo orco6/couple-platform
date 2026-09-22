@@ -50,15 +50,6 @@ model User {
   // ── Domain back-relations (edit per project) ─────────────────────────────
   // Prisma requires the other side of every relation a domain model declares
   // to User. Keep them in this block so the rest of the model stays stable.
-  customersOwned    Customer[] @relation("CustomerOwner")
-  customersCreated  Customer[] @relation("CustomerCreator")
-  customersArchived Customer[] @relation("CustomerArchiver")
-  tasksAssigned     Task[]     @relation("TaskAssignee")
-  tasksCreated      Task[]     @relation("TaskCreator")
-  tasksUpdated      Task[]     @relation("TaskUpdater")
-  tasksArchived     Task[]     @relation("TaskArchiver")
-  notesWritten      Note[]     @relation("NoteAuthor")
-  notesDeleted      Note[]     @relation("NoteDeleter")
   // ─────────────────────────────────────────────────────────────────────────
 
   @@index([role, status])

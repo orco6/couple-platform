@@ -26,7 +26,7 @@ env:
   APP_ENV: test
   NEXT_TELEMETRY_DISABLED: '1'
   # Only for `prisma generate` / build; each suite pins its own database.
-  DATABASE_URL: postgresql://bpf:bpf-local-only@127.0.0.1:5434/bpf_dev
+  DATABASE_URL: postgresql://couple_platform:couple_platform-local-only@127.0.0.1:5436/couple_platform_dev
 
 jobs:
   checks:
@@ -37,12 +37,12 @@ jobs:
       postgres:
         image: postgres:17-alpine
         env:
-          POSTGRES_USER: bpf
-          POSTGRES_PASSWORD: bpf-local-only
-          POSTGRES_DB: bpf_dev
-        ports: ['5434:5432']
+          POSTGRES_USER: couple_platform
+          POSTGRES_PASSWORD: couple_platform-local-only
+          POSTGRES_DB: couple_platform_dev
+        ports: ['5436:5432']
         options: >-
-          --health-cmd "pg_isready -U bpf -d bpf_dev"
+          --health-cmd "pg_isready -U couple_platform -d couple_platform_dev"
           --health-interval 3s --health-timeout 3s --health-retries 30
     steps:
       - uses: actions/checkout@v4
@@ -59,7 +59,7 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
 
       - name: Create test databases
-        run: psql "postgresql://bpf:bpf-local-only@127.0.0.1:5434/bpf_dev" -v ON_ERROR_STOP=1 -f scripts/sql/init-local-databases.sql
+        run: psql "postgresql://couple_platform:couple_platform-local-only@127.0.0.1:5436/couple_platform_dev" -v ON_ERROR_STOP=1 -f scripts/sql/init-local-databases.sql
 
       - name: Typecheck
         run: npm run typecheck
@@ -75,8 +75,8 @@ jobs:
 
       - name: Schema matches migrations (no un-migrated schema change)
         env:
-          DATABASE_URL: postgresql://bpf:bpf-local-only@127.0.0.1:5434/bpf_test
-          DIRECT_URL: postgresql://bpf:bpf-local-only@127.0.0.1:5434/bpf_test
+          DATABASE_URL: postgresql://couple_platform:couple_platform-local-only@127.0.0.1:5436/couple_platform_test
+          DIRECT_URL: postgresql://couple_platform:couple_platform-local-only@127.0.0.1:5436/couple_platform_test
         run: npx prisma migrate diff --from-config-datasource --to-schema prisma/schema --exit-code
 
       - name: Production build
@@ -91,12 +91,12 @@ jobs:
       postgres:
         image: postgres:17-alpine
         env:
-          POSTGRES_USER: bpf
-          POSTGRES_PASSWORD: bpf-local-only
-          POSTGRES_DB: bpf_dev
-        ports: ['5434:5432']
+          POSTGRES_USER: couple_platform
+          POSTGRES_PASSWORD: couple_platform-local-only
+          POSTGRES_DB: couple_platform_dev
+        ports: ['5436:5432']
         options: >-
-          --health-cmd "pg_isready -U bpf -d bpf_dev"
+          --health-cmd "pg_isready -U couple_platform -d couple_platform_dev"
           --health-interval 3s --health-timeout 3s --health-retries 30
     steps:
       - uses: actions/checkout@v4
@@ -106,7 +106,7 @@ jobs:
           cache: npm
       - run: npm ci --no-audit --fund=false
       - name: Create test databases
-        run: psql "postgresql://bpf:bpf-local-only@127.0.0.1:5434/bpf_dev" -v ON_ERROR_STOP=1 -f scripts/sql/init-local-databases.sql
+        run: psql "postgresql://couple_platform:couple_platform-local-only@127.0.0.1:5436/couple_platform_dev" -v ON_ERROR_STOP=1 -f scripts/sql/init-local-databases.sql
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Playwright
@@ -134,12 +134,12 @@ jobs:
       postgres:
         image: postgres:17-alpine
         env:
-          POSTGRES_USER: bpf
-          POSTGRES_PASSWORD: bpf-local-only
-          POSTGRES_DB: bpf_dev
-        ports: ['5434:5432']
+          POSTGRES_USER: couple_platform
+          POSTGRES_PASSWORD: couple_platform-local-only
+          POSTGRES_DB: couple_platform_dev
+        ports: ['5436:5432']
         options: >-
-          --health-cmd "pg_isready -U bpf -d bpf_dev"
+          --health-cmd "pg_isready -U couple_platform -d couple_platform_dev"
           --health-interval 3s --health-timeout 3s --health-retries 30
     steps:
       - uses: actions/checkout@v4
@@ -151,7 +151,7 @@ jobs:
       - name: Remove the sample domain
         run: npm run foundation:new-business -- --skip-rename
       - name: Create test databases
-        run: psql "postgresql://bpf:bpf-local-only@127.0.0.1:5434/bpf_dev" -v ON_ERROR_STOP=1 -f scripts/sql/init-local-databases.sql
+        run: psql "postgresql://couple_platform:couple_platform-local-only@127.0.0.1:5436/couple_platform_dev" -v ON_ERROR_STOP=1 -f scripts/sql/init-local-databases.sql
       - run: npx prisma generate
       - run: npm run typecheck
       - run: npm run lint
@@ -159,8 +159,8 @@ jobs:
       - run: npm run test:integration
       - name: Schema matches migrations
         env:
-          DATABASE_URL: postgresql://bpf:bpf-local-only@127.0.0.1:5434/bpf_test
-          DIRECT_URL: postgresql://bpf:bpf-local-only@127.0.0.1:5434/bpf_test
+          DATABASE_URL: postgresql://couple_platform:couple_platform-local-only@127.0.0.1:5436/couple_platform_test
+          DIRECT_URL: postgresql://couple_platform:couple_platform-local-only@127.0.0.1:5436/couple_platform_test
         run: npx prisma migrate diff --from-config-datasource --to-schema prisma/schema --exit-code
       - run: npx playwright install --with-deps chromium
       - name: Core E2E on the blank foundation

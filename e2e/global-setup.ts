@@ -6,7 +6,7 @@
 import { assertSafeForDestructiveOperation } from '../src/core/db/safety';
 
 export default async function globalSetup() {
-  const url = process.env.E2E_DATABASE_URL ?? 'postgresql://bpf:bpf-local-only@127.0.0.1:5434/bpf_e2e';
+  const url = process.env.E2E_DATABASE_URL ?? 'postgresql://couple_platform:couple_platform-local-only@127.0.0.1:5436/couple_platform_e2e';
   process.env.DATABASE_URL = url;
   process.env.DIRECT_URL = url;
   assertSafeForDestructiveOperation('e2e-reset', url, process.env);

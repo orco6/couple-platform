@@ -11,16 +11,16 @@
 
 export const brand = {
   /** Short product name: header, page titles, login. */
-  appName: 'יסוד',
+  appName: 'שנינו',
   /** One line under the name on the sign-in screen. */
-  tagline: 'מערכת ניהול לעסק',
+  tagline: '',
   /** Printed on documents (print layouts). */
-  legalName: 'שם העסק בע״מ',
+  legalName: 'שנינו',
   /** Company / licensed-dealer number printed on documents, if any. */
-  businessId: '000000000',
-  address: 'רחוב, עיר',
-  phone: '03-0000000',
-  email: 'office@example.co.il',
+  businessId: '',
+  address: '',
+  phone: '',
+  email: '',
 } as const;
 
 export const businessLocale = {

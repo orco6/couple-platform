@@ -1,5 +1,10 @@
 /**
  * ATTENTION RULES FOR THIS BUSINESS — replace per project.
- * Derived "valid but needs attention" lists shown on the attention screen and home.
+ *
+ * Each rule is a SCOPED query for records that are valid but need a look
+ * (missing document, late payment). See src/core/follow-ups/attention.ts.
  */
-export { sampleAttentionRules as attentionRules } from './sample/attention-rules';
+
+import type { AttentionRule } from '@/core/follow-ups/attention';
+
+export const attentionRules: AttentionRule[] = [];

@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 /**
  * End-to-end tests run against a PRODUCTION BUILD (not `next dev`: first-request
  * compilation makes timings flaky and hides bundle problems) on a dedicated
- * database, bpf_e2e, rebuilt and seeded by e2e/global-setup.ts.
+ * database, couple_platform_e2e, rebuilt and seeded by e2e/global-setup.ts.
  *
  * Projects:
  *   desktop  every spec, 1440×900
@@ -14,7 +14,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 const PORT = Number(process.env.E2E_PORT ?? 3200);
 const BASE_URL = `http://localhost:${PORT}`;
-const E2E_DATABASE_URL = process.env.E2E_DATABASE_URL ?? 'postgresql://bpf:bpf-local-only@127.0.0.1:5434/bpf_e2e';
+const E2E_DATABASE_URL = process.env.E2E_DATABASE_URL ?? 'postgresql://couple_platform:couple_platform-local-only@127.0.0.1:5436/couple_platform_e2e';
 
 export default defineConfig({
   testDir: './e2e',

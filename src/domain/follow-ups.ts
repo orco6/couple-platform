@@ -1,5 +1,13 @@
 /**
  * FOLLOW-UP TARGETS FOR THIS BUSINESS — replace per project.
- * Used by the generic follow-up API and the attention screen.
+ *
+ * Which records can carry a manual follow-up, with a SCOPED reachability check
+ * for each. See src/core/follow-ups/targets.ts for an example.
  */
-export { sampleFollowUpTargets as followUpTargets } from './sample/follow-up-targets';
+
+import { defineFollowUpTargets } from '@/core/follow-ups/targets';
+
+export const followUpTargets = defineFollowUpTargets({
+  kinds: {},
+  entities: {},
+});
