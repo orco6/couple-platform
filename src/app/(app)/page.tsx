@@ -1,7 +1,6 @@
 import { requireActorPage } from '@/core/auth/page-guards';
 import { formatCalendarDate, todayIn } from '@/core/dates/calendar-date';
 import { db } from '@/core/db/client';
-import { PageHeader, Section } from '@/core/ui/components/Layout';
 import { copy } from '@/domain/copy';
 import { getDay } from '@/domain/day-entries/day-entries';
 import { partnersOf } from '@/domain/partners';
@@ -9,7 +8,7 @@ import { listTasksForDay } from '@/domain/tasks/tasks';
 
 import { DayHeroCard } from './(couple)/_components/DayHeroCard';
 import { Screen } from './(couple)/_components/Screen';
-import { TaskList } from './(couple)/_components/TaskList';
+import { TodayTasks } from './(couple)/_components/TodayTasks';
 
 export const metadata = { title: copy.nav.today };
 
@@ -32,7 +31,7 @@ export const metadata = { title: copy.nav.today };
  *  7 Loading: the (app) skeleton.
  *  8 Empty: never-had-data ("אין משימות ליום הזה" + how to add). All-closed is
  *    a warmer state, not an empty one.
- *  9 Errors: an optimistic card snaps back and says so (TaskList).
+ *  9 Errors: an optimistic card snaps back and says so (TodayTasks).
  * 10 Unauthorized: the page guard. There is no per-row scope (R-TASK-01), and
  *    the rate action is absent unless the server would accept it.
  * 11 RTL: logical properties throughout; the star row is LTR, like every
@@ -44,6 +43,10 @@ export const metadata = { title: copy.nav.today };
  *    chart. One gradient surface, and it is the product's subject.
  * 16 Specific to this product: the day as a single object at the top, and a
  *    section that exists only because somebody is waiting for you.
+ *
+ * The three sections are derived in TodayTasks, on the client, from the same
+ * one list this page loads: a card moves between them on every tap, and a card
+ * that moves has to take its optimistic state with it.
  */
 export default async function TodayPage() {
   const actor = await requireActorPage();
@@ -55,38 +58,11 @@ export default async function TodayPage() {
     getDay(db, actor, today),
   ]);
 
-  const toRate = tasks.filter((task) => task.permissions.rate && task.rating === null);
-  const open = tasks.filter((task) => task.state === 'OPEN');
-  const closed = tasks.filter((task) => task.state === 'COMPLETED' && !toRate.includes(task));
-  const allClosed = open.length === 0 && tasks.length > 0;
-
   return (
     <Screen>
-      <PageHeader
-        title={copy.tasks.pageTitle}
-        description={allClosed ? copy.tasks.allClosedWhy : copy.tasks.openCount(open.length)}
-      />
-
-      <div className="mb-7">
+      <TodayTasks tasks={tasks} me={me} partner={other} today={today}>
         <DayHeroCard day={day} dateLabel={formatCalendarDate(today)} />
-      </div>
-
-      {/* First, because it is the other person's turn and it costs one tap. */}
-      {toRate.length > 0 && (
-        <Section title={copy.taskRating.sectionTitle}>
-          <TaskList tasks={toRate} me={me} partner={other} today={today} showAdd={false} />
-        </Section>
-      )}
-
-      <Section title={allClosed ? copy.tasks.allClosed : undefined}>
-        <TaskList tasks={open} me={me} partner={other} today={today} />
-      </Section>
-
-      {closed.length > 0 && (
-        <Section title={copy.tasks.closedToday}>
-          <TaskList tasks={closed} me={me} partner={other} today={today} showAdd={false} />
-        </Section>
-      )}
+      </TodayTasks>
     </Screen>
   );
 }

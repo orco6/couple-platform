@@ -31,6 +31,12 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   use: {
     baseURL: BASE_URL,
+    // Escape hatch for sandboxes that cannot download browsers: point
+    // PLAYWRIGHT_CHROMIUM_PATH at an existing Chromium build. Unset — the
+    // normal case — this changes nothing and Playwright uses its own.
+    ...(process.env.PLAYWRIGHT_CHROMIUM_PATH
+      ? { launchOptions: { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH } }
+      : {}),
     locale: 'he-IL',
     timezoneId: 'Asia/Jerusalem',
     trace: 'retain-on-failure',
