@@ -66,7 +66,11 @@ function optionalLocalTime() {
       (value) => value == null || (/^\d{2}:\d{2}$/.test(value) && parseLocalTime(value) !== null),
       coreCopy.validation.invalidTime,
     )
-    .transform((value) => value as LocalTime | null | undefined);
+    .transform((value) => value as LocalTime | null | undefined)
+    // The trailing .optional() is what makes the KEY optional rather than
+    // "present but possibly undefined". Core's own optionalCalendarDate ends
+    // the same way; without it every caller has to pass `dueTime: null`.
+    .optional();
 }
 
 export const createTaskSchema = z

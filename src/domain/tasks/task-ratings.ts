@@ -26,6 +26,7 @@ import type { DbClient } from '@/core/db/types';
 import { errors } from '@/core/errors/errors';
 
 import { copy } from '../copy';
+import { partnersOf } from '../partners';
 import { taskScope } from './tasks';
 
 export const rateTaskSchema = z
@@ -46,10 +47,18 @@ export interface TaskRatingView {
 /**
  * Record or change how the other partner's completed task went.
  *
- * Three refusals, all of them business rules rather than validation, because
- * each one is a thing a person could reasonably try:
+ * The gate is positive rather than negative: the task must be owned by **my
+ * partner**, read from the `Partnership` link. Checking only "not mine" would
+ * have let a third account — a spare, a fixture, one never disabled — rate a
+ * couple's tasks, because it is not the owner either. Single-tenant
+ * deployments have exactly two people (D-1), but that is a deployment fact, not
+ * a control, and this is a control.
+ *
+ * Four refusals, all business rules rather than validation, because each is a
+ * thing a person could reasonably try:
  *   • the task is not finished yet → nothing to rate;
  *   • the task is mine → I do not rate my own work;
+ *   • I am not in this couple → there is no pair I am the other half of;
  *   • someone else already rated it → only the non-owner rates, and there is
  *     only one of them, so this can only mean a stale client.
  */
@@ -57,6 +66,9 @@ export async function rateTask(client: DbClient, actor: Actor, input: RateTaskIn
   assertCan(actor, 'task_ratings.rate');
 
   return inTransaction(client, async (tx) => {
+    const { other } = await partnersOf(tx, actor);
+    if (!other) throw errors.businessRule('NO_PARTNERSHIP', copy.errors.noPartnerYet);
+
     const task = await tx.dailyTask.findFirst({
       where: { AND: [taskScope(actor), { id: input.taskId }, activeOnly] },
       select: { id: true, title: true, ownerId: true, completedAt: true, rating: { select: { ratedById: true } } },
@@ -68,6 +80,10 @@ export async function rateTask(client: DbClient, actor: Actor, input: RateTaskIn
     }
     if (task.ownerId === actor.id) {
       throw errors.businessRule('TASK_IS_MINE', copy.errors.rateNotOwnTask);
+    }
+    if (task.ownerId !== other.id) {
+      // Not my task and not my partner's: I am not part of this pair.
+      throw errors.businessRule('NOT_MY_PARTNERS_TASK', copy.errors.rateNotOwnTask);
     }
     if (task.rating && task.rating.ratedById !== actor.id) {
       throw errors.conflict(copy.errors.rateAlreadyRated, 'TASK_ALREADY_RATED');
