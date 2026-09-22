@@ -52,6 +52,11 @@ model User {
   // to User. Keep them in this block so the rest of the model stays stable.
   // ─────────────────────────────────────────────────────────────────────────
 
+  dailyTasksCreated   DailyTask[] @relation("DailyTaskCreatedBy")
+  dailyTasksCompleted DailyTask[] @relation("DailyTaskCompletedBy")
+  dailyTasksArchived  DailyTask[] @relation("DailyTaskArchivedBy")
+  dayEntries          DayEntry[]  @relation("DayEntryPartner")
+
   @@index([role, status])
 }
 

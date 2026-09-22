@@ -9,3 +9,104 @@
 // Every relation to User needs its back-relation in the marked block of
 // core.prisma. Then: npm run db:migrate:dev -- --name <business>_domain
 // ═══════════════════════════════════════════════════════════════════════════
+
+enum TaskFor {
+  ME
+  PARTNER
+  BOTH
+}
+
+/// A task on the couple's shared list — BUSINESS_RULES.md §3.
+///
+/// Deliberately has NO owner column. The list is shared: either partner sees
+/// and acts on every task, and `forWhom` is information printed on the row,
+/// never a permission (R-TASK-01). The whole point of a shared list is that one
+/// partner can pick up the other's errand.
+///
+/// Carries `version` because both partners edit the same list at the same time
+/// on two phones.
+model DailyTask {
+  id String @id @default(cuid())
+
+  title String
+  /// Who the task is for, as written by whoever added it. ME means the creator.
+  forWhom TaskFor
+
+  /// The business day this task belongs to (R-TASK-01). Never createdAt.
+  taskDate DateTime @db.Date
+
+  /// Optional wall-clock hint ("עד 19:00"). Entered as date + time and
+  /// converted on the server with localToInstant (ADR 0005), so the DST
+  /// changes are handled in one place.
+  dueTime DateTime?
+
+  note String?
+
+  /// Completion. Both columns move together or not at all (R-TASK-10).
+  completedAt   DateTime?
+  completedById String?
+  completedBy   User?     @relation("DailyTaskCompletedBy", fields: [completedById], references: [id], onDelete: Restrict)
+
+  createdById String
+  createdBy   User   @relation("DailyTaskCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  /// Archive, not delete (R-TASK-05): a task that stopped being relevant is a
+  /// decision worth keeping, with its reason.
+  archivedAt    DateTime?
+  archivedById  String?
+  archivedBy    User?     @relation("DailyTaskArchivedBy", fields: [archivedById], references: [id], onDelete: Restrict)
+  archiveReason String?
+
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// The list is read one day at a time, and the summaries read a date range;
+  /// both want taskDate first. archivedAt is in the index because every
+  /// working-list query excludes archived rows.
+  @@index([taskDate, archivedAt])
+  /// The completion split in the summaries counts by who closed it.
+  @@index([completedById])
+  @@index([createdById])
+}
+
+/// One partner's closing of one day — BUSINESS_RULES.md §3.
+///
+/// A diary page: never archived, never soft-deleted, never hard-deleted (§28).
+///
+/// No `version` column, deliberately: only its author may write it (R-DAY-03),
+/// so two people cannot edit one row and there is nothing to race.
+///
+/// The three value columns are the most sensitive data in the product. They are
+/// readable by the other partner only once that partner has submitted their own
+/// entry for the same date (R-DAY-05), which the service enforces by leaving
+/// them out of the view entirely. They never enter an audit payload (R-DAY-30).
+model DayEntry {
+  id String @id @default(cuid())
+
+  /// The business day being reviewed. Not the day it was submitted: a review
+  /// at 00:20 can close the day that just ended (D-2).
+  entryDate DateTime @db.Date
+
+  partnerId String
+  partner   User   @relation("DayEntryPartner", fields: [partnerId], references: [id], onDelete: Restrict)
+
+  /// 1–5. A choice, not a measurement: Int with a CHECK, never money.
+  executionRating Int
+  respectRating   Int
+
+  note String?
+
+  /// Server clock at submission. Used for ordering and "who closed first",
+  /// never as a business date.
+  submittedAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// One entry per partner per day, guaranteed by the database rather than by
+  /// a service check (R-DAY-10). This unique index is also what the reveal
+  /// lookup uses: "does the other partner have an entry for this date".
+  @@unique([entryDate, partnerId])
+  @@index([partnerId, entryDate])
+}
