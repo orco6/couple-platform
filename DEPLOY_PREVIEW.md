@@ -8,6 +8,34 @@ written down.
 **Prerequisites:** the Vercel account that owns the repository, Node 22+, and this repo checked out
 at `C:\Users\orcoh\projects\couple-platform`.
 
+## The short version
+
+```bash
+cd C:\Users\orcoh\projects\couple-platform
+npm ci
+npm run deploy:preview
+```
+
+That script does every step below that a CLI can do, and it is idempotent — run it again after
+anything you finish in the browser and it picks up where it stopped. It pauses at exactly the two
+things Vercel only offers in a browser:
+
+1. **Signing in.** It opens the Vercel login; approve it.
+2. **Creating the database.** Vercel's Storage tab has no CLI equivalent, so the script prints the
+   four clicks (Neon → `eu-central-1` → name `couple-platform-preview` → connect to **Preview only**)
+   and waits for you to run it again.
+
+Then it links the project, sets the Preview variables, migrates, seeds the two review partners,
+deploys as a **preview** (never `--prod`), claims the stable alias, and prints the smoke-test
+command.
+
+Two optional finishing touches it will name at the end, both single dashboard toggles: turn the
+**Vercel Toolbar off** for this project (its injected script is correctly refused by this app's
+nonce CSP — turning the toolbar off is the fix, widening the CSP is not), and create a **Protection
+Bypass for Automation** secret if you want the smoke test to run with Deployment Protection left on.
+
+The rest of this file is the same path by hand, and the reference for anything that goes sideways.
+
 ---
 
 ## 1. Vercel project

@@ -36,6 +36,7 @@
     "foundation:new-business": "tsx scripts/new-business.ts",
     "qa:screenshots": "playwright test -c playwright.qa.config.ts",
     "smoke": "playwright test -c playwright.smoke.config.ts",
+    "deploy:preview": "node scripts/deploy-preview.mjs",
     "qa:brand-proof": "node scripts/qa/brand-proof.mjs"
   },
   "dependencies": {
