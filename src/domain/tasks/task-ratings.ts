@@ -70,7 +70,7 @@ export async function rateTask(client: DbClient, actor: Actor, input: RateTaskIn
     if (!other) throw errors.businessRule('NO_PARTNERSHIP', copy.errors.noPartnerYet);
 
     const task = await tx.dailyTask.findFirst({
-      where: { AND: [taskScope(actor), { id: input.taskId }, activeOnly] },
+      where: { AND: [await taskScope(tx, actor), { id: input.taskId }, activeOnly] },
       select: { id: true, title: true, ownerId: true, completedAt: true, rating: { select: { ratedById: true } } },
     });
     if (!task) throw errors.notFound();
@@ -122,7 +122,7 @@ export async function listTaskRatingsInRange(
   const rows = await client.taskRating.findMany({
     where: {
       task: {
-        AND: [taskScope(actor), activeOnly, { taskDate: { gte: toDbDate(from), lt: toDbDate(toExclusive) } }],
+        AND: [await taskScope(client, actor), activeOnly, { taskDate: { gte: toDbDate(from), lt: toDbDate(toExclusive) } }],
       },
     },
     select: { value: true, task: { select: { ownerId: true } } },

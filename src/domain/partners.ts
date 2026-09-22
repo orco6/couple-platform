@@ -13,9 +13,15 @@
  * "the plum line" in the summary. So the side comes from the link
  * (`partnerA` = side a), not from who is looking.
  *
- * Someone who is not in the link (a spare account, a fixture user) has no
- * partner: they can still see the shared list, but there is nobody to close a
- * day with. That is the honest answer, and it is what the screens show.
+ * THE LINK IS THE PRIVACY BOUNDARY. Someone who is not in it — a spare
+ * account, a fixture user, an admin who was never one of the two — is not
+ * short of a feature, they are outside the couple. What this product stores is
+ * a list of a household's errands and two people's answers about how they
+ * treated each other; "everyone signed in to this deployment can read it"
+ * would be the wrong default even with one couple per deployment (ADR 0009),
+ * because the default role for a new account is PARTNER. So `coupleIds` is
+ * what the task scope and every couple write are built on, and a signed-in
+ * non-member sees an empty product rather than someone else's evening.
  */
 
 import { z } from 'zod';
@@ -26,6 +32,8 @@ import type { Actor } from '@/core/auth/actor';
 import { inTransaction } from '@/core/db/transaction';
 import type { DbClient } from '@/core/db/types';
 import { errors } from '@/core/errors/errors';
+
+import { copy } from './copy';
 
 export const PARTNERSHIP_ID = 'couple';
 
@@ -56,6 +64,37 @@ const LINK_SELECT = {
   partnerA: { select: { id: true, name: true, status: true } },
   partnerB: { select: { id: true, name: true, status: true } },
 } as const;
+
+/** The two ids in the link. Null when nobody has been linked yet. */
+export interface CoupleIds {
+  partnerAId: string;
+  partnerBId: string;
+}
+
+export async function coupleIds(client: DbClient): Promise<CoupleIds | null> {
+  return client.partnership.findUnique({
+    where: { id: PARTNERSHIP_ID },
+    select: { partnerAId: true, partnerBId: true },
+  });
+}
+
+/** Is this person one of the two? Null link means there is no couple to be in. */
+export function isInCouple(link: CoupleIds | null, userId: string): boolean {
+  return link !== null && (userId === link.partnerAId || userId === link.partnerBId);
+}
+
+/**
+ * The couple this actor may write for, or a refusal naming which of the two
+ * things is wrong: nobody is linked yet, or they are not one of the two.
+ */
+export async function requireCouple(client: DbClient, actor: Pick<Actor, 'id'>): Promise<CoupleIds> {
+  const link = await coupleIds(client);
+  if (!link) throw errors.businessRule('NO_PARTNERSHIP', copy.errors.noPartnerYet);
+  if (!isInCouple(link, actor.id)) {
+    throw errors.businessRule('NOT_IN_PARTNERSHIP', copy.errors.notInPartnership);
+  }
+  return link;
+}
 
 export async function partnersOf(client: DbClient, actor: Actor): Promise<Partners> {
   const link = await client.partnership.findUnique({ where: { id: PARTNERSHIP_ID }, select: LINK_SELECT });

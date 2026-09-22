@@ -161,7 +161,6 @@ export const he = {
     range: (from: string, to: string) => `${from} — ${to}`,
 
     completionTitle: 'הרשימה',
-    completionRate: (percent: number) => `${percent}% נסגרו`,
     completionDetail: (done: number, total: number) => `${done} מתוך ${total}`,
 
     executionTitle: 'ביצוע',
@@ -232,6 +231,7 @@ export const he = {
     notYourEntry: 'אפשר לשנות רק את מה שאתם כתבתם.',
     taskChangedMeanwhile: 'המשימה השתנתה בינתיים. רעננו ונסו שוב.',
     noPartnerYet: 'עוד אין פרטנר שני. קשרו אותו בהגדרות.',
+    notInPartnership: 'החשבון הזה לא מקושר לזוג הזה.',
     ownerMustBePartner: 'בחרו אחד משניכם.',
     rateOnlyCompleted: 'אפשר לדרג רק משימה שנסגרה.',
     rateNotOwnTask: 'את המשימות שלכם מדרג הצד השני.',

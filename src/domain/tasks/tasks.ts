@@ -10,11 +10,14 @@
  * task's owner is load-bearing for the product's signature interaction, while
  * still not restricting who can complete it.
  *
- * The isolation boundary for this data is therefore the DEPLOYMENT (ADR 0009,
- * one database per business), not a where-clause. `taskScope` exists anyway,
- * returns `{}`, and is ANDed into every query — so if D-1 ever becomes "many
- * couples", there is exactly one function to change and the compiler will not
- * let a query forget it.
+ * WHO THE LIST BELONGS TO. "Shared" means shared between the two people in the
+ * link, and nobody else. The deployment is not the boundary (ADR 0009 is about
+ * where the data lives, not about who may read it) and it cannot be: the
+ * default role for a new account is PARTNER, so a third account would
+ * otherwise read the household's errands and their notes. `taskScope` is
+ * therefore a real scope — rows owned by the people in MY couple — ANDed into
+ * every query, so if D-1 ever becomes "many couples" this one function already
+ * says the right thing and the compiler will not let a query forget it.
  */
 
 import { z } from 'zod';
@@ -33,18 +36,27 @@ import { errors } from '@/core/errors/errors';
 import type { Prisma } from '@/generated/prisma/client';
 
 import { copy } from '../copy';
-import { PARTNERSHIP_ID } from '../partners';
+import { coupleIds, isInCouple, requireCouple, PARTNERSHIP_ID } from '../partners';
 import { taskLifecycle, taskStateOf, type TaskState } from './task-lifecycle';
 
 /* ── Scope ─────────────────────────────────────────────────────────────── */
 
 /**
- * Rows this actor may reach. Everything, by design — see the file header.
- * Returned as a typed empty filter so every call site reads the same as a
- * scoped one and gains a real filter the day the product needs one.
+ * Rows this actor may reach: the ones owned by the two people in their couple.
+ *
+ * A task's owner is always one of the two (`assertIsPartner` on every write),
+ * so owner-in-couple is an exact description of "our list" rather than a
+ * proxy for it. Someone who is not in the couple — or a deployment where
+ * nobody has been linked yet — matches nothing: `in: []` is an empty set, not
+ * an absent filter, and that difference is the whole point of this function.
  */
-export function taskScope(_actor: Pick<Actor, 'id' | 'role'>): Prisma.DailyTaskWhereInput {
-  return {};
+export async function taskScope(
+  client: DbClient,
+  actor: Pick<Actor, 'id' | 'role'>,
+): Promise<Prisma.DailyTaskWhereInput> {
+  const link = await coupleIds(client);
+  const mine = isInCouple(link, actor.id);
+  return { ownerId: { in: mine && link ? [link.partnerAId, link.partnerBId] : [] } };
 }
 
 /* ── Request schemas ───────────────────────────────────────────────────── */
@@ -235,7 +247,7 @@ export async function listTasksForDay(client: DbClient, actor: Actor, date: Cale
   assertCan(actor, 'tasks.read');
 
   const rows = await client.dailyTask.findMany({
-    where: { AND: [taskScope(actor), { taskDate: toDbDate(date) }, activeOnly] },
+    where: { AND: [await taskScope(client, actor), { taskDate: toDbDate(date) }, activeOnly] },
     select: TASK_SELECT,
     orderBy: [
       // Open before closed, then by the time hint, then stable by id.
@@ -253,7 +265,7 @@ export async function listArchivedTasks(client: DbClient, actor: Actor): Promise
   assertCan(actor, 'archive.read');
 
   const rows = await client.dailyTask.findMany({
-    where: { AND: [taskScope(actor), archivedOnly] },
+    where: { AND: [await taskScope(client, actor), archivedOnly] },
     select: TASK_SELECT,
     orderBy: [{ archivedAt: 'desc' }, { id: 'asc' }],
     take: 100,
@@ -283,7 +295,7 @@ export async function listTasksInRange(
 
   const rows = await client.dailyTask.findMany({
     where: {
-      AND: [taskScope(actor), activeOnly, { taskDate: { gte: toDbDate(from), lt: toDbDate(toExclusive) } }],
+      AND: [await taskScope(client, actor), activeOnly, { taskDate: { gte: toDbDate(from), lt: toDbDate(toExclusive) } }],
     },
     select: {
       taskDate: true,
@@ -308,7 +320,7 @@ export async function getTask(client: DbClient, actor: Actor, id: string): Promi
   assertCan(actor, 'tasks.read');
 
   const row = await client.dailyTask.findFirst({
-    where: { AND: [taskScope(actor), { id }] },
+    where: { AND: [await taskScope(client, actor), { id }] },
     select: TASK_SELECT,
   });
   // Out of scope is indistinguishable from nonexistent.
@@ -340,6 +352,9 @@ export async function createTask(client: DbClient, actor: Actor, input: CreateTa
   const note = input.note ?? null;
 
   return inTransaction(client, async (tx) => {
+    // Two different questions, and both have to be asked. Is the person
+    // writing one of the two? And is the person they are making responsible?
+    await requireCouple(tx, actor);
     await assertIsPartner(tx, input.ownerId);
 
     const created = await tx.dailyTask.create({
@@ -373,7 +388,7 @@ export async function updateTask(client: DbClient, actor: Actor, input: UpdateTa
 
   return inTransaction(client, async (tx) => {
     const existing = await tx.dailyTask.findFirst({
-      where: { AND: [taskScope(actor), { id: input.id }] },
+      where: { AND: [await taskScope(tx, actor), { id: input.id }] },
       select: { ...TASK_SELECT, taskDate: true },
     });
     if (!existing) throw errors.notFound();
@@ -453,7 +468,7 @@ export async function transitionTask(
 
   return inTransaction(client, async (tx) => {
     const existing = await tx.dailyTask.findFirst({
-      where: { AND: [taskScope(actor), { id: input.id }] },
+      where: { AND: [await taskScope(tx, actor), { id: input.id }] },
       select: { id: true, title: true, completedAt: true, archivedAt: true, version: true },
     });
     if (!existing) throw errors.notFound();

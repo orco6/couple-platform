@@ -145,6 +145,9 @@ export function AverageCard({
           <span className="text-section font-semibold tabular-nums text-ink" dir="ltr">
             {value.toFixed(1)}
           </span>
+          {/* The stars carry "out of five" for the eye and are decorative; read
+              aloud, "4.2" on its own is a number without a scale. */}
+          <span className="sr-only">{copy.common.outOfFive}</span>
         </div>
       )}
 

@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type APIRequestContext, type Page } from '@playwright/test';
 
 import { copy } from '@/domain/copy';
 
@@ -42,4 +42,22 @@ export async function completeTask(page: Page, title: string): Promise<void> {
 export async function signOut(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'יציאה' }).first().click();
   await page.waitForURL(/\/login/);
+}
+
+/**
+ * Moves the shared review time. The day cannot be closed before it, so a spec
+ * that needs the closing flow open moves it to 00:00 and a spec that needs the
+ * "too early" state moves it out of reach. Only an account with
+ * `settings.manage` may do this — the same rule the settings screen enforces.
+ */
+export async function setReviewTime(request: APIRequestContext, baseURL: string, time: string): Promise<void> {
+  const response = await request.put('/api/review-time', { data: { time }, headers: { Origin: baseURL } });
+  expect(response.status(), await response.text()).toBe(200);
+}
+
+/** The signed-in user's own id, which the API tells anyone who asks about themselves. */
+export async function whoami(request: APIRequestContext): Promise<string> {
+  const response = await request.get('/api/auth/me');
+  expect(response.status()).toBe(200);
+  return ((await response.json()) as { id: string }).id;
 }

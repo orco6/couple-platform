@@ -41,7 +41,7 @@ import { getSetting } from '@/core/settings/settings';
 import { fields } from '@/core/validation/fields';
 
 import { copy } from '../copy';
-import { partnersOf, type PartnerRef } from '../partners';
+import { partnersOf, requireCouple, type PartnerRef } from '../partners';
 import { REVIEW_TIME_KEY } from '../settings';
 
 /* ── Request schemas ───────────────────────────────────────────────────── */
@@ -294,6 +294,11 @@ export async function submitDayEntry(
   const note = input.note ?? null;
 
   return inTransaction(client, async (tx) => {
+    // Closing a day is half of a pair. Without a partner on the other side the
+    // row could never reveal, and an account outside the link has no day here
+    // to close at all.
+    await requireCouple(tx, actor);
+
     const reviewTime = await reviewTimeOf(tx);
     if (!isClosable(date, reviewTime, now)) {
       throw errors.businessRule('REVIEW_NOT_OPEN_YET', copy.errors.reviewNotOpenYet(reviewTime));
