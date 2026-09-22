@@ -21,9 +21,23 @@ anything you finish in the browser and it picks up where it stopped. It pauses a
 things Vercel only offers in a browser:
 
 1. **Signing in.** It opens the Vercel login; approve it.
-2. **Creating the database.** Vercel's Storage tab has no CLI equivalent, so the script prints the
-   four clicks (Neon → `eu-central-1` → name `couple-platform-preview` → connect to **Preview only**)
-   and waits for you to run it again.
+2. **Creating the database.** Vercel provisions integration storage through the dashboard only —
+   there is no CLI command and no stable public API for it — so the script prints the four clicks
+   (Neon → `eu-central-1` → name `couple-platform-preview` → connect to **Preview only**) and waits
+   for you to run it again.
+
+The project is `or73/couple-platform`, and `or73` is not the personal scope, so every command runs
+with `--scope or73`. Without that, `vercel link` would create a *second* project of the same name in
+the personal account. Override with `VERCEL_SCOPE` if the team is renamed.
+
+### The GitHub connection
+
+It is not used by any of this. `vercel deploy` uploads the working directory, so a broken Git link
+cannot stop a review. The repository is **public** and owned by the user `orco6`, so visibility is
+not the cause; a Vercel *team* does not inherit a personal GitHub App installation, which is the
+usual reason a team project cannot connect to a personal repository. To fix it anyway, install the
+Vercel GitHub App for `orco6` and grant it `couple-platform`:
+<https://github.com/apps/vercel/installations/select_target>.
 
 Then it links the project, sets the Preview variables, migrates, seeds the two review partners,
 deploys as a **preview** (never `--prod`), claims the stable alias, and prints the smoke-test

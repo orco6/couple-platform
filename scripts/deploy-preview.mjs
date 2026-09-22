@@ -19,11 +19,19 @@ import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, mkdirSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 
-const PROJECT = 'couple-platform';
-const ALIAS = 'couple-platform-review.vercel.app';
+const PROJECT = process.env.VERCEL_PROJECT ?? 'couple-platform';
+const ALIAS = process.env.VERCEL_REVIEW_ALIAS ?? 'couple-platform-review.vercel.app';
 const ENV_FILE = '.vercel/.env.preview';
 
-const vercel = 'npx --yes vercel@latest';
+/**
+ * The team the project lives in. The project is `or73/couple-platform`, and
+ * `or73` is not the personal scope — without this every command would run
+ * against the wrong account and `link` would create a SECOND project with the
+ * same name. Override with VERCEL_SCOPE if the team is ever renamed.
+ */
+const SCOPE = process.env.VERCEL_SCOPE ?? 'or73';
+
+const vercel = `npx --yes vercel@latest --scope ${SCOPE}`;
 
 function sh(command, options = {}) {
   execSync(command, { stdio: 'inherit', ...options });
@@ -64,7 +72,7 @@ function readEnvFile(path) {
 
 /* ── 1. Who are we ──────────────────────────────────────────────────────── */
 
-step(1, 'Vercel account');
+step(1, `Vercel account (scope ${SCOPE})`);
 let who = tryCapture(`${vercel} whoami`);
 if (!who) {
   console.log('Not signed in. Opening the Vercel login — approve it in the browser.\n');
@@ -83,9 +91,11 @@ console.log(`Signed in as ${who}`);
 step(2, `Project "${PROJECT}"`);
 mkdirSync('.vercel', { recursive: true });
 try {
+  // Links to the existing project of that name in this scope; creates it only
+  // if there is none.
   sh(`${vercel} link --yes --project ${PROJECT}`);
 } catch {
-  stop(`Could not link or create the project "${PROJECT}".`);
+  stop(`Could not link to the project "${PROJECT}" in scope "${SCOPE}".`);
 }
 
 /* ── 3. The database ────────────────────────────────────────────────────── */
@@ -165,6 +175,10 @@ console.log('\n── Ready ──\n');
 console.log(`Review URL:  https://${ALIAS}`);
 console.log(`             ${deployed}`);
 console.log('Credentials: ..\\couple-platform-review-credentials.txt (beside this repo)\n');
+console.log('The Git connection is not used by any of this — `vercel deploy` uploads the working');
+console.log('directory, so a broken GitHub link cannot stop a review. To fix it anyway, install the');
+console.log(`Vercel GitHub App for the orco6 account and grant it couple-platform:`);
+console.log('  https://github.com/apps/vercel/installations/select_target\n');
 console.log('Two optional finishing touches in the dashboard:');
 console.log(`  • Settings → General → Vercel Toolbar: OFF for ${PROJECT}.`);
 console.log("    The toolbar injects a script this app's nonce CSP correctly refuses. Turning the");
