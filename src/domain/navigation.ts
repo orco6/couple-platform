@@ -32,7 +32,7 @@ const items: Array<NavItem & { permission?: Permission }> = [
   // taken, because one business wanting a nicer glyph is not a platform gap.
   { href: '/review', label: copy.nav.review, icon: 'flag', mobile: 'more', group: 'אישי' },
 
-  { href: '/attention', label: 'ימים פתוחים', icon: 'list', mobile: 'more', group: 'אישי' },
+  { href: '/attention', label: 'ימים שלא סגרתם', icon: 'list', mobile: 'more', group: 'אישי' },
   { href: '/settings', label: 'הגדרות', icon: 'settings', mobile: 'more', group: 'אישי' },
   { href: '/account', label: 'החשבון שלי', icon: 'user', mobile: 'more', group: 'אישי' },
 

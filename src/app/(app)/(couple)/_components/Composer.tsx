@@ -1,10 +1,11 @@
 'use client';
 
-import { ArrowUp, CalendarDays, Clock, X } from 'lucide-react';
+import { ArrowUp, CalendarDays, Camera, Clock, X } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { FormField, Textarea } from '@/core/ui/components/Field';
+import { useToast } from '@/core/ui/components/Toast';
 import { useSubmit } from '@/core/ui/hooks/useSubmit';
 import { cx } from '@/core/ui/cx';
 import { addDays, type CalendarDate } from '@/core/dates/calendar-date';
@@ -14,6 +15,8 @@ import type { PartnerRef } from '@/domain/partners';
 import type { TaskView } from '@/domain/tasks/tasks';
 
 import { Calendar } from './Calendar';
+import { PhotoViewer } from './PhotoViewer';
+import { RatingBadge } from './TaskRow';
 
 /**
  * iOS raises the keyboard only for a focus() made inside the tap itself, and
@@ -72,6 +75,7 @@ export function Composer({
   me,
   partner,
   onDelete,
+  onRate,
   returnFocus,
 }: {
   open: boolean;
@@ -81,6 +85,8 @@ export function Composer({
   me: PartnerRef;
   partner: PartnerRef | null;
   onDelete?: (task: TaskView) => void;
+  /** Open the rating sheet for this (finished) task: the clear way to change a rating. */
+  onRate?: (task: TaskView) => void;
   /** Where focus goes back to when it closes (the + button). */
   returnFocus?: React.RefObject<HTMLElement | null>;
 }) {
@@ -91,6 +97,7 @@ export function Composer({
   const mirror = useRef<HTMLDivElement>(null);
   const [fieldHeight, setFieldHeight] = useState<number | null>(null);
   const restoreFocus = useRef<HTMLElement | null>(null);
+  const savedScroll = useRef(0);
   const tomorrow = addDays(defaultDate, 1);
 
   const [mounted, setMounted] = useState(open);
@@ -104,6 +111,12 @@ export function Composer({
   const [withTime, setWithTime] = useState(false);
   const [withNote, setWithNote] = useState(false);
   const [missingTitle, setMissingTitle] = useState(false);
+  const [photoFile, setPhotoFile] = useState<Blob | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoRemoved, setPhotoRemoved] = useState(false);
+  const [viewing, setViewing] = useState(false);
+  const photoInput = useRef<HTMLInputElement>(null);
+  const toast = useToast();
 
   // Fill in on each open (render-phase: no flash of the previous task).
   const [openedFor, setOpenedFor] = useState<string | null>(null);
@@ -121,6 +134,10 @@ export function Composer({
       setWithNote(Boolean(task?.note));
       setPicking(false);
       setMissingTitle(false);
+      setPhotoFile(null);
+      setPhotoPreview(null);
+      setPhotoRemoved(false);
+      setViewing(false);
     }
   }
   if (open && !mounted) setMounted(true);
@@ -133,17 +150,15 @@ export function Composer({
     return () => window.clearTimeout(timer);
   }, [open, mounted]);
 
-  // Closing: the exit fade still plays, but not as a MODAL — a modal dialog
-  // makes the page behind inert, and a tap in those ~200ms (the next task's
-  // circle, a swipe) would be swallowed. Re-shown non-modally, it is only a
-  // picture fading out, and it lets the finger through (pointer-events: none).
+  // Closing stays MODAL through the short exit fade. (Re-showing it non-modally
+  // to let taps through made the browser drop the fade: the screen vanished in
+  // one frame, which was the jump on leaving a task.) iOS ignores taps during a
+  // dismissal too.
   useEffect(() => {
     if (open) return;
-    const node = dialog.current;
-    if (node?.open && node.matches(':modal')) {
-      node.close();
-      node.show();
-    }
+    // If Safari panned the page for the keyboard, put it back NOW — while the
+    // composer still covers it — rather than after it has faded (a visible jump).
+    if (Math.abs(window.scrollY - savedScroll.current) > 1) window.scrollTo(0, savedScroll.current);
   }, [open]);
 
   // Open: top layer, lock the page, focus the field in the same task as the tap.
@@ -156,19 +171,16 @@ export function Composer({
     restoreFocus.current =
       returnFocus?.current ??
       (document.activeElement instanceof HTMLElement && document.activeElement.tagName !== 'INPUT' ? document.activeElement : null);
-    const scrollY = window.scrollY;
-    const root = document.documentElement;
-    const previous = root.style.overflow;
-    root.style.overflow = 'hidden';
+    // No scroll lock: the composer is opaque and modal, so the page behind can
+    // neither be seen nor touched — and toggling overflow on the root is what
+    // made the list jump when the composer closed on a real iPhone.
+    savedScroll.current = window.scrollY;
     if (!node.open) node.showModal();
     if (!task) titleRef.current?.focus({ preventScroll: true });
     const frame = requestAnimationFrame(() => setShown(true));
     return () => {
       cancelAnimationFrame(frame);
       if (node.open) node.close();
-      root.style.overflow = previous;
-      // Safari can leave the page panned after the keyboard: put it back.
-      window.scrollTo(0, scrollY);
       restoreFocus.current?.focus({ preventScroll: true });
     };
     // task is read once, at open.
@@ -212,8 +224,40 @@ export function Composer({
       : await submit('/api/tasks', { method: 'POST', body });
     if (result === null) return;
     titleRef.current?.blur();
+    // The photo follows the task (it needs the task's id): upload a new one,
+    // or remove the old one. A failed upload keeps the task and says so.
+    const taskId = (result as TaskView).id;
+    try {
+      if (photoFile) {
+        const response = await fetch(`/api/tasks/${taskId}/photo`, {
+          method: 'PUT',
+          headers: { 'Content-Type': photoFile.type || 'image/jpeg' },
+          body: photoFile,
+          credentials: 'same-origin',
+        });
+        if (!response.ok) throw new Error(String(response.status));
+      } else if (photoRemoved && task?.photo) {
+        const response = await fetch(`/api/tasks/${taskId}/photo`, { method: 'DELETE', credentials: 'same-origin' });
+        if (!response.ok) throw new Error(String(response.status));
+      }
+    } catch {
+      toast.show(copy.tasks.photoFailed, 'error');
+    }
     router.refresh();
     onClose();
+  }
+
+  async function pickPhoto(file: File | undefined) {
+    if (!file) return;
+    try {
+      const shrunk = await shrinkPhoto(file);
+      if (photoPreview) URL.revokeObjectURL(photoPreview);
+      setPhotoFile(shrunk);
+      setPhotoPreview(URL.createObjectURL(shrunk));
+      setPhotoRemoved(false);
+    } catch {
+      toast.show(copy.tasks.photoNotImage, 'error');
+    }
   }
 
   if (!mounted) return null;
@@ -221,6 +265,8 @@ export function Composer({
   const people = partner ? [me, partner] : [me];
   const custom = date !== defaultDate && date !== tomorrow;
   const titleError = missingTitle ? copy.tasks.titleMissing : fieldErrors.title;
+  const existingPhoto = task?.photo && !photoRemoved ? `/api/tasks/${task.id}/photo?v=${task.photo.version}` : null;
+  const photoSrc = photoPreview ?? existingPhoto;
 
   const chip = (on: boolean) =>
     cx(
@@ -424,7 +470,68 @@ export function Composer({
                   {copy.tasks.addNote}
                 </button>
               )}
+              {!photoSrc && (
+                <button type="button" onClick={() => photoInput.current?.click()} className={chip(false)}>
+                  <Camera aria-hidden="true" size={18} />
+                  {copy.tasks.addPhoto}
+                </button>
+              )}
+              <input
+                ref={photoInput}
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                tabIndex={-1}
+                aria-label={copy.tasks.addPhoto}
+                data-testid="photo-input"
+                onChange={(event) => {
+                  void pickPhoto(event.target.files?.[0]);
+                  event.target.value = '';
+                }}
+              />
             </div>
+
+            {photoSrc && (
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setViewing(true)}
+                  aria-label={copy.tasks.openPhoto}
+                  className="tap-quiet press block size-20 overflow-hidden rounded-[1rem] shadow-[var(--brand-glass-edge),var(--brand-shadow-card)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element -- a private, versioned API image, not a static asset */}
+                  <img src={photoSrc} alt={copy.tasks.photoAlt(title || copy.tasks.titleLabel)} className="size-full object-cover" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (photoPreview) URL.revokeObjectURL(photoPreview);
+                    setPhotoPreview(null);
+                    setPhotoFile(null);
+                    setPhotoRemoved(true);
+                  }}
+                  className="tap-quiet press inline-flex min-h-11 items-center gap-1.5 rounded-chip px-3 text-body text-ink-muted"
+                >
+                  <X aria-hidden="true" size={16} />
+                  {copy.tasks.removePhoto}
+                </button>
+              </div>
+            )}
+
+            {task && task.state === 'COMPLETED' && task.permissions.rate && onRate && (
+              <div className="flex min-h-12 items-center justify-between gap-3 rounded-[1rem] bg-[var(--brand-glass-strong)] px-4 py-2 shadow-[var(--brand-glass-edge)]">
+                <span className="flex items-center gap-2 text-body text-ink">
+                  {task.rating ? <RatingBadge value={task.rating.value} who={copy.taskRating.yourRating} /> : copy.taskRating.notRatedYet}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onRate(task)}
+                  className="tap-quiet press min-h-10 rounded-chip px-3 text-body font-semibold text-accent-text"
+                >
+                  {task.rating ? copy.taskRating.changeRating : copy.taskRating.rateShort}
+                </button>
+              </div>
+            )}
             {fieldErrors.dueTime && <p className="text-label text-danger-text">{fieldErrors.dueTime}</p>}
             {withNote && (
               <FormField label={copy.tasks.noteLabel} name="note" error={fieldErrors.note}>
@@ -436,6 +543,34 @@ export function Composer({
           </div>
         )}
       </form>
+      {photoSrc && (
+        <PhotoViewer src={photoSrc} alt={copy.tasks.photoAlt(title || copy.tasks.titleLabel)} open={viewing} onClose={() => setViewing(false)} />
+      )}
     </dialog>
   );
+}
+
+/**
+ * A camera photo is 3 to 12 MB; the task needs a clear picture, not a print.
+ * So it is redrawn at most 1600px on its long side as a JPEG (about 150 to
+ * 400 KB) before it leaves the phone. Drawing through an <img> keeps the
+ * camera's rotation (browsers apply EXIF orientation to images by default).
+ */
+async function shrinkPhoto(file: File): Promise<Blob> {
+  const url = URL.createObjectURL(file);
+  try {
+    const image = new Image();
+    image.src = url;
+    await image.decode();
+    const scale = Math.min(1, 1600 / Math.max(image.naturalWidth, image.naturalHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(image.naturalWidth * scale);
+    canvas.height = Math.round(image.naturalHeight * scale);
+    canvas.getContext('2d')!.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.82));
+    if (!blob) throw new Error('encode');
+    return blob;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }

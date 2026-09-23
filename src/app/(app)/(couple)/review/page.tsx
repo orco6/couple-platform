@@ -76,7 +76,7 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
     // The day is a moment, not a tab: the bar steps aside (data-immersive) and
     // the screen is one centred column in a frame sized to the SMALL viewport,
     // so Safari's toolbar coming and going never moves it.
-    <div data-immersive className="mx-auto flex min-h-[calc(100svh-5rem)] w-full max-w-md flex-col px-2">
+    <div data-immersive className="page-push mx-auto flex min-h-[calc(100svh-5rem)] w-full max-w-md flex-col px-2">
       <div className="flex items-center justify-between pt-2">
         <Link
           href="/"

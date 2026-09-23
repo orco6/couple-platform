@@ -280,3 +280,64 @@ export async function getMonthSummary(
     isEmpty: tasks.length === 0 && days.every((day) => day.mine === null && !day.partnerSubmitted),
   };
 }
+
+/* ── The weeks, at a glance ───────────────────────────────────────────── */
+
+export interface WeekGlance {
+  from: CalendarDate;
+  /** Last day (inclusive), for the label. */
+  to: CalendarDate;
+  isCurrent: boolean;
+  done: number;
+  total: number;
+  executionAverage: number | null;
+  respectAverage: number | null;
+  /** Days both of us closed, out of the days of the week that have happened. */
+  closedTogether: number;
+  daysSoFar: number;
+}
+
+/**
+ * The summary's front page (fifth edition): this week and the ones before it,
+ * each as the few figures that say how it went. One read of the whole span,
+ * then the same calculations as the week page, week by week, newest first.
+ * Weeks before the couple had anything to show are left out; this week is
+ * always there.
+ */
+export async function getWeeksOverview(
+  client: DbClient,
+  actor: Actor,
+  today: CalendarDate,
+  count = 8,
+): Promise<WeekGlance[]> {
+  assertCan(actor, 'summaries.read');
+
+  const current = weekBounds(today);
+  const span: RangeBounds = { from: addDays(current.from, -7 * (count - 1)), toExclusive: current.toExclusive };
+  const { days, tasks } = await loadRange(client, actor, span);
+
+  const weeks: WeekGlance[] = [];
+  for (let index = 0; index < count; index += 1) {
+    const from = addDays(current.from, -7 * index);
+    const toExclusive = addDays(from, 7);
+    const inWeek = (date: CalendarDate) => compareCalendarDates(date, from) >= 0 && compareCalendarDates(date, toExclusive) < 0;
+    const weekTasks = tasks.filter((task) => inWeek(task.taskDate));
+    const weekDays = days.filter((day) => inWeek(day.date));
+    const isCurrent = index === 0;
+    const hasAnything = weekTasks.length > 0 || weekDays.some((day) => day.mine !== null || day.partnerSubmitted);
+    if (!isCurrent && !hasAnything) continue;
+    const tally = completion(weekTasks, actor.id);
+    weeks.push({
+      from,
+      to: addDays(toExclusive, -1),
+      isCurrent,
+      done: tally.done,
+      total: tally.total,
+      executionAverage: executionAverage(weekTasks),
+      respectAverage: coupleRespectAverage(weekDays),
+      closedTogether: weekDays.filter((day) => day.theirs).length,
+      daysSoFar: weekDays.filter((day) => compareCalendarDates(day.date, today) <= 0).length,
+    });
+  }
+  return weeks;
+}

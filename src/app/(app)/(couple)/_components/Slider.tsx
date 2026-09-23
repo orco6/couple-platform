@@ -161,7 +161,7 @@ export function Slider({
       <div
         ref={track}
         dir="ltr"
-        className="relative mt-3 cursor-grab touch-pan-y active:cursor-grabbing"
+        className="relative mt-3 cursor-grab touch-none active:cursor-grabbing"
         style={{ height: thumb + 24 }}
         onPointerDown={(event) => {
           if (event.button !== 0 || !track.current) return;

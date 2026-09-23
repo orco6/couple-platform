@@ -59,7 +59,7 @@ test('couple: the cards, the stars and the reveal', async ({ page }) => {
   await capture(page, 'rate-sheet', problems, { fullPage: false });
   await dragSlider(page, slider, 4);
   await expect(sheet).toBeHidden();
-  await expect(taskCard(page, toRate).getByRole('button', { name: copy.taskRating.myRatedLine(copy.taskRating.scale[4]) })).toBeVisible();
+  await expect(taskCard(page, toRate).getByText(copy.taskRating.myRatedLine(copy.taskRating.scale[4]))).toBeVisible();
   await capture(page, 'today-just-rated', problems);
 
   // ── Adding a task ─────────────────────────────────────────────────────

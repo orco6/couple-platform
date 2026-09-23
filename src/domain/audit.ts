@@ -34,6 +34,8 @@ export const domainAuditVocabulary = defineAuditVocabulary({
     'task.archived': { label: 'משימה הועברה לארכיון', requiresReason: true },
     'task.restored': { label: 'משימה הוחזרה לרשימה', requiresReason: true },
     'task.deleted': { label: 'משימה נמחקה' },
+    'task.photo_set': { label: 'נוספה תמונה למשימה' },
+    'task.photo_removed': { label: 'הוסרה תמונה ממשימה' },
     'task_rating.given': { label: 'משימה דורגה' },
     'task_rating.changed': { label: 'דירוג משימה שונה' },
     'day_entry.submitted': { label: 'היום נסגר' },

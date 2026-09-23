@@ -60,7 +60,7 @@ test('the partner rates a completed task with one drag, and the owner sees the r
   await dragSlider(page, slider, 4);
   await expect(slider).toHaveAttribute('aria-valuetext', `4 — ${copy.taskRating.scale[4]}`);
   await expect(sheet).toBeHidden();
-  await expect(card.getByRole('button', { name: copy.taskRating.myRatedLine(copy.taskRating.scale[4]) })).toBeVisible();
+  await expect(card.getByText(copy.taskRating.myRatedLine(copy.taskRating.scale[4]))).toBeVisible();
 
   // Back as the owner: the rating is there and the waiting state is gone.
   await signOut(page);
@@ -150,7 +150,7 @@ test('a second touch before the sheet leaves replaces the answer — one save, t
   // Changed their mind at once, inside the confirm moment.
   await dragSlider(page, slider, 5);
   await expect(sheet).toBeHidden();
-  await expect(taskCard(page, title).getByRole('button', { name: copy.taskRating.myRatedLine(copy.taskRating.scale[5]) })).toBeVisible();
+  await expect(taskCard(page, title).getByText(copy.taskRating.myRatedLine(copy.taskRating.scale[5]))).toBeVisible();
   await page.waitForTimeout(400);
   expect(sent).toEqual([5]);
 });
@@ -174,12 +174,12 @@ test('the rater may change their mind; the rating is replaced, not added to', as
   await dragSlider(page, slider, 2);
   expect((await saved).ok()).toBe(true);
 
-  // After a reload the row carries the word; changing it is the same gesture,
-  // and the sheet opens on the answer already given.
+  // After a reload the row carries the rating as a badge (not a button).
+  // Changing it is a clear action inside the task: open it, "שינוי הדירוג".
   await page.reload();
-  const rated = taskCard(page, title).getByRole('button', { name: copy.taskRating.myRatedLine(copy.taskRating.scale[2]) });
-  await expect(rated).toBeVisible();
-  await rated.click();
+  await expect(taskCard(page, title).getByText(copy.taskRating.myRatedLine(copy.taskRating.scale[2]))).toBeVisible();
+  await taskCard(page, title).getByRole('button', { name: new RegExp(title) }).click();
+  await page.getByTestId('composer').getByRole('button', { name: copy.taskRating.changeRating }).click();
   const sheet = await rateSheetSettled(page);
   const again = sheet.getByRole('slider');
   await expect(again).toHaveAttribute('aria-valuetext', `2 — ${copy.taskRating.scale[2]}`);
@@ -190,5 +190,5 @@ test('the rater may change their mind; the rating is replaced, not added to', as
   await expect(again).toHaveAttribute('aria-valuetext', `5 — ${copy.taskRating.scale[5]}`);
   await page.keyboard.press('Enter');
   await expect(sheet).toBeHidden();
-  await expect(taskCard(page, title).getByRole('button', { name: copy.taskRating.myRatedLine(copy.taskRating.scale[5]) })).toBeVisible();
+  await expect(taskCard(page, title).getByText(copy.taskRating.myRatedLine(copy.taskRating.scale[5]))).toBeVisible();
 });

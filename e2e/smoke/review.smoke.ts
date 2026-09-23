@@ -137,7 +137,7 @@ test('both partners sign in, and the list is genuinely shared', async ({ page })
   // The write survived the round trip, not just the optimistic render.
   // After a reload the rated row is folded to one line that says what was given.
   await page.reload();
-  await expect(card(page, theirs).getByRole('button', { name: copy.taskRating.myRatedLine(copy.taskRating.scale[4]) })).toBeVisible();
+  await expect(card(page, theirs).getByText(copy.taskRating.myRatedLine(copy.taskRating.scale[4]))).toBeVisible();
 
   // ── Partner B ──────────────────────────────────────────────────────────
   await signOut(page);
@@ -196,19 +196,20 @@ test('the summaries load and the phone bar reaches every screen', async ({ page 
 
   await bar.getByRole('link', { name: copy.nav.reflection }).click();
   await page.waitForURL(/\/week$/);
-  await expect(page.getByRole('heading', { level: 1, name: copy.week.pageTitle })).toBeVisible();
-  await page.getByRole('navigation', { name: copy.nav.reflection }).getByRole('link', { name: copy.nav.month }).click();
-  await page.waitForURL(/\/month$/);
-  await expect(page.getByRole('heading', { level: 1, name: copy.month.pageTitle })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: copy.week.overviewTitle })).toBeVisible();
+  // This week opens from the summary, and there is a way back.
+  await page.getByRole('link', { name: new RegExp(copy.week.openWeek) }).click();
+  await page.waitForURL(/\/week\?w=/);
+  await expect(page.getByRole('heading', { level: 1, name: copy.week.thisWeek })).toBeVisible();
+  await page.locator('#main').getByRole('link', { name: copy.week.overviewTitle }).click();
+  await page.waitForURL(/\/week$/);
   await bar.getByRole('link', { name: copy.nav.today }).click();
   await page.waitForURL(/\/$/);
   await expect(page.getByRole('heading', { name: copy.today.listTitle })).toBeVisible();
 
-  // The summaries have real figures behind them, not empty states.
+  // The summary loads (its figures may be empty on a fresh review database).
   await page.goto('/week');
-  await expect(page.getByText(/^\d+ מתוך \d+$/).first()).toBeVisible();
-  await page.goto('/month');
-  await expect(page.getByRole('list', { name: copy.month.weeklyAveragesTitle }).getByRole('listitem').first()).toBeAttached();
+  await expect(page.getByRole('heading', { level: 1, name: copy.week.overviewTitle })).toBeVisible();
 
   problems.assertClean();
 });

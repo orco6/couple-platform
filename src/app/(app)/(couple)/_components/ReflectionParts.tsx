@@ -151,7 +151,7 @@ export function TasksDone({
       <p className="mt-1 text-[2rem] leading-tight font-bold text-ink tabular-nums">
         <span>{copy.week.completionDetail(total.done, total.total)}</span>
       </p>
-      <div aria-hidden="true" dir="rtl" className="mt-2 flex h-2.5 overflow-hidden rounded-full bg-[var(--color-rule)]">
+      <div aria-hidden="true" dir="ltr" className="mt-2 flex h-2.5 overflow-hidden rounded-full bg-[var(--color-rule)]">
         {byOwner.map((row) => (
           <span
             key={row.ownerId}
@@ -252,7 +252,7 @@ export function WeekRows({
               {shortRange.format(new Date(`${week.from}T12:00:00Z`))}
             </bdi>
           </span>
-          <span aria-hidden="true" dir="rtl" className="block h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-[var(--color-rule)]">
+          <span aria-hidden="true" dir="ltr" className="block h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-[var(--color-rule)]">
             <span className="block h-full rounded-full bg-accent" style={{ width: `${week.total === 0 ? 0 : (week.done / week.total) * 100}%` }} />
           </span>
           <span className="w-[5.5rem] shrink-0 whitespace-nowrap text-end text-body font-semibold text-ink tabular-nums">

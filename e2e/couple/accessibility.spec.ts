@@ -67,7 +67,7 @@ test('a task card offering a rating, and the rating sheet, have no WCAG A/AA vio
   // And after rating, where the word stands in the row.
   await dragSlider(page, slider, 4);
   await expect(sheet).toBeHidden();
-  await expect(taskCard(page, title).getByRole('button', { name: copy.taskRating.myRatedLine(copy.taskRating.scale[4]) })).toBeVisible();
+  await expect(taskCard(page, title).getByText(copy.taskRating.myRatedLine(copy.taskRating.scale[4]))).toBeVisible();
   expect(await violations(page)).toEqual([]);
 });
 

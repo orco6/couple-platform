@@ -24,20 +24,19 @@ test('the destinations are one thumb-tap apart, and each one arrives', async ({ 
   const bar = page.locator('[data-mobile-tab-bar]');
   await expect(bar).toBeVisible();
 
-  // Two destinations on the bar: today, and looking back (the week and the
-  // month are one destination with two views). Closing the day lives on Today
-  // and in "more" — see review.spec.ts and shell.spec.ts.
+  // Two destinations on the bar: today, and the summary (its weeks). Closing
+  // the day lives on Today and in "more" — see review.spec.ts and shell.spec.ts.
   await bar.getByRole('link', { name: copy.nav.reflection }).click();
   await page.waitForURL(/\/week$/);
-  await expect(page.getByRole('heading', { level: 1, name: copy.week.pageTitle })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: copy.week.overviewTitle })).toBeVisible();
   // The bar marks where we are, for a screen reader as well as for the eye.
   await expect(bar.locator('[aria-current="page"]')).toHaveCount(1);
   await expectNoHorizontalOverflow(page);
 
-  // The month is the same destination: the tab stays lit on it.
-  await page.getByRole('navigation', { name: copy.nav.reflection }).getByRole('link', { name: copy.nav.month }).click();
-  await page.waitForURL(/\/month$/);
-  await expect(page.getByRole('heading', { level: 1, name: copy.month.pageTitle })).toBeVisible();
+  // A week opens from the summary; the tab stays lit on it.
+  await page.getByRole('link', { name: new RegExp(copy.week.openWeek) }).click();
+  await page.waitForURL(/\/week\?w=/);
+  await expect(page.getByRole('heading', { level: 1, name: copy.week.thisWeek })).toBeVisible();
   await expect(bar.getByRole('link', { name: copy.nav.reflection })).toHaveAttribute('aria-current', 'page');
   await expectNoHorizontalOverflow(page);
 

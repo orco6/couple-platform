@@ -1,6 +1,6 @@
 'use client';
 
-import { Hourglass } from 'lucide-react';
+import { Clock, Image as ImageIcon } from 'lucide-react';
 import { useState } from 'react';
 
 import { cx } from '@/core/ui/cx';
@@ -63,6 +63,28 @@ export function TaskRow({
   const side = owner.side;
   const ownerSays = ownerIsMe ? copy.tasks.ownerMe : copy.tasks.ownerPartner(owner.name);
 
+  // Where a finished task stands, as the second line: waiting for the other's
+  // rating (said in words — the hourglass alone was a riddle), or the rating.
+  const firstName = (name: string) => name.split(' ')[0] ?? name;
+  const status = !done ? null : task.rating ? (
+    <span className="mt-1">
+      <RatingBadge
+        value={task.rating.value}
+        who={task.rating.ratedByName === me.name ? copy.taskRating.yourRating : firstName(task.rating.ratedByName)}
+      />
+      <span className="sr-only">
+        {task.rating.ratedByName === me.name
+          ? copy.taskRating.myRatedLine(copy.taskRating.scale[task.rating.value as RatingValue])
+          : copy.taskRating.ratedLine(task.rating.ratedByName, copy.taskRating.scale[task.rating.value as RatingValue])}
+      </span>
+    </span>
+  ) : task.awaitingPartnerRating ? (
+    <span className="mt-1 flex items-center gap-1 text-meta text-ink-muted">
+      <Clock aria-hidden="true" size={13} />
+      {partner ? copy.taskRating.awaiting(firstName(partner.name)) : copy.taskRating.awaitingShort}
+    </span>
+  ) : null;
+
   // The sweep plays when THIS screen completes the task, not when it loads done.
   const [was, setWas] = useState(done);
   const [sweep, setSweep] = useState(0);
@@ -110,101 +132,69 @@ export function TaskRow({
         >
           {task.title}
         </span>
-        {/* The time sits under the title (as in Reminders), so every title has
-            the full width, and it stays when the task is done — if it left,
-            the row would change height under the finger. */}
-        {task.dueTime && (
-          <span dir="ltr" className={cx('mt-0.5 text-meta tabular-nums text-ink-subtle transition-opacity duration-300', done && 'opacity-50')}>
-            {task.dueTime}
+        {/* The second line: the time, and where a finished task stands — said
+            in words, or as the rating itself. It opens smoothly (grid rows),
+            never with a jump. */}
+        <span className="row-meta" data-open={Boolean(task.dueTime || status)}>
+          <span className="flex min-h-0 flex-wrap items-center gap-x-2 gap-y-1 overflow-hidden">
+            {task.dueTime && (
+              <span dir="ltr" className={cx('mt-1 text-meta tabular-nums text-ink-muted transition-opacity duration-300', done && 'opacity-60')}>
+                {task.dueTime}
+              </span>
+            )}
+            {status}
           </span>
-        )}
+        </span>
+        {task.photo && <span className="sr-only">, {copy.tasks.hasPhoto}</span>}
         <span className="sr-only">, {ownerSays}</span>
       </button>
 
-      {/* One fixed width, whatever it holds (a name, the invitation, the word,
-          the hourglass), so completing never reflows the title. */}
-      <span className="flex w-12 shrink-0 justify-end">
-        <End task={task} me={me} partner={partner} owner={owner} done={done} onRate={onRate} />
+      {/* One fixed width, whatever it holds, so completing never reflows the title. */}
+      <span className="flex w-12 shrink-0 flex-col items-end gap-1">
+        {task.photo && <ImageIcon aria-hidden="true" size={15} className="text-ink-muted" />}
+        {done && task.permissions.rate && !task.rating ? (
+          <button
+            type="button"
+            onClick={() => onRate(task)}
+            aria-label={`${copy.taskRating.rateShort} — ${copy.taskRating.prompt}`}
+            className={cx(
+              'tap-quiet press inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-chip px-2 text-meta font-semibold whitespace-nowrap',
+              'shadow-[inset_0_0_0_1.5px_currentColor] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
+              owner.side === 'a' ? 'text-partner-a' : 'text-partner-b',
+            )}
+          >
+            {copy.taskRating.rateShort}
+          </button>
+        ) : (
+          <span aria-hidden="true" className={cx('flex min-w-0 max-w-full items-center gap-1.5 text-meta font-semibold', done ? 'text-ink-muted' : owner.side === 'a' ? 'text-partner-a' : 'text-partner-b')}>
+            {/* Finished: the name goes quiet in colour, never in contrast; only the dot fades. */}
+            <span className={cx(owner.side === 'a' ? 'light-a' : 'light-b', 'size-3 shrink-0', done && 'opacity-50')} />
+            <span className="truncate">{owner.id === me.id ? copy.common.me : owner.name.split(' ')[0]}</span>
+          </span>
+        )}
       </span>
       </div>
     </SwipeRow>
   );
 }
 
-function End({
-  task,
-  me,
-  partner,
-  owner,
-  done,
-  onRate,
-}: {
-  task: TaskView;
-  me: PartnerRef;
-  partner: PartnerRef | null;
-  owner: PartnerRef;
-  done: boolean;
-  onRate: (task: TaskView) => void;
-}) {
-  const light = owner.side === 'a' ? 'light-a' : 'light-b';
-
-  // My turn to rate: the one invitation a finished row can carry.
-  if (done && task.permissions.rate && !task.rating) {
-    return (
-      <button
-        type="button"
-        onClick={() => onRate(task)}
-        aria-label={`${copy.taskRating.rateShort} — ${copy.taskRating.prompt}`}
-        className={cx(
-          'tap-quiet press inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center rounded-chip px-2 text-meta font-semibold whitespace-nowrap',
-          'shadow-[inset_0_0_0_1.5px_currentColor] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
-          owner.side === 'a' ? 'text-partner-a' : 'text-partner-b',
-        )}
-      >
-        {copy.taskRating.rateShort}
-      </button>
-    );
-  }
-
-  // Rated: the word, quiet, in the colour of the person who did it. Tapping it
-  // (for the one who gave it) changes it.
-  if (done && task.rating) {
-    const word = copy.taskRating.scale[task.rating.value as RatingValue];
-    const byMe = task.rating.ratedByName === me.name;
-    const label = byMe ? copy.taskRating.myRatedLine(word) : copy.taskRating.ratedLine(task.rating.ratedByName, word);
-    const tone = owner.side === 'a' ? 'text-partner-a' : 'text-partner-b';
-    return task.permissions.rate ? (
-      <button
-        type="button"
-        onClick={() => onRate(task)}
-        aria-label={`${label}. ${copy.taskRating.change}`}
-        className={cx('tap-quiet min-h-10 min-w-10 shrink-0 px-1 text-meta font-semibold', tone)}
-      >
-        {word}
-      </button>
-    ) : (
-      <span className={cx('shrink-0 text-meta font-semibold', tone)}>
-        <span aria-hidden="true">{word}</span>
-        <span className="sr-only">{label}</span>
-      </span>
-    );
-  }
-
-  // Waiting for the other's rating: a small hourglass, said in full to AT.
-  if (done && task.awaitingPartnerRating) {
-    return (
-      <span className="shrink-0 text-ink-subtle">
-        <Hourglass aria-hidden="true" size={15} />
-        <span className="sr-only">{partner ? copy.taskRating.awaiting(partner.name) : copy.taskRating.awaitingShort}</span>
-      </span>
-    );
-  }
-
-  // Open (or done with nothing to say): whose it is — their light and name.
+/**
+ * A rating, as a badge that reads at a glance: five short segments filled up
+ * to the value, in that value's own colour (dusk blue for 1 … warm orange for
+ * 5), and the word. Two ratings never look alike, and the badge is not a
+ * button — changing a rating is a clear action inside the task.
+ */
+export function RatingBadge({ value, who }: { value: number; who?: string }) {
+  const word = copy.taskRating.scale[value as RatingValue];
   return (
-    <span aria-hidden="true" className={cx('flex min-w-0 max-w-full items-center gap-1.5 text-meta font-semibold', owner.side === 'a' ? 'text-partner-a' : 'text-partner-b', done && 'opacity-50')}>
-      <span className={cx(light, 'size-3 shrink-0')} />
-      <span className="truncate">{owner.id === me.id ? copy.common.me : owner.name.split(' ')[0]}</span>
+    <span className="rating-badge" style={{ '--tone': `var(--orb-day-${value})` } as React.CSSProperties}>
+      {who && <span className="rating-badge-who">{who}</span>}
+      <span aria-hidden="true" className="rating-badge-bars" dir="ltr">
+        {[1, 2, 3, 4, 5].map((step) => (
+          <i key={step} data-on={step <= value} />
+        ))}
+      </span>
+      <span className="rating-badge-word">{word}</span>
     </span>
   );
 }

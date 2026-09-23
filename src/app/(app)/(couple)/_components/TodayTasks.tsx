@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus } from 'lucide-react';
+import { ChevronDown, Plus } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -52,15 +52,19 @@ function messageFor(error: unknown): string {
 
 export function TodayTasks({
   tasks,
+  tomorrow = [],
   me,
   partner,
   today,
 }: {
   tasks: TaskView[];
+  /** Tomorrow's list, shown folded under today's so the next day can be seen coming. */
+  tomorrow?: TaskView[];
   me: PartnerRef;
   partner: PartnerRef | null;
   today: CalendarDate;
 }) {
+  const [showTomorrow, setShowTomorrow] = useState(false);
   const router = useRouter();
   const toast = useToast();
 
@@ -231,6 +235,44 @@ export function TodayTasks({
         <p className="px-2 pt-10 text-center text-title font-semibold text-ink-subtle">{copy.today.emptyTitle}</p>
       )}
 
+      {tomorrow.length > 0 && (
+        <section className="mt-5" aria-label={copy.today.tomorrowTitle}>
+          <button
+            type="button"
+            aria-expanded={showTomorrow}
+            onClick={() => setShowTomorrow((value) => !value)}
+            className="tap-quiet press flex min-h-11 w-full items-center justify-between gap-3 px-3 text-body font-semibold text-ink-muted focus-visible:outline-2 focus-visible:outline-focus"
+          >
+            <span>
+              {copy.today.tomorrowTitle} · {copy.today.taskCount(tomorrow.filter((task) => !removing[task.id]).length)}
+            </span>
+            <ChevronDown aria-hidden="true" size={18} className={cx('transition-transform duration-300', showTomorrow && 'rotate-180')} />
+          </button>
+          {/* Folds open smoothly (grid rows), never a jump. */}
+          <div className="fold" data-open={showTomorrow}>
+            <div className="min-h-0 overflow-hidden">
+              <ul className="glass mt-1 overflow-hidden [&>li+li]:border-t [&>li+li]:border-rule-faint" aria-label={copy.today.tomorrowTitle}>
+                {tomorrow.map(view).map((task) => (
+                  <TaskRow
+                    key={task.id}
+                    task={task}
+                    me={me}
+                    partner={partner}
+                    onToggle={toggle}
+                    onOpen={setEditing}
+                    onRate={setRating}
+                    swiped={swiped === task.id}
+                    onSwipe={(open) => setSwiped(open ? task.id : null)}
+                    onDelete={remove}
+                    removing={Boolean(removing[task.id])}
+                  />
+                ))}
+              </ul>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* The one action. Above the tab bar, where the thumb already is. */}
       <button
         ref={addButton}
@@ -262,6 +304,14 @@ export function TodayTasks({
             ? (task) => {
                 setEditing(null);
                 setTimeout(() => setConfirming(task), 220);
+              }
+            : undefined
+        }
+        onRate={
+          editing
+            ? (task) => {
+                setEditing(null);
+                setTimeout(() => setRating(task), 220);
               }
             : undefined
         }
@@ -325,7 +375,7 @@ function DayProgress({ tasks, me, partner }: { tasks: TaskView[]; me: PartnerRef
             aria-valuemax={total}
             aria-valuenow={done}
             aria-valuetext={copy.today.progress(done, total)}
-            dir="rtl"
+            dir="ltr"
             className="mt-2 flex h-2.5 overflow-hidden rounded-full bg-[var(--color-rule)]"
           >
             {people.map((person) => (

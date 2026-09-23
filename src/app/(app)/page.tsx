@@ -1,5 +1,5 @@
 import { requireActorPage } from '@/core/auth/page-guards';
-import { todayIn } from '@/core/dates/calendar-date';
+import { addDays, todayIn } from '@/core/dates/calendar-date';
 import { db } from '@/core/db/client';
 import { copy } from '@/domain/copy';
 import { getDay } from '@/domain/day-entries/day-entries';
@@ -26,9 +26,10 @@ export default async function TodayPage() {
   const actor = await requireActorPage();
   const today = todayIn();
 
-  const [{ me, other }, tasks, day] = await Promise.all([
+  const [{ me, other }, tasks, tomorrowTasks, day] = await Promise.all([
     partnersOf(db, actor),
     listTasksForDay(db, actor, today),
+    listTasksForDay(db, actor, addDays(today, 1)),
     getDay(db, actor, today),
   ]);
 
@@ -48,7 +49,7 @@ export default async function TodayPage() {
           <DayLine day={day} />
         </div>
       </header>
-      <TodayTasks tasks={tasks} me={me} partner={other} today={today} />
+      <TodayTasks tasks={tasks} tomorrow={tomorrowTasks} me={me} partner={other} today={today} />
     </Screen>
   );
 }

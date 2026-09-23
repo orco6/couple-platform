@@ -33,7 +33,10 @@ test('the week runs Sunday to Saturday and tells three figures, without a percen
   await login(page, OWNER);
   await page.goto('/week');
 
-  await expect(page.getByRole('heading', { name: copy.week.pageTitle })).toBeVisible();
+  // The summary opens on this week; its card leads to the week in full.
+  await expect(page.getByRole('heading', { level: 1, name: copy.week.overviewTitle })).toBeVisible();
+  await page.getByRole('link', { name: new RegExp(copy.week.openWeek) }).click();
+  await expect(page.getByRole('heading', { level: 1, name: copy.week.thisWeek })).toBeVisible();
 
   const [from, to] = await rangeDates(page);
   expect(from.getUTCDay(), 'a week starts on Sunday').toBe(0);
@@ -56,25 +59,26 @@ test('the week runs Sunday to Saturday and tells three figures, without a percen
   problems.assertClean();
 });
 
-test('the week can be stepped back, and the current week has nothing after it', async ({ page }) => {
+test('every earlier week opens from the summary, a week before the one above it, with a way back', async ({ page }) => {
   await login(page, OWNER);
   await page.goto('/week');
 
-  // On the current week there is no "next".
-  await expect(page.getByRole('link', { name: copy.summariesNav.next })).toHaveCount(0);
-
+  await page.getByRole('link', { name: new RegExp(copy.week.openWeek) }).click();
   const [thisFrom] = await rangeDates(page);
-  await page.getByRole('link', { name: copy.summariesNav.previous }).click();
-  await page.waitForURL(/\/week\?w=/);
+  await page.locator('#main').getByRole('link', { name: copy.week.overviewTitle }).click();
+  await page.waitForURL(/\/week$/);
 
+  // The first earlier week is exactly seven days before this one.
+  const earlier = page.getByRole('list', { name: copy.week.earlierTitle }).getByRole('link');
+  await expect(earlier.first()).toBeVisible();
+  await earlier.first().click();
+  await page.waitForURL(/\/week\?w=/);
   const [previousFrom] = await rangeDates(page);
   expect(Math.round((thisFrom.getTime() - previousFrom.getTime()) / 86_400_000)).toBe(7);
 
-  // And now stepping forward is offered again, and returns where we started.
-  await page.getByRole('link', { name: copy.summariesNav.next }).click();
-  await expect(page.getByRole('link', { name: copy.summariesNav.next })).toHaveCount(0);
-  const [backAgain] = await rangeDates(page);
-  expect(backAgain.getTime()).toBe(thisFrom.getTime());
+  // And back to the summary.
+  await page.locator('#main').getByRole('link', { name: copy.week.overviewTitle }).click();
+  await expect(page.getByRole('heading', { level: 1, name: copy.week.overviewTitle })).toBeVisible();
 });
 
 test('the month is its weeks as lights, with no percentages or trend charts', async ({ page }) => {

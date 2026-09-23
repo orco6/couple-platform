@@ -52,22 +52,11 @@ export function Sheet({
 
   useEffect(() => {
     if (open || !mounted) return;
-    const timer = window.setTimeout(() => setMounted(false), 260);
+    const timer = window.setTimeout(() => setMounted(false), 400);
     return () => window.clearTimeout(timer);
   }, [open, mounted]);
 
-  // Closing: the exit fade still plays, but not as a MODAL — a modal dialog
-  // makes the page behind inert, and a tap in those ~200ms (the next task's
-  // circle, a swipe) would be swallowed. Re-shown non-modally, it is only a
-  // picture fading out, and it lets the finger through (pointer-events: none).
-  useEffect(() => {
-    if (open) return;
-    const node = dialog.current;
-    if (node?.open && node.matches(':modal')) {
-      node.close();
-      node.show();
-    }
-  }, [open]);
+  // Closing stays MODAL through the exit (a non-modal re-show drops the fade).
 
   useLayoutEffect(() => {
     if (!mounted) return;
@@ -78,9 +67,6 @@ export function Sheet({
     // showModal() focuses the first control without preventScroll while the
     // panel is still below the screen, scrolling the dialog; undo it before paint.
     node.scrollTop = 0;
-    const root = document.documentElement;
-    const previous = root.style.overflow;
-    root.style.overflow = 'hidden';
     const frame = requestAnimationFrame(() => {
       setShown(true);
       const target = initialFocus?.current ?? node.querySelector<HTMLElement>('input, textarea, button, [tabindex]');
@@ -88,7 +74,6 @@ export function Sheet({
     });
     return () => {
       cancelAnimationFrame(frame);
-      root.style.overflow = previous;
       if (node.open) node.close();
       const back = restore.current;
       if (back && document.contains(back)) back.focus({ preventScroll: true });
