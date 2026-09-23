@@ -5,10 +5,15 @@
  *
  * Safe by construction, like bootstrap-owner and for the same reasons:
  *   • refuses if ANY user already exists, so it can never overwrite or add to
- *     an installation that is already in use;
+ *     an installation that is already in use (with --skip-if-seeded that is a
+ *     clean no-op instead of an error, for re-runs);
  *   • requires --confirm with the exact database name;
  *   • generates both passwords unless they are supplied in the environment,
  *     prints them once, and writes them to a file OUTSIDE the repository.
+ *
+ * On Vercel (scripts/preview-database.mjs) it is given only the password
+ * HASHES, in REVIEW_PASSWORD_HASHES; the passwords stay in the credentials
+ * file on the operator's machine, and nothing secret reaches the build log.
  *
  * It is not `seed-dev`: that one truncates every table and is guarded to local
  * databases only. This one writes to an empty database and never deletes
@@ -20,7 +25,6 @@
  */
 
 import { writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 
 import { hashPassword } from '@/core/auth/password-hash';
 import { generateTemporaryPassword } from '@/core/auth/temporary-password';
@@ -31,19 +35,25 @@ import { seedDomainData } from '@/domain/dev-data';
 import { REVIEW_TIME_KEY } from '@/domain/settings';
 
 import { connect, printTarget, requireDatabaseUrl } from './lib/database';
-
-const USERNAME_A = 'review-partner-a';
-const USERNAME_B = 'review-partner-b';
-const NAME_A = 'נועה ברק';
-const NAME_B = 'מיכל ביטון';
-
-/** Outside the repository, beside it — so it is never committed by accident. */
-const CREDENTIALS_FILE = resolve(process.cwd(), '..', 'couple-platform-review-credentials.txt');
+import { CREDENTIALS_FILE, formatCredentials, REVIEW_ACCOUNTS } from './lib/review-credentials';
 
 function argument(name: string): string | undefined {
   const args = process.argv.slice(2);
   const index = args.indexOf(`--${name}`);
   return index >= 0 ? args[index + 1] : undefined;
+}
+
+/** { a, b } scrypt hashes from REVIEW_PASSWORD_HASHES (base64url JSON), or null when not supplied. */
+function suppliedHashes(): { a: string; b: string } | null {
+  const encoded = process.env.REVIEW_PASSWORD_HASHES;
+  if (!encoded) return null;
+  const hashes = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')) as { a?: unknown; b?: unknown };
+  const valid = (hash: unknown): hash is string => typeof hash === 'string' && hash.startsWith('scrypt$');
+  if (!valid(hashes.a) || !valid(hashes.b)) {
+    console.error('REVIEW_PASSWORD_HASHES must hold two scrypt hashes (scripts/preview-credentials.ts).');
+    process.exit(1);
+  }
+  return { a: hashes.a, b: hashes.b };
 }
 
 async function main() {
@@ -55,31 +65,37 @@ async function main() {
     console.error(`\nRefusing: pass --confirm ${database} to seed this database.\n`);
     process.exit(2);
   }
-  if (!isValidUsername(normalizeUsername(USERNAME_A)) || !isValidUsername(normalizeUsername(USERNAME_B))) {
+  const { a, b } = REVIEW_ACCOUNTS;
+  if (!isValidUsername(normalizeUsername(a.username)) || !isValidUsername(normalizeUsername(b.username))) {
     console.error('The review usernames are not valid for this installation.');
     process.exit(1);
   }
+  const hashes = suppliedHashes();
 
   const db = connect(url);
   try {
     const existing = await db.user.count();
     if (existing > 0) {
+      if (process.argv.includes('--skip-if-seeded')) {
+        console.log(`Seed skipped: this database already has ${existing} user(s) — the review accounts exist.`);
+        return;
+      }
       console.error(`\nRefusing: this database already has ${existing} user(s). The preview seed only runs on an empty installation.\n`);
       process.exit(2);
     }
 
     // Supplied passwords win, so a re-created preview can keep the ones the
-    // reviewer already has on their phone.
-    const passwordA = process.env.REVIEW_PASSWORD_A ?? generateTemporaryPassword();
-    const passwordB = process.env.REVIEW_PASSWORD_B ?? generateTemporaryPassword();
+    // reviewer already has on their phone. Supplied hashes win over both.
+    const passwordA = hashes ? null : (process.env.REVIEW_PASSWORD_A ?? generateTemporaryPassword());
+    const passwordB = hashes ? null : (process.env.REVIEW_PASSWORD_B ?? generateTemporaryPassword());
 
-    const create = async (username: string, name: string, role: string, password: string): Promise<Actor> => {
+    const create = async (account: (typeof REVIEW_ACCOUNTS)['a' | 'b'], passwordHash: string): Promise<Actor> => {
       const user = await db.user.create({
         data: {
-          name,
-          username: normalizeUsername(username),
-          role,
-          passwordHash: await hashPassword(password),
+          name: account.name,
+          username: normalizeUsername(account.username),
+          role: account.role,
+          passwordHash,
           // Not a temporary password: a forced change on a phone is friction
           // for a reviewer, and these are random, single-purpose credentials
           // on a database that holds nothing but fictional data.
@@ -93,8 +109,8 @@ async function main() {
 
     // A is OWNER because somebody has to be able to link the couple and move
     // the shared hour; B is an ordinary PARTNER. Both see the same product.
-    const partnerA = await create(USERNAME_A, NAME_A, 'OWNER', passwordA);
-    const partnerB = await create(USERNAME_B, NAME_B, 'PARTNER', passwordB);
+    const partnerA = await create(a, hashes?.a ?? (await hashPassword(passwordA!)));
+    const partnerB = await create(b, hashes?.b ?? (await hashPassword(passwordB!)));
 
     // The domain seeder links the couple and creates everything else. It reads
     // only [0] of each role, so the pair is the same person twice.
@@ -109,21 +125,12 @@ async function main() {
     // default (21:30) would show a reviewer nothing but "come back later".
     await updateSetting(db, partnerA, REVIEW_TIME_KEY, '00:00');
 
-    const lines = [
-      'couple-platform — PREVIEW review credentials',
-      `database: ${database}`,
-      `created:  ${new Date().toISOString()}`,
-      '',
-      `${USERNAME_A}  (${NAME_A}, OWNER)`,
-      `  password: ${passwordA}`,
-      '',
-      `${USERNAME_B}  (${NAME_B}, PARTNER)`,
-      `  password: ${passwordB}`,
-      '',
-      'Fictional data only. Delete this file when the review is over.',
-      '',
-    ].join('\n');
+    if (hashes) {
+      console.log(`\nSeeded ${a.username} and ${b.username}. Passwords: the credentials file on the operator's machine.\n`);
+      return;
+    }
 
+    const lines = formatCredentials({ a: passwordA!, b: passwordB! }, database);
     writeFileSync(CREDENTIALS_FILE, lines, { encoding: 'utf8', mode: 0o600 });
 
     console.log(`\n${lines}`);

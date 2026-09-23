@@ -30,6 +30,25 @@ The project is `or73/couple-platform`, and `or73` is not the personal scope, so 
 with `--scope or73`. Without that, `vercel link` would create a *second* project of the same name in
 the personal account. Override with `VERCEL_SCOPE` if the team is renamed.
 
+Then it links the project, sets the Preview variables (`APP_URL`, `CRON_SECRET`, and
+`VERCEL_PREVIEW_FEEDBACK_ENABLED=0`, which turns the Vercel Toolbar off for Preview — its injected
+script is correctly refused by this app's nonce CSP; turning the toolbar off is the fix, widening the
+CSP is not), deploys as a **preview** (never `--prod`) whose build migrates and seeds the database,
+claims the stable alias, and runs the smoke test when it can get through Deployment Protection.
+
+**Why the build migrates — and only this one.** The Neon integration stores its connection strings
+as Sensitive variables: `vercel env pull` writes them as `[SENSITIVE]`, and no CLI hands the value
+out. So the script never reads a credential. It checks the variables exist by name, and passes the
+one deployment it creates `--build-env PREVIEW_DB_SETUP=1`; that build's `vercel-build` step
+(`scripts/preview-database.mjs`) runs the guarded `db:deploy` and the preview seed where the value
+already is, then `next build`. A push to `main` does not carry the flag and never migrates; a
+production build never migrates. The review passwords stay on this machine — the deployment is given
+only their scrypt hashes. See [ADR 0013](docs/adr/0013-preview-database-setup.md).
+
+Deployment Protection stays **on**. For the smoke test to get through it, create a **Protection
+Bypass for Automation** secret (Settings → Deployment Protection) and run
+`VERCEL_AUTOMATION_BYPASS_SECRET=<secret> npm run deploy:preview`; without it, the smoke step is skipped.
+
 ### The GitHub connection
 
 It is not used by any of this. `vercel deploy` uploads the working directory, so a broken Git link
@@ -37,16 +56,8 @@ cannot stop a review. The repository is **public** and owned by the user `orco6`
 not the cause; a Vercel *team* does not inherit a personal GitHub App installation, which is the
 usual reason a team project cannot connect to a personal repository. To fix it anyway, install the
 Vercel GitHub App for `orco6` and grant it `couple-platform`:
-<https://github.com/apps/vercel/installations/select_target>.
-
-Then it links the project, sets the Preview variables, migrates, seeds the two review partners,
-deploys as a **preview** (never `--prod`), claims the stable alias, and prints the smoke-test
-command.
-
-Two optional finishing touches it will name at the end, both single dashboard toggles: turn the
-**Vercel Toolbar off** for this project (its injected script is correctly refused by this app's
-nonce CSP — turning the toolbar off is the fix, widening the CSP is not), and create a **Protection
-Bypass for Automation** secret if you want the smoke test to run with Deployment Protection left on.
+<https://github.com/apps/vercel/installations/select_target>. (If you do, `main` pushes will build
+previews that do not migrate — see §4 — and check that the Production Branch is not `main`, §1.2.)
 
 The rest of this file is the same path by hand, and the reference for anything that goes sideways.
 
@@ -71,21 +82,23 @@ The rest of this file is the same path by hand, and the reference for anything t
 **Storage → Create Database → Neon (Postgres)**, region `eu-central-1`, name **`couple-platform-preview`**.
 Connect it to this project and, when asked which environments, choose **Preview only**.
 
-Vercel injects `DATABASE_URL` (pooled) and `DATABASE_URL_UNPOOLED` (direct). This app wants the
-direct string under its own name, so add one more variable:
+Vercel injects `DATABASE_URL` (pooled, what the app runs on) and `DATABASE_URL_UNPOOLED` (direct,
+what migrations use), both Sensitive. Add:
 
 | Variable | Environment | Value |
 |---|---|---|
-| `DIRECT_URL` | Preview | the value of `DATABASE_URL_UNPOOLED` |
 | `APP_URL` | Preview | `https://couple-platform-review.vercel.app` (step 5) |
-| `CRON_SECRET` | Preview | any 24+ random characters |
+| `CRON_SECRET` | Preview | any 24+ random characters (Sensitive) |
+| `VERCEL_PREVIEW_FEEDBACK_ENABLED` | Preview | `0` — the Vercel Toolbar off |
 
-`APP_ENV` is derived from `VERCEL_ENV` — do not set it. `COOKIE_SECURE` — do not set it.
+`APP_ENV` is derived from `VERCEL_ENV` — do not set it. `COOKIE_SECURE` — do not set it. `DIRECT_URL`
+is not needed at runtime.
 
-## 3. Migrate and seed, from your machine
+## 3. Migrate and seed
 
-Copy the **unpooled** connection string from the Neon integration page. Migrations and seeding run
-from your laptop, never from the build.
+`npm run deploy:preview` does this from inside its own preview build (see *The short version*),
+because the connection strings are Sensitive and never reach your machine. By hand — only with the
+**unpooled** string from the Neon console, and never pasted into a chat or a file in the repo:
 
 ```bash
 cd C:\Users\orcoh\projects\couple-platform
@@ -101,8 +114,9 @@ npm run db:seed:preview -- --confirm neondb
 `db:seed:preview` refuses if the database already has a user, so it cannot overwrite a review in
 progress.
 
-It prints, and writes to **`C:\Users\orcoh\projects\couple-platform-review-credentials.txt`**
-(outside the repository, mode 600):
+The passwords live in **`C:\Users\orcoh\projects\couple-platform-review-credentials.txt`**
+(outside the repository, mode 600). `deploy:preview` writes it before deploying and reuses it on every
+re-run; the hand-run seed prints and writes it itself. The accounts:
 
 - `review-partner-a` — נועה ברק, OWNER
 - `review-partner-b` — מיכל ביטון, PARTNER
@@ -117,7 +131,7 @@ be closed whenever the review happens.
 
 Vercel's Neon integration connects as an owner role. To make the deployment's own connection unable
 to rewrite history, run this **as the owner, after `db:deploy`**, in the Neon SQL editor, then point
-Preview's `DATABASE_URL` at the new role's **pooled** string (leave `DIRECT_URL` as the owner's):
+Preview's `DATABASE_URL` at the new role's **pooled** string (leave `DATABASE_URL_UNPOOLED` as the owner's):
 
 ```sql
 CREATE ROLE app_runtime LOGIN PASSWORD '<generated>';
@@ -136,8 +150,8 @@ applies either way. PRODUCTION_READINESS.md §3 is the full version, backup role
 
 ## 4. Deploy
 
-Push to `main`, or **Deployments → Redeploy**. The build does not run migrations — that already
-happened in step 3.
+`npm run deploy:preview`. If a Git connection is ever added, a push to `main` builds a preview that
+does **not** migrate (it lacks the per-deployment flag), so use `deploy:preview` after schema changes.
 
 ## 5. A stable review URL
 

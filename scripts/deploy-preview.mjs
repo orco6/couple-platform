@@ -11,17 +11,28 @@
  * It stops, with instructions, at exactly the two things Vercel only offers in
  * a browser: signing in, and creating the database. Nothing else needs you.
  *
- * PREVIEW ONLY. `vercel deploy` without --prod is always a preview deployment,
- * and this script never passes --prod. No production environment is created.
+ * It never reads a database credential. The Neon integration stores them as
+ * Sensitive variables, which `vercel env pull` writes as "[SENSITIVE]" and no
+ * CLI hands out; only Vercel's own builds see the values. So this script
+ * checks that the variables EXIST (by name), and asks the one deployment it
+ * creates to migrate and seed from inside its build
+ * (scripts/preview-database.mjs, docs/adr/0013-preview-database-setup.md).
+ *
+ * PREVIEW ONLY. Every deployment is `vercel deploy --target preview` (a bare
+ * `vercel deploy` targets production on a project with no Git connection), and
+ * this script never passes --prod. No production environment is created.
  */
 
 import { execSync } from 'node:child_process';
-import { existsSync, readFileSync, mkdirSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 const PROJECT = process.env.VERCEL_PROJECT ?? 'couple-platform';
 const ALIAS = process.env.VERCEL_REVIEW_ALIAS ?? 'couple-platform-review.vercel.app';
-const ENV_FILE = '.vercel/.env.preview';
+/** Neon's database name for a Vercel-created store. The build refuses if it is not the real one. */
+const DATABASE = process.env.PREVIEW_DATABASE_NAME ?? 'neondb';
+const CREDENTIALS_FILE = resolve(process.cwd(), '..', 'couple-platform-review-credentials.txt');
 
 /**
  * The team the project lives in. The project is `or73/couple-platform`, and
@@ -59,15 +70,15 @@ function stop(text) {
   process.exit(10);
 }
 
-/** Reads a KEY=value file as Vercel writes it, quotes and all. */
-function readEnvFile(path) {
-  const values = {};
-  if (!existsSync(path)) return values;
-  for (const line of readFileSync(path, 'utf8').split(/\r?\n/)) {
-    const match = /^([A-Z0-9_]+)="?(.*?)"?$/.exec(line.trim());
-    if (match) values[match[1]] = match[2];
-  }
-  return values;
+/** The variable NAMES in `vercel env ls preview` — values are never listed, and never needed. */
+function previewVariableNames() {
+  const listing = tryCapture(`${vercel} env ls preview`) ?? '';
+  return new Set(
+    listing
+      .split(/\r?\n/)
+      .map((line) => /^\s*([A-Z][A-Z0-9_]*)\s+\S/.exec(line)?.[1])
+      .filter(Boolean),
+  );
 }
 
 /* ── 1. Who are we ──────────────────────────────────────────────────────── */
@@ -84,112 +95,139 @@ if (!who) {
   who = tryCapture(`${vercel} whoami`);
   if (!who) stop('Still not signed in.');
 }
-console.log(`Signed in as ${who}`);
+console.log(`Signed in as ${who.split(/\r?\n/).pop()}`);
 
 /* ── 2. The project ─────────────────────────────────────────────────────── */
 
-step(2, `Project "${PROJECT}"`);
+step(2, `Project ${SCOPE}/${PROJECT}`);
 mkdirSync('.vercel', { recursive: true });
-try {
-  // Links to the existing project of that name in this scope; creates it only
-  // if there is none.
-  sh(`${vercel} link --yes --project ${PROJECT}`);
-} catch {
-  stop(`Could not link to the project "${PROJECT}" in scope "${SCOPE}".`);
+const linked = existsSync('.vercel/project.json') && JSON.parse(readFileSync('.vercel/project.json', 'utf8')).projectName === PROJECT;
+if (linked) {
+  // Re-linking rewrites .gitignore (the CLI appends its own lines), so a linked repo is left alone.
+  console.log(`Already linked to ${PROJECT}.`);
+} else {
+  try {
+    // Links to the existing project of that name in this scope; creates it only
+    // if there is none.
+    sh(`${vercel} link --yes --project ${PROJECT}`);
+  } catch {
+    stop(`Could not link to the project "${PROJECT}" in scope "${SCOPE}".`);
+  }
 }
 
 /* ── 3. The database ────────────────────────────────────────────────────── */
 
 step(3, 'Preview database');
-tryCapture(`${vercel} env pull ${ENV_FILE} --environment=preview --yes`);
-let env = readEnvFile(ENV_FILE);
+let names = previewVariableNames();
 
-if (!env.DATABASE_URL) {
+if (!names.has('DATABASE_URL')) {
   console.log('No DATABASE_URL in the Preview environment yet. This is the one thing the CLI cannot do.\n');
   console.log(`  1. Open   https://vercel.com/dashboard  →  ${PROJECT}  →  Storage`);
   console.log('  2. Create Database → Neon (Postgres) → region eu-central-1');
   console.log('  3. Name it  couple-platform-preview');
-  console.log('  4. When it asks which environments to connect: choose PREVIEW ONLY.');
+  console.log('  4. When it asks which environments to connect: choose PREVIEW.');
   stop('Create the database, then come back.');
 }
-
-const direct = env.DATABASE_URL_UNPOOLED ?? env.POSTGRES_URL_NON_POOLING ?? null;
-if (!direct) stop('The database is connected but exposes no unpooled URL; expected DATABASE_URL_UNPOOLED.');
-
-const database = new URL(direct).pathname.replace(/^\//, '');
-console.log(`Database: ${database}`);
+if (!names.has('DATABASE_URL_UNPOOLED') && !names.has('POSTGRES_URL_NON_POOLING')) {
+  stop('The database is connected but exposes no unpooled URL; expected DATABASE_URL_UNPOOLED.');
+}
+console.log('Connected: DATABASE_URL (pooled, runtime) and DATABASE_URL_UNPOOLED (direct, migrations).');
+console.log('Their values are Sensitive and stay inside Vercel; this script never reads them.');
 
 /* ── 4. The remaining Preview variables ─────────────────────────────────── */
 
 step(4, 'Preview environment variables');
-const existing = tryCapture(`${vercel} env ls preview`) ?? '';
 
-function setEnv(name, value) {
-  if (new RegExp(`^\\s*${name}\\b`, 'm').test(existing)) {
+function setEnv(name, value, { sensitive }) {
+  if (names.has(name)) {
     console.log(`${name} already set — left alone.`);
     return;
   }
-  execSync(`${vercel} env add ${name} preview`, { input: `${value}\n`, stdio: ['pipe', 'inherit', 'inherit'] });
+  execSync(`${vercel} env add ${name} preview --yes ${sensitive ? '--sensitive' : '--no-sensitive'}`, {
+    input: `${value}\n`,
+    stdio: ['pipe', 'ignore', 'inherit'],
+  });
   console.log(`${name} set.`);
 }
 
-setEnv('DIRECT_URL', direct);
-setEnv('APP_URL', `https://${ALIAS}`);
-setEnv('CRON_SECRET', randomBytes(24).toString('base64url'));
-
-/* ── 5. Migrate and seed, from here, over the direct connection ─────────── */
-
-const dbEnv = { ...process.env, DATABASE_URL: direct, DIRECT_URL: direct };
-
-step(5, 'Migrations');
-sh(`npm run db:deploy -- --confirm ${database}`, { env: dbEnv });
-
-step(6, 'Review partners and demo data');
-try {
-  sh(`npm run db:seed:preview -- --confirm ${database}`, { env: dbEnv });
-} catch {
-  // The seeder refuses a database that already has users, which is what we
-  // want on a re-run: the review accounts are already there.
-  console.log('\nSeed skipped: this database already has users (the review accounts exist).');
+setEnv('APP_URL', `https://${ALIAS}`, { sensitive: false });
+setEnv('CRON_SECRET', randomBytes(24).toString('base64url'), { sensitive: true });
+// The Vercel Toolbar injects a script this app's nonce CSP correctly refuses.
+// Turning the toolbar off for Preview is the fix; widening the CSP is not.
+setEnv('VERCEL_PREVIEW_FEEDBACK_ENABLED', '0', { sensitive: false });
+names = previewVariableNames();
+for (const required of ['APP_URL', 'CRON_SECRET']) {
+  if (!names.has(required)) stop(`${required} did not appear in the Preview environment.`);
 }
 
-/* ── 7. Deploy ──────────────────────────────────────────────────────────── */
+/* ── 5. Review credentials (hashes only leave this machine) ─────────────── */
 
-step(7, 'Deploying (preview)');
-const deployed = capture(`${vercel} deploy --yes`).split(/\s+/).filter((token) => token.startsWith('https://')).pop();
+step(5, 'Review credentials');
+const hashes = capture('npx tsx scripts/preview-credentials.ts', { stdio: ['inherit', 'pipe', 'inherit'] });
+if (!/^[A-Za-z0-9_-]+$/.test(hashes)) stop('scripts/preview-credentials.ts did not produce the password hashes.');
+
+/* ── 6. Deploy: this one build migrates and seeds ───────────────────────── */
+
+step(6, `Deploying (preview) — the build migrates "${DATABASE}" and seeds it if empty`);
+const buildEnv = [`PREVIEW_DB_SETUP=1`, `PREVIEW_DB_CONFIRM=${DATABASE}`, `REVIEW_PASSWORD_HASHES=${hashes}`]
+  .map((pair) => `--build-env ${pair}`)
+  .join(' ');
+let deployed;
+try {
+  // --target preview is explicit: with no Git connection, a bare `vercel deploy` targets PRODUCTION
+  // (seen on this project). The build step refuses the flag outside preview either way.
+  deployed = capture(`${vercel} deploy --yes --target preview ${buildEnv}`, { stdio: ['inherit', 'pipe', 'inherit'] })
+    .match(/https:\/\/[a-z0-9-]+\.vercel\.app/g)
+    ?.pop();
+} catch {
+  console.log('\nThe build failed. Its log (migrations and seed included):');
+  console.log(`  npx vercel@latest --scope ${SCOPE} inspect <deployment url above> --logs`);
+  console.log(`If it says PREVIEW_DB_CONFIRM does not name the database, run with PREVIEW_DATABASE_NAME=<that name>.`);
+  stop('Deployment failed.');
+}
 if (!deployed) stop('The deployment produced no URL.');
 console.log(`Deployment: ${deployed}`);
 
-step(8, `Stable review alias ${ALIAS}`);
+step(7, `Stable review alias ${ALIAS}`);
+let reviewUrl = `https://${ALIAS}`;
 if (tryCapture(`${vercel} alias set ${deployed} ${ALIAS}`) === null) {
+  reviewUrl = deployed;
   console.log(`Could not claim ${ALIAS} (it may be taken). Review on the deployment URL above instead,`);
   console.log('and set APP_URL to that origin in the Vercel dashboard if sign-in refuses the origin.');
 }
 
-/* ── 9. What is left ────────────────────────────────────────────────────── */
+/* ── 8. Smoke test, when it can get through Deployment Protection ───────── */
 
-tryCapture(`${vercel} env pull ${ENV_FILE} --environment=preview --yes`);
-env = readEnvFile(ENV_FILE);
+step(8, 'Deployed smoke test');
+const credentials = existsSync(CREDENTIALS_FILE) ? readFileSync(CREDENTIALS_FILE, 'utf8') : '';
+const password = (username) => new RegExp(`^${username}\\b[^\\n]*\\n\\s*password:\\s*(\\S+)`, 'm').exec(credentials)?.[1];
+const bypass = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+if (bypass && password('review-partner-a') && password('review-partner-b')) {
+  try {
+    sh('npm run smoke', {
+      env: {
+        ...process.env,
+        SMOKE_BASE_URL: reviewUrl,
+        REVIEW_PASSWORD_A: password('review-partner-a'),
+        REVIEW_PASSWORD_B: password('review-partner-b'),
+      },
+    });
+    console.log('Smoke test passed.');
+  } catch {
+    console.log('\n✗ Smoke test failed — the deployment is up; see the report above.');
+    process.exitCode = 1;
+  }
+} else {
+  console.log('Skipped: Deployment Protection stays ON, and the smoke test needs its automation bypass.');
+  console.log('  Settings → Deployment Protection → Protection Bypass for Automation → create a secret, then');
+  console.log('  VERCEL_AUTOMATION_BYPASS_SECRET=<secret> npm run deploy:preview');
+}
 
 console.log('\n── Ready ──\n');
-console.log(`Review URL:  https://${ALIAS}`);
+console.log(`Review URL:  ${reviewUrl}`);
 console.log(`             ${deployed}`);
-console.log('Credentials: ..\\couple-platform-review-credentials.txt (beside this repo)\n');
+console.log(`Credentials: ${CREDENTIALS_FILE}\n`);
 console.log('The Git connection is not used by any of this — `vercel deploy` uploads the working');
 console.log('directory, so a broken GitHub link cannot stop a review. To fix it anyway, install the');
 console.log(`Vercel GitHub App for the orco6 account and grant it couple-platform:`);
 console.log('  https://github.com/apps/vercel/installations/select_target\n');
-console.log('Two optional finishing touches in the dashboard:');
-console.log(`  • Settings → General → Vercel Toolbar: OFF for ${PROJECT}.`);
-console.log("    The toolbar injects a script this app's nonce CSP correctly refuses. Turning the");
-console.log('    toolbar off is the fix; widening the CSP is not.');
-console.log('  • Settings → Deployment Protection → Protection Bypass for Automation: create a secret');
-console.log('    if you want the smoke test to run. Deployment Protection itself stays ON.\n');
-
-if (process.env.VERCEL_AUTOMATION_BYPASS_SECRET || env.VERCEL_AUTOMATION_BYPASS_SECRET) {
-  console.log('Smoke test: the bypass secret is available; run it with');
-} else {
-  console.log('Smoke test (after creating the bypass secret above):');
-}
-console.log(`  SMOKE_BASE_URL=https://${ALIAS} VERCEL_AUTOMATION_BYPASS_SECRET=<secret> \\`);
-console.log('  REVIEW_PASSWORD_A=<from the file> REVIEW_PASSWORD_B=<from the file> npm run smoke\n');

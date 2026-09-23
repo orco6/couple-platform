@@ -122,8 +122,12 @@ test('both partners sign in, and the list is genuinely shared', async ({ page })
   // A task B owns: A finishes it, and A may rate it.
   const theirs = await addTask(page, `בדיקה ${stamp} — של הפרטנר`, 'partner');
   await card(page, theirs).getByRole('button', { name: copy.tasks.completeAction }).click();
+  // The rating is optimistic and queued behind the completion; reloading
+  // before its request leaves would abort it (seen on the deployment).
+  const saved = page.waitForResponse((r) => r.url().endsWith('/api/task-ratings') && r.request().method() === 'POST');
   await card(page, theirs).getByRole('radio').nth(3).click();
   await expect(card(page, theirs).getByRole('radio', { checked: true })).toHaveAttribute('aria-label', /^4 —/);
+  expect((await saved).ok()).toBe(true);
 
   // The write survived the round trip, not just the optimistic render.
   await page.reload();
@@ -149,9 +153,16 @@ test('the day closes, waits, and reveals', async ({ page }) => {
   // A day neither of them closed, so this can run at any hour and does not
   // spend today — the reviewer closes today themselves.
   await page.goto(`/review?date=${daysAgo(5)}`);
-  await page.getByRole('radio', { name: /^4 —/ }).click();
-  await page.getByRole('button', { name: copy.day.submitAction }).click();
-  await expect(page.getByText(copy.day.waitingTitle('מיכל ביטון'))).toBeVisible();
+  const submit = page.getByRole('button', { name: copy.day.submitAction });
+  const waiting = page.getByText(copy.day.waitingTitle('מיכל ביטון'));
+  // A second run the same day finds this day already closed by the first:
+  // the waiting state is then the whole assertion (deploy:preview re-runs it).
+  await expect(submit.or(waiting)).toBeVisible();
+  if (await submit.isVisible()) {
+    await page.getByRole('radio', { name: /^4 —/ }).click();
+    await submit.click();
+  }
+  await expect(waiting).toBeVisible();
 
   // A day both of them closed: both answers, and no way back.
   await page.goto(`/review?date=${daysAgo(2)}`);

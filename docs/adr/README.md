@@ -19,5 +19,6 @@ Format: Context → Decision → Consequences. Status: Accepted / Superseded by 
 | [0010](0010-testing-strategy.md) | Unit / integration on real Postgres / E2E on production build |
 | [0011](0011-stack-versions.md) | Stack and version choices; npm override removal conditions |
 | [0012](0012-new-business-workflow.md) | New-business script, blank-domain template, injected seams, role-agnostic core |
+| [0013](0013-preview-database-setup.md) | Preview database migrated and seeded from one flagged Vercel build |
 
 See also [stress-tests.md](../stress-tests.md): the dental clinic build and the garage analysis.
