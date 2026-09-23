@@ -16,7 +16,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { copy } from '@/domain/copy';
 
 import { apiLogin, login, uniqueName } from '../helpers';
-import { addTask, completeTask, dragSlider, setReviewTime, taskCard, OWNER } from './helpers';
+import { addTask, completeTask, dragSlider, rateSheetSettled, setReviewTime, taskCard, OWNER } from './helpers';
 
 async function violations(page: Page) {
   await expect(page).toHaveTitle(/\S/);
@@ -59,7 +59,7 @@ test('a task card offering a rating, and the rating sheet, have no WCAG A/AA vio
 
   // The sheet it opens, with its slider.
   await invite.click();
-  const sheet = page.getByTestId('rate-sheet');
+  const sheet = await rateSheetSettled(page);
   const slider = sheet.getByRole('slider', { name: copy.taskRating.prompt });
   await expect(slider).toBeVisible();
   expect(await violations(page)).toEqual([]);

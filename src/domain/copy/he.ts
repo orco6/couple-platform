@@ -53,6 +53,12 @@ export const he = {
     /** The shared space's name: "אור ונטיה". */
     couple: (a: string, b: string) => `${a} ו${b}`,
     invite: 'איך היה לנו היום?',
+    progressLabel: 'כמה מהמשימות של היום הושלמו',
+    closeDay: 'סגירת היום',
+    closeHow: 'כל אחד מדרג לבד, ורואים יחד כששניכם סגרתם.',
+    closeOpensAt: (time: string) => `אפשר לסגור את היום מ־${time}`,
+    youClosed: (name: string) => `סגרת · מחכים ל${name}`,
+    bothClosed: 'שניכם סגרתם · לראות',
     waitingFor: (name: string) => `מחכים ל${name}`,
     ours: 'היום שלנו',
     emptyTitle: 'מה צריך היום?',
@@ -113,6 +119,10 @@ export const he = {
     completeAction: 'סימון כנסגרה',
     reopenAction: 'פתיחה מחדש',
     archiveAction: 'העברה לארכיון',
+    deleteShort: 'מחיקה',
+    deleteAction: 'מחיקת המשימה',
+    deleteTitle: 'למחוק את המשימה?',
+    deleteBody: 'היא תימחק לגמרי, יחד עם הדירוג שלה. אי אפשר לשחזר.',
     archiveTitle: 'העברה לארכיון',
     archiveBody: 'המשימה תצא מהרשימה ולא תיספר בסיכומים. היא לא נמחקת, ואפשר להחזיר אותה.',
     archiveReasonLabel: 'למה היא כבר לא רלוונטית',
@@ -240,6 +250,8 @@ export const he = {
     executionFact: (avg: string) => `המשימות דורגו בממוצע ${avg}`,
     respectFact: (avg: string) => `הכיבוד בממוצע ${avg}`,
     nextWeek: 'לשבוע הבא',
+    mineLabel: 'המשימות שלי',
+    theirsLabel: (name: string) => `המשימות של ${name}`,
   },
 
   week: {
@@ -248,7 +260,10 @@ export const he = {
     readyOn: 'הסיכום מתעדכן בכל שבת',
     range: (from: string, to: string) => `${from} — ${to}`,
 
-    completionTitle: 'משימות שנסגרו',
+    completionTitle: 'משימות שהושלמו',
+    byDayTitle: 'יום אחר יום',
+    howItWentTitle: 'איך היה',
+    closedTogetherTitle: 'ימים שסגרנו ביחד',
     completionDetail: (done: number, total: number) => `${done} מתוך ${total}`,
 
     executionTitle: 'איך יצאו המשימות',
@@ -283,6 +298,7 @@ export const he = {
   month: {
     pageTitle: 'החודש שלנו',
     weeklyAveragesTitle: 'שבוע אחר שבוע',
+    columns: 'משימות · כבוד',
     facts: (tasks: number, days: number) =>
       `${tasks === 1 ? 'משימה אחת' : `${tasks} משימות`} נסגרו · ${days === 1 ? 'יום אחד' : `${days} ימים`} ביחד`,
     completionTrendTitle: 'מגמת הרשימה',

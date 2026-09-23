@@ -192,3 +192,31 @@ test('a long email address keeps its text and wraps only at its parts', async ({
   await expect(link).toHaveAttribute('href', 'mailto:accounts.payable@shaarei-tzedek-medical.org.il');
   expect(await link.evaluate((el) => getComputedStyle(el).wordBreak)).not.toBe('break-all');
 });
+
+test('a bottom sheet enters from the bottom edge without the dialog ever scrolling', async ({ page }) => {
+  // showModal() focuses the first control inside WITHOUT preventScroll, while
+  // the panel is still below the screen; the dialog then scrolled to reveal it
+  // and the sheet flashed in, jumped up and snapped back. Sample every frame
+  // of the entrance: the dialog's own scroll must stay at 0 throughout, and
+  // the panel must travel upward only.
+  await page.evaluate(() => {
+    const samples: { scroll: number; top: number }[] = [];
+    (window as unknown as { __samples: typeof samples }).__samples = samples;
+    const tick = () => {
+      const dialog = document.querySelector('dialog[open]');
+      const panel = dialog?.querySelector('.overlay-panel');
+      if (dialog && panel) samples.push({ scroll: dialog.scrollTop, top: panel.getBoundingClientRect().top });
+      if (samples.length < 60) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  await page.getByRole('button', { name: 'פתיחת גיליון תחתון' }).click();
+  await expect(page.getByTestId('gallery-sheet')).toBeVisible();
+  await page.waitForTimeout(700);
+  const samples = await page.evaluate(() => (window as unknown as { __samples: { scroll: number; top: number }[] }).__samples);
+  expect(samples.length).toBeGreaterThan(5);
+  expect(samples.every((sample) => sample.scroll === 0)).toBe(true);
+  for (let index = 1; index < samples.length; index += 1) {
+    expect(samples[index]!.top, `frame ${index} moved down`).toBeLessThanOrEqual(samples[index - 1]!.top + 0.5);
+  }
+});

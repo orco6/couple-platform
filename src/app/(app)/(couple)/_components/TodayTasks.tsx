@@ -7,11 +7,14 @@ import { useRouter } from 'next/navigation';
 import { ApiError, apiRequest } from '@/core/http/client';
 import type { CalendarDate } from '@/core/dates/calendar-date';
 import { useToast } from '@/core/ui/components/Toast';
+import { cx } from '@/core/ui/cx';
 import { copy } from '@/domain/copy';
 import type { PartnerRef } from '@/domain/partners';
 import type { TaskView } from '@/domain/tasks/tasks';
 
-import { ArchiveDialog, Composer, primeKeyboard } from './Composer';
+import { ConfirmDialog } from '@/core/ui/components/Dialog';
+
+import { Composer, primeKeyboard } from './Composer';
 import { RateSheet } from './RateSheet';
 import type { RatingValue } from './Slider';
 import { TaskRow } from './TaskRow';
@@ -67,7 +70,12 @@ export function TodayTasks({
 
   const [editing, setEditing] = useState<TaskView | null>(null);
   const [adding, setAdding] = useState(false);
-  const [archiving, setArchiving] = useState<TaskView | null>(null);
+  /** Asked to delete from the edit screen: waiting for the confirmation. */
+  const [confirming, setConfirming] = useState<TaskView | null>(null);
+  /** The one row swiped open, if any. */
+  const [swiped, setSwiped] = useState<string | null>(null);
+  /** Rows folding away while their delete reaches the server. */
+  const [removing, setRemoving] = useState<Record<string, true>>({});
   const [rating, setRating] = useState<TaskView | null>(null);
   const addButton = useRef<HTMLButtonElement>(null);
   /** Tasks that arrived while this screen was open (a task just sent). */
@@ -111,6 +119,10 @@ export function TodayTasks({
   function rollback(id: string, message: string) {
     setOptimistic((previous) => {
       const { [id]: _dropped, ...rest } = previous;
+      return rest;
+    });
+    setRemoving((previous) => {
+      const { [id]: _gone, ...rest } = previous;
       return rest;
     });
     toast.show(message, 'error');
@@ -177,10 +189,25 @@ export function TodayTasks({
       return x.group - y.group || x.index - y.index;
     });
 
+  /** Deleting, for good: the row folds away at once; the server follows. */
+  function remove(task: TaskView) {
+    setSwiped(null);
+    setRemoving((previous) => ({ ...previous, [task.id]: true }));
+    enqueue(task.id, async () => {
+      const from = base(task);
+      await apiRequest(`/api/tasks/${task.id}`, { method: 'DELETE', body: { id: task.id, version: from.version } });
+      router.refresh();
+    });
+  }
+
   const ownerOf = (task: TaskView | null) => (task ? (task.ownerId === me.id ? me : partner) : null);
+
+  const live = ordered.filter((task) => !removing[task.id]);
 
   return (
     <>
+      <DayProgress tasks={live} me={me} partner={partner} />
+
       {ordered.length > 0 ? (
         <ul className="glass overflow-hidden [&>li+li]:border-t [&>li+li]:border-rule-faint" aria-label={copy.today.listTitle}>
           {ordered.map((task) => (
@@ -193,6 +220,10 @@ export function TodayTasks({
               onOpen={setEditing}
               onRate={setRating}
               fresh={Boolean(fresh[task.id])}
+              swiped={swiped === task.id}
+              onSwipe={(open) => setSwiped(open ? task.id : null)}
+              onDelete={remove}
+              removing={Boolean(removing[task.id])}
             />
           ))}
         </ul>
@@ -226,11 +257,11 @@ export function TodayTasks({
         defaultDate={today}
         me={me}
         partner={partner}
-        onArchive={
+        onDelete={
           editing
             ? (task) => {
                 setEditing(null);
-                setTimeout(() => setArchiving(task), 220);
+                setTimeout(() => setConfirming(task), 220);
               }
             : undefined
         }
@@ -238,14 +269,83 @@ export function TodayTasks({
 
       <RateSheet task={rating} owner={ownerOf(rating)} onRate={rate} onClose={() => setRating(null)} />
 
-      <ArchiveDialog
-        task={archiving}
-        onClose={() => setArchiving(null)}
-        onArchived={() => {
-          setArchiving(null);
-          router.refresh();
+      <ConfirmDialog
+        open={confirming !== null}
+        title={copy.tasks.deleteTitle}
+        body={copy.tasks.deleteBody}
+        confirmLabel={copy.tasks.deleteShort}
+        tone="danger"
+        onConfirm={() => {
+          const task = confirming;
+          setConfirming(null);
+          if (task) remove(task);
         }}
+        onCancel={() => setConfirming(null)}
       />
     </>
+  );
+}
+
+/**
+ * HOW THE DAY IS GOING — the one number the owner asked to see at a glance.
+ *
+ *   מה יש לנו היום                       3 מתוך 7
+ *   [███████████░░░░░░░░░░░░░]  (my share | their share | left)
+ *   ● אני 2 מתוך 4      ● נטיה 1 מתוך 3
+ *
+ * Counted from the list on screen, so a tick moves the bar at once (the
+ * server follows). The bar is split by whose tasks were done, in their colours.
+ */
+function DayProgress({ tasks, me, partner }: { tasks: TaskView[]; me: PartnerRef; partner: PartnerRef | null }) {
+  const total = tasks.length;
+  const doneBy = (id: string) => tasks.filter((task) => task.ownerId === id && task.state === 'COMPLETED').length;
+  const of = (id: string) => tasks.filter((task) => task.ownerId === id).length;
+  const done = tasks.filter((task) => task.state === 'COMPLETED').length;
+  const people = partner ? [me, partner] : [me];
+  const share = (count: number) => (total === 0 ? 0 : (count / total) * 100);
+
+  return (
+    <section aria-labelledby="today-list-title" className="mb-3 px-1">
+      <div className="flex items-baseline justify-between gap-3 px-2">
+        <h2 id="today-list-title" className="text-meta font-semibold text-ink-muted">
+          {copy.today.listTitle}
+        </h2>
+        {total > 0 && (
+          <p className="text-body font-semibold text-ink tabular-nums">
+            {copy.today.progress(done, total)}
+          </p>
+        )}
+      </div>
+      {total > 0 && (
+        <>
+          <div
+            role="progressbar"
+            aria-label={copy.today.progressLabel}
+            aria-valuemin={0}
+            aria-valuemax={total}
+            aria-valuenow={done}
+            aria-valuetext={copy.today.progress(done, total)}
+            dir="rtl"
+            className="mt-2 flex h-2.5 overflow-hidden rounded-full bg-[var(--color-rule)]"
+          >
+            {people.map((person) => (
+              <span
+                key={person.id}
+                className={cx('progress-part h-full', person.side === 'a' ? 'bg-partner-a' : 'bg-partner-b')}
+                style={{ width: `${share(doneBy(person.id))}%` }}
+              />
+            ))}
+          </div>
+          <p className="mt-2 flex flex-wrap gap-x-5 gap-y-1 px-2 text-meta text-ink-muted">
+            {people.map((person) => (
+              <span key={person.id} className="flex items-center gap-1.5 tabular-nums">
+                <span aria-hidden="true" className={cx(person.side === 'a' ? 'light-a' : 'light-b', 'size-2.5')} />
+                {person.id === me.id ? copy.common.me : person.name.split(' ')[0]} {copy.today.progress(doneBy(person.id), of(person.id))}
+              </span>
+            ))}
+          </p>
+        </>
+      )}
+    </section>
   );
 }

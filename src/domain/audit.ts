@@ -33,6 +33,7 @@ export const domainAuditVocabulary = defineAuditVocabulary({
     'task.reopened': { label: 'משימה נפתחה מחדש' },
     'task.archived': { label: 'משימה הועברה לארכיון', requiresReason: true },
     'task.restored': { label: 'משימה הוחזרה לרשימה', requiresReason: true },
+    'task.deleted': { label: 'משימה נמחקה' },
     'task_rating.given': { label: 'משימה דורגה' },
     'task_rating.changed': { label: 'דירוג משימה שונה' },
     'day_entry.submitted': { label: 'היום נסגר' },

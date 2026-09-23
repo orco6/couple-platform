@@ -13,7 +13,7 @@ import { expect, test, type Locator } from '@playwright/test';
 import { copy } from '@/domain/copy';
 
 import { expectNoHorizontalOverflow, login, uniqueName, watchForProblems } from '../helpers';
-import { addTask, completeTask, taskCard, OWNER, dragSlider } from './helpers';
+import { addTask, completeTask, taskCard, OWNER, dragSlider, rateSheetSettled } from './helpers';
 
 test.skip(({ isMobile }) => !isMobile, 'phone layout only');
 
@@ -90,7 +90,7 @@ test('the whole flow fits the phone: add, complete, rate', async ({ page }) => {
 
   await completeTask(page, title);
   await taskCard(page, title).getByRole('button', { name: copy.taskRating.prompt }).click();
-  const sheet = page.getByTestId('rate-sheet');
+  const sheet = await rateSheetSettled(page);
   await expectNoHorizontalOverflow(page);
   await dragSlider(page, sheet.getByRole('slider'), 5);
   await expect(sheet).toBeHidden();

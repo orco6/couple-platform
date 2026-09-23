@@ -37,3 +37,20 @@ protection to make a script easier); or running the migration where the credenti
 - On this Git-less project a bare `vercel deploy` targets **production**. The first run of the new
   script did exactly that; the build step saw `VERCEL_ENV=production`, refused the flag, and the
   build failed before anything was migrated or served. The script now passes `--target preview`.
+
+## Addendum (fifth edition) — starting the review from an empty list
+
+The owner asked to review the product "from no data", to see how a couple
+fills it in. Two changes, both inside the guarded preview step:
+
+- `scripts/seed-preview.ts` no longer creates demo tasks and day closings on a
+  fresh preview database; it creates the two review accounts, links them, and
+  sets the review hour.
+- An existing preview database is emptied once, on request:
+  `npm run deploy:preview -- --clear-data` passes
+  `PREVIEW_CLEAR_DATA=<database>` to that one build, and
+  `scripts/preview-clear-data.ts` deletes every task, rating and day closing.
+  Users, the partnership, settings and the audit log are kept. It refuses
+  outside a Vercel preview build and unless the database is named — the same
+  confirmation the migration asks for. Nothing here is reachable from a
+  production build, and nothing runs by default.

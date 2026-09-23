@@ -31,7 +31,7 @@ import { generateTemporaryPassword } from '@/core/auth/temporary-password';
 import { isValidUsername, normalizeUsername } from '@/core/auth/username';
 import type { Actor } from '@/core/auth/actor';
 import { updateSetting } from '@/core/settings/settings';
-import { seedDomainData } from '@/domain/dev-data';
+import { linkPartner } from '@/domain/partners';
 import { REVIEW_TIME_KEY } from '@/domain/settings';
 
 import { connect, printTarget, requireDatabaseUrl } from './lib/database';
@@ -122,14 +122,9 @@ async function main() {
     const partnerA = await create(a, hashes?.a ?? (await hashPassword(passwordA!)));
     const partnerB = await create(b, hashes?.b ?? (await hashPassword(passwordB!)));
 
-    // The domain seeder links the couple and creates everything else. It reads
-    // only [0] of each role, so the pair is the same person twice.
-    await seedDomainData(db, {
-      byRole: { OWNER: [partnerA, partnerA], PARTNER: [partnerB, partnerB] },
-      top: partnerA,
-      pending: partnerA,
-      disabled: partnerB,
-    });
+    // Linked, and nothing else: the reviewers start from an empty list and
+    // see how a couple fills it in (the owner asked for no demo data).
+    await linkPartner(db, partnerA, { partnerId: partnerB.id });
 
     // So the day can actually be closed whenever the review happens. The
     // default (21:30) would show a reviewer nothing but "come back later".

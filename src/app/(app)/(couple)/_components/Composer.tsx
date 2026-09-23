@@ -4,9 +4,7 @@ import { ArrowUp, CalendarDays, Clock, X } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { ConfirmDialog } from '@/core/ui/components/Dialog';
 import { FormField, Textarea } from '@/core/ui/components/Field';
-import { useToast } from '@/core/ui/components/Toast';
 import { useSubmit } from '@/core/ui/hooks/useSubmit';
 import { cx } from '@/core/ui/cx';
 import { addDays, type CalendarDate } from '@/core/dates/calendar-date';
@@ -64,7 +62,7 @@ const shortDay = new Intl.DateTimeFormat('he-IL', { weekday: 'short', day: 'nume
  * Type, pick who, send. When is today unless you say otherwise: "מחר" is one
  * tap, and 📅 opens a real calendar (Calendar) — the keyboard steps aside for
  * it. A time (the native wheel) and a note are one tap each, and absent until
- * asked for. Editing a task opens the same composer, filled, plus archive.
+ * asked for. Editing a task opens the same composer, filled, plus delete.
  */
 export function Composer({
   open,
@@ -73,7 +71,7 @@ export function Composer({
   defaultDate,
   me,
   partner,
-  onArchive,
+  onDelete,
   returnFocus,
 }: {
   open: boolean;
@@ -82,14 +80,16 @@ export function Composer({
   defaultDate: CalendarDate;
   me: PartnerRef;
   partner: PartnerRef | null;
-  onArchive?: (task: TaskView) => void;
+  onDelete?: (task: TaskView) => void;
   /** Where focus goes back to when it closes (the + button). */
   returnFocus?: React.RefObject<HTMLElement | null>;
 }) {
   const router = useRouter();
   const { pending, fieldErrors, formError, submit, clearOnInput, reset } = useSubmit();
   const dialog = useRef<HTMLDialogElement>(null);
-  const titleRef = useRef<HTMLInputElement>(null);
+  const titleRef = useRef<HTMLTextAreaElement>(null);
+  const mirror = useRef<HTMLDivElement>(null);
+  const [fieldHeight, setFieldHeight] = useState<number | null>(null);
   const restoreFocus = useRef<HTMLElement | null>(null);
   const tomorrow = addDays(defaultDate, 1);
 
@@ -133,6 +133,19 @@ export function Composer({
     return () => window.clearTimeout(timer);
   }, [open, mounted]);
 
+  // Closing: the exit fade still plays, but not as a MODAL — a modal dialog
+  // makes the page behind inert, and a tap in those ~200ms (the next task's
+  // circle, a swipe) would be swallowed. Re-shown non-modally, it is only a
+  // picture fading out, and it lets the finger through (pointer-events: none).
+  useEffect(() => {
+    if (open) return;
+    const node = dialog.current;
+    if (node?.open && node.matches(':modal')) {
+      node.close();
+      node.show();
+    }
+  }, [open]);
+
   // Open: top layer, lock the page, focus the field in the same task as the tap.
   useLayoutEffect(() => {
     if (!mounted) return;
@@ -160,6 +173,17 @@ export function Composer({
     };
     // task is read once, at open.
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted]);
+
+  // The mirror's height is the field's height (capped at 40% of the screen,
+  // after which the field scrolls). A ResizeObserver hears both typing and
+  // width changes, and fires once on observe.
+  useLayoutEffect(() => {
+    const node = mirror.current;
+    if (!node) return;
+    const observer = new ResizeObserver(() => setFieldHeight(Math.min(node.offsetHeight, Math.round(window.innerHeight * 0.4))));
+    observer.observe(node);
+    return () => observer.disconnect();
   }, [mounted]);
 
   function close() {
@@ -233,14 +257,14 @@ export function Composer({
           <button type="button" onClick={close} aria-label={copy.common.close} className="tap-quiet press -ms-2 grid size-11 place-items-center rounded-full text-ink-muted focus-visible:outline-2 focus-visible:outline-focus">
             <X aria-hidden="true" size={24} />
           </button>
-          {task && onArchive && task.permissions.archive && (
+          {task && onDelete && task.permissions.delete && (
             <button
               type="button"
-              onClick={() => onArchive(task)}
+              onClick={() => onDelete(task)}
               disabled={pending}
               className="tap-quiet press min-h-11 rounded-chip px-3 text-body text-danger-text focus-visible:outline-2 focus-visible:outline-focus"
             >
-              {copy.tasks.archiveAction}
+              {copy.tasks.deleteAction}
             </button>
           )}
         </div>
@@ -252,24 +276,42 @@ export function Composer({
         )}
 
         {/* The sentence and send. */}
-        <div className="mt-3 flex items-center gap-2">
+        <div className="mt-3 flex items-end gap-2">
           <label className="sr-only" htmlFor="task-title">
             {copy.tasks.titleLabel}
           </label>
-          <input
-            id="task-title"
-            ref={titleRef}
-            name="title"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            onFocus={() => setPicking(false)}
-            placeholder={copy.tasks.titlePlaceholder}
-            autoComplete="off"
-            enterKeyHint="send"
-            aria-invalid={titleError ? true : undefined}
-            aria-describedby={titleError ? 'task-title-error' : undefined}
-            className="composer-field min-w-0 flex-1"
-          />
+          {/* The field grows with the sentence. A hidden mirror with the same
+              text and metrics says how tall it needs to be; the field eases to
+              that height (never collapsing to measure first), so a long task
+              opens line by line with nothing jumping. */}
+          <div className="relative min-w-0 flex-1">
+            <div ref={mirror} aria-hidden="true" className="composer-field composer-mirror">
+              {(title || copy.tasks.titlePlaceholder) + '\u200b'}
+            </div>
+            <textarea
+              id="task-title"
+              ref={titleRef}
+              name="title"
+              rows={1}
+              value={title}
+              onChange={(event) => setTitle(event.target.value.replace(/\n/g, ' '))}
+              onKeyDown={(event) => {
+                // Enter sends (the keyboard says "send"); a task is one sentence.
+                if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+                  event.preventDefault();
+                  event.currentTarget.form?.requestSubmit();
+                }
+              }}
+              onFocus={() => setPicking(false)}
+              placeholder={copy.tasks.titlePlaceholder}
+              autoComplete="off"
+              enterKeyHint="send"
+              aria-invalid={titleError ? true : undefined}
+              aria-describedby={titleError ? 'task-title-error' : undefined}
+              className="composer-field composer-grow block w-full"
+              style={fieldHeight ? { height: fieldHeight } : undefined}
+            />
+          </div>
           <button
             type="submit"
             aria-label={task ? copy.common.save : copy.common.add}
@@ -395,58 +437,5 @@ export function Composer({
         )}
       </form>
     </dialog>
-  );
-}
-
-/**
- * Archiving needs a reason (R-TASK-05): the reason is the whole value of
- * archiving over deleting, and it is what the archive screen shows later.
- */
-export function ArchiveDialog({
-  task,
-  onClose,
-  onArchived,
-}: {
-  task: TaskView | null;
-  onClose: () => void;
-  onArchived: () => void;
-}) {
-  const toast = useToast();
-  const { submit, fieldErrors } = useSubmit();
-  const [reason, setReason] = useState('');
-
-  async function archive() {
-    if (!task) return;
-    const result = await submit(`/api/tasks/${task.id}/transition`, {
-      method: 'POST',
-      body: { id: task.id, version: task.version, to: 'ARCHIVED', reason },
-    });
-    if (result === null) {
-      toast.show(copy.errors.taskChangedMeanwhile, 'error');
-      return;
-    }
-    setReason('');
-    onArchived();
-  }
-
-  return (
-    <ConfirmDialog
-      open={task !== null}
-      title={copy.tasks.archiveTitle}
-      body={copy.tasks.archiveBody}
-      confirmLabel={copy.tasks.archiveAction}
-      confirmDisabled={reason.trim().length < 3}
-      onConfirm={archive}
-      onCancel={() => {
-        setReason('');
-        onClose();
-      }}
-    >
-      <FormField label={copy.tasks.archiveReasonLabel} name="reason" error={fieldErrors.reason} required>
-        {(props) => (
-          <Textarea {...props} name="reason" rows={2} value={reason} onChange={(event) => setReason(event.target.value)} />
-        )}
-      </FormField>
-    </ConfirmDialog>
   );
 }

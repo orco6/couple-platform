@@ -48,8 +48,6 @@ export default async function TodayPage() {
           <DayLine day={day} />
         </div>
       </header>
-
-      <h2 className="mb-2 px-3 text-meta font-semibold text-ink-muted">{copy.today.listTitle}</h2>
       <TodayTasks tasks={tasks} me={me} partner={other} today={today} />
     </Screen>
   );

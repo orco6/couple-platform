@@ -11,6 +11,8 @@ import {
   bestDay,
   closedTogetherStreak,
   completion,
+  completionByDay,
+  completionByOwner,
   coupleRespectAverage,
   daysClosedTogether,
   executionAverage,
@@ -338,5 +340,37 @@ describe('range bounds', () => {
     const anchor = d('2026-09-22');
     expect(weekBounds(shiftWeek(shiftWeek(anchor, -1), 1))).toEqual(weekBounds(anchor));
     expect(monthBounds(shiftMonth(shiftMonth(anchor, -1), 1))).toEqual(monthBounds(anchor));
+  });
+});
+
+describe('how the list went, by day and by person', () => {
+  const tasks = [
+    task({ taskDate: '2026-09-20', ownerId: ME, completedById: ME }),
+    task({ taskDate: '2026-09-20', ownerId: THEM, completedById: null }),
+    // My task, ticked by my partner: it still counts as mine (whose task it was).
+    task({ taskDate: '2026-09-22', ownerId: ME, completedById: THEM }),
+    task({ taskDate: '2026-09-22', ownerId: THEM, completedById: THEM }),
+  ];
+
+  it('gives every day asked for, in order, and an empty day is 0 of 0', () => {
+    expect(completionByDay(tasks, ['2026-09-20', '2026-09-21', '2026-09-22'])).toEqual([
+      { date: '2026-09-20', done: 1, total: 2 },
+      { date: '2026-09-21', done: 0, total: 0 },
+      { date: '2026-09-22', done: 2, total: 2 },
+    ]);
+  });
+
+  it('counts by whose task it was, not who ticked it', () => {
+    expect(completionByOwner(tasks, [ME, THEM])).toEqual([
+      { ownerId: ME, done: 2, total: 2 },
+      { ownerId: THEM, done: 1, total: 2 },
+    ]);
+  });
+
+  it('adds up to the week’s own figure', () => {
+    const byOwner = completionByOwner(tasks, [ME, THEM]);
+    const week = completion(tasks, ME);
+    expect(byOwner.reduce((sum, row) => sum + row.done, 0)).toBe(week.done);
+    expect(byOwner.reduce((sum, row) => sum + row.total, 0)).toBe(week.total);
   });
 });

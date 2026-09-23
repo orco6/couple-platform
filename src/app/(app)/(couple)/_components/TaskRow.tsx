@@ -9,6 +9,7 @@ import type { PartnerRef } from '@/domain/partners';
 import type { TaskView } from '@/domain/tasks/tasks';
 
 import type { RatingValue } from './Slider';
+import { SwipeRow } from './SwipeRow';
 
 /**
  * ONE TASK — one line.
@@ -36,6 +37,10 @@ export function TaskRow({
   onOpen,
   onRate,
   fresh = false,
+  swiped = false,
+  onSwipe,
+  onDelete,
+  removing = false,
 }: {
   task: TaskView;
   me: PartnerRef;
@@ -45,6 +50,12 @@ export function TaskRow({
   onRate: (task: TaskView) => void;
   /** Arrived while the screen was open: it enters, once. */
   fresh?: boolean;
+  /** Swiped open, showing its delete action (one row at a time). */
+  swiped?: boolean;
+  onSwipe: (open: boolean) => void;
+  onDelete: (task: TaskView) => void;
+  /** Being deleted: it folds away. */
+  removing?: boolean;
 }) {
   const done = task.state === 'COMPLETED';
   const ownerIsMe = task.ownerId === me.id;
@@ -61,7 +72,15 @@ export function TaskRow({
   }
 
   return (
-    <li className={cx('task-row relative flex min-h-[3.75rem] items-center gap-1 overflow-hidden ps-1.5 pe-2.5', fresh && 'row-enter')}>
+    <SwipeRow
+      open={swiped}
+      onOpenChange={onSwipe}
+      onDelete={() => onDelete(task)}
+      removing={removing}
+      deleteLabel={copy.tasks.deleteShort}
+      className={cx('task-row', fresh && 'row-enter')}
+    >
+      <div className="flex min-h-[3.75rem] items-center gap-1 ps-1.5 pe-2.5">
       {sweep > 0 && <span key={sweep} aria-hidden="true" className={cx('row-sweep', side === 'a' ? 'row-sweep--a' : 'row-sweep--b')} />}
       <button
         type="button"
@@ -107,7 +126,8 @@ export function TaskRow({
       <span className="flex w-12 shrink-0 justify-end">
         <End task={task} me={me} partner={partner} owner={owner} done={done} onRate={onRate} />
       </span>
-    </li>
+      </div>
+    </SwipeRow>
   );
 }
 

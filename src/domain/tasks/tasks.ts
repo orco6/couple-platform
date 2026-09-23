@@ -120,7 +120,17 @@ export const taskTransitionSchema = z
   })
   .strict();
 
+/** Deleting names the task and the version the person saw, so a task changed
+ *  on the other phone in the meantime is not deleted blind. */
+export const deleteTaskSchema = z
+  .object({
+    id: fields.id(),
+    version: fields.version(),
+  })
+  .strict();
+
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
+export type DeleteTaskInput = z.infer<typeof deleteTaskSchema>;
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 export type TaskTransitionInput = z.infer<typeof taskTransitionSchema>;
 
@@ -161,6 +171,7 @@ export interface TaskView {
     edit: boolean;
     archive: boolean;
     restore: boolean;
+    delete: boolean;
     /** Only the non-owner, only once it is finished (R-RATE-01). */
     rate: boolean;
   };
@@ -216,6 +227,10 @@ function toView(row: TaskRow, actor: Pick<Actor, 'id' | 'role'>): TaskView {
       reopen: allowed.has('reopen'),
       edit: state !== 'ARCHIVED' && can('tasks.edit'),
       archive: allowed.has('archive'),
+      // Either partner may delete any task on the shared list, as either may
+      // complete it. Deleting is final (the owner asked for it; archive stays
+      // for history).
+      delete: can('tasks.delete'),
       restore: allowed.has('restore'),
       // The flag the UI renders from must match what rateTask() accepts, or
       // the screen offers an action the server refuses.
@@ -447,6 +462,40 @@ export async function updateTask(client: DbClient, actor: Actor, input: UpdateTa
     });
 
     return toView(row, actor);
+  });
+}
+
+/**
+ * Deleting a task, for good. Scoped like every read (another couple's task is
+ * "not found"), guarded by the version (a task edited meanwhile is refused as a
+ * stale write), and audited in the same transaction — the log keeps the title,
+ * which is ordinary domestic detail. Its rating goes with it (the rating row
+ * references the task and cannot outlive it).
+ */
+export async function deleteTask(client: DbClient, actor: Actor, input: DeleteTaskInput): Promise<{ id: string; deleted: true }> {
+  assertCan(actor, 'tasks.delete');
+
+  return inTransaction(client, async (tx) => {
+    const existing = await tx.dailyTask.findFirst({
+      where: { AND: [await taskScope(tx, actor), { id: input.id }] },
+      select: { id: true, title: true, version: true },
+    });
+    if (!existing) throw errors.notFound();
+    if (existing.version !== input.version) throw errors.staleWrite();
+
+    await tx.taskRating.deleteMany({ where: { taskId: input.id } });
+    const removed = await tx.dailyTask.deleteMany({ where: { id: input.id, version: input.version } });
+    if (removed.count === 0) throw errors.staleWrite();
+
+    await recordAudit(tx, {
+      actor,
+      action: 'task.deleted',
+      entityType: 'daily_task',
+      entityId: input.id,
+      before: { title: existing.title },
+    });
+
+    return { id: input.id, deleted: true as const };
   });
 }
 

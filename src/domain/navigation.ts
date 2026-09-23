@@ -35,7 +35,6 @@ const items: Array<NavItem & { permission?: Permission }> = [
   { href: '/attention', label: 'ימים פתוחים', icon: 'list', mobile: 'more', group: 'אישי' },
   { href: '/settings', label: 'הגדרות', icon: 'settings', mobile: 'more', group: 'אישי' },
   { href: '/account', label: 'החשבון שלי', icon: 'user', mobile: 'more', group: 'אישי' },
-  { href: '/archive', label: copy.tasks.archived, icon: 'archive', mobile: 'more', group: 'אישי', permission: 'archive.read' },
 
   { href: '/admin/users', label: 'משתמשים', icon: 'user', mobile: 'more', group: 'ניהול', permission: 'users.read' },
   { href: '/admin/audit', label: 'יומן פעולות', icon: 'history', mobile: 'more', group: 'ניהול', permission: 'audit.read' },

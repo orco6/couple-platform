@@ -66,6 +66,17 @@ function main() {
   console.log(`Preview database step: migrating and seeding "${plan.database}".`);
   execSync(`npx tsx scripts/db.ts deploy --confirm ${plan.database}`, { stdio: 'inherit', env });
   execSync(`npx tsx scripts/seed-preview.ts --confirm ${plan.database} --skip-if-seeded`, { stdio: 'inherit', env });
+  // Once, on request: empty the list and the day closings (users, the link,
+  // the settings and the audit log stay). Asked for by name, like the rest.
+  if (process.env.PREVIEW_CLEAR_DATA) {
+    if (process.env.PREVIEW_CLEAR_DATA !== plan.database) {
+      console.error(`
+✗ PREVIEW_CLEAR_DATA (${process.env.PREVIEW_CLEAR_DATA}) does not name this database (${plan.database}).
+`);
+      process.exit(1);
+    }
+    execSync(`npx tsx scripts/preview-clear-data.ts --confirm ${plan.database}`, { stdio: 'inherit', env });
+  }
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) main();

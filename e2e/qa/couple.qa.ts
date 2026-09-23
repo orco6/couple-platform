@@ -16,7 +16,7 @@ import { expect, test } from '@playwright/test';
 import { copy } from '@/domain/copy';
 
 import { apiLogin, login, uniqueName } from '../helpers';
-import { addTask, completeTask, setReviewTime, taskCard, OWNER, PARTNER, dragSlider } from '../couple/helpers';
+import { addTask, completeTask, setReviewTime, taskCard, OWNER, PARTNER, dragSlider, rateSheetSettled } from '../couple/helpers';
 import { capture, resetCounter, watch } from './capture';
 
 function daysAgo(n: number): string {
@@ -52,7 +52,7 @@ test('couple: the cards, the stars and the reveal', async ({ page }) => {
 
   // The rating sheet, then one drag to the fourth stop: the signature interaction.
   await invite.click();
-  const sheet = page.getByTestId('rate-sheet');
+  const sheet = await rateSheetSettled(page);
   const slider = sheet.getByRole('slider');
   await expect(slider).toBeVisible();
   await page.waitForTimeout(500);

@@ -41,7 +41,7 @@ test('the week runs Sunday to Saturday and tells three figures, without a percen
 
   // The list, as people say it: how many of how many. Not a percentage — the
   // week is told, not reported (third edition).
-  await expect(page.getByText(/^\d+ מתוך \d+$/)).toBeVisible();
+  await expect(page.getByText(/^\d+ מתוך \d+$/).first()).toBeVisible();
   await expect(page.getByText(/%/)).toHaveCount(0);
 
   // The two averages, each out of five. Not a score out of 100.

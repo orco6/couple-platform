@@ -75,6 +75,34 @@ export function completion(tasks: readonly TaskInput[], myId: string): Completio
   return { percent, done, total, ownerShare: { mine, theirs: 100 - mine } };
 }
 
+/** Done and total, for one slice of the list. */
+export interface Tally {
+  done: number;
+  total: number;
+}
+
+/**
+ * How the list went, day by day — one entry per date asked for, in order, so
+ * a day with no tasks is an honest 0 of 0 rather than a missing bar.
+ */
+export function completionByDay(tasks: readonly TaskInput[], dates: readonly string[]): (Tally & { date: string })[] {
+  return dates.map((date) => {
+    const those = tasks.filter((task) => task.taskDate === date);
+    return { date, done: those.filter((task) => task.completedById !== null).length, total: those.length };
+  });
+}
+
+/**
+ * How the list went for each person — by who the task belonged to, not who
+ * ticked it (either may complete the other's task; the owner is who it was on).
+ */
+export function completionByOwner(tasks: readonly TaskInput[], ownerIds: readonly string[]): (Tally & { ownerId: string })[] {
+  return ownerIds.map((ownerId) => {
+    const those = tasks.filter((task) => task.ownerId === ownerId);
+    return { ownerId, done: those.filter((task) => task.completedById !== null).length, total: those.length };
+  });
+}
+
 /**
  * R-CALC-02 — the average task-execution rating.
  *

@@ -75,31 +75,59 @@ test('the shared review time can be moved by the owner and is read-only for the 
   await expect(page.getByLabel(copy.settings.reviewTimeLabel)).toHaveCount(0);
 });
 
-test('an archived task keeps its reason and can be restored to the list', async ({ page }) => {
+test('a task is deleted for good with a swipe, for both partners', async ({ page }) => {
   await login(page, OWNER);
   const title = await addTask(page, uniqueName('לבטל מנוי'), 'me');
+  const row = taskCard(page, title);
 
-  // Archiving lives inside the edit sheet, where the decision is being made.
-  await taskCard(page, title).getByRole('button', { name: new RegExp(title) }).click();
-  await page.getByRole('button', { name: copy.tasks.archiveAction }).click();
-  await page.getByLabel(copy.tasks.archiveReasonLabel).fill('החלטנו לא לחדש');
-  await page.getByRole('button', { name: copy.tasks.archiveAction }).click();
+  // A task just sent enters with a short animation; swipe it once it has landed.
+  await row.evaluate((element) => Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)));
 
-  await expect(page.getByText(title)).toHaveCount(0);
+  // On a phone the new row can sit under the tab bar: bring it to the middle.
+  await row.evaluate((element) => element.scrollIntoView({ block: 'center' }));
 
-  // It is in the archive, with the reason, and it is not counted as a task.
-  await page.goto('/archive');
-  const archived = page.getByRole('listitem').filter({ hasText: title });
-  await expect(archived).toHaveCount(1);
-  await expect(archived.getByText('החלטנו לא לחדש')).toBeVisible();
+  // Swipe the row toward the right: the delete action uncovers at the left.
+  const box = (await row.boundingBox())!;
+  const y = box.y + box.height / 2;
+  await page.mouse.move(box.x + 40, y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 200, y, { steps: 12 });
+  await page.mouse.up();
+  const del = row.getByRole('button', { name: copy.tasks.deleteShort });
+  await expect(del).toBeVisible();
 
-  // Restoring asks why, and brings it back open.
-  await archived.getByRole('button', { name: copy.tasks.restoreAction }).click();
-  await page.getByLabel(copy.archivePage.restoreReasonLabel).fill('בכל זאת צריך');
-  await page.getByRole('button', { name: copy.tasks.restoreAction }).last().click();
-  // Wait for the write to land: navigating while it is in flight cancels it.
-  await expect(archived).toHaveCount(0);
+  const deleted = page.waitForResponse((r) => r.url().includes('/api/tasks/') && r.request().method() === 'DELETE');
+  await del.click();
+  expect((await deleted).status()).toBe(200);
+  await expect(page.getByText(title, { exact: true })).toHaveCount(0);
 
+  // Gone for good: after a reload, and for the other partner.
+  await page.reload();
+  await expect(page.getByText(title, { exact: true })).toHaveCount(0);
+  await signOut(page);
+  await login(page, PARTNER);
   await page.goto('/');
-  await expect(taskCard(page, title).getByRole('button', { name: copy.tasks.completeAction })).toBeVisible();
+  await expect(page.getByText(title, { exact: true })).toHaveCount(0);
+});
+
+test('a task can also be deleted from its edit screen, after a confirmation', async ({ page }) => {
+  await login(page, OWNER);
+  const title = await addTask(page, uniqueName('להחזיר ספר'), 'partner');
+
+  await taskCard(page, title).getByRole('button', { name: new RegExp(title) }).click();
+  await page.getByTestId('composer').getByRole('button', { name: copy.tasks.deleteAction }).click();
+
+  // Cancel first: nothing happens.
+  const confirm = page.getByRole('dialog', { name: copy.tasks.deleteTitle });
+  await expect(confirm).toBeVisible();
+  await confirm.getByRole('button', { name: copy.common.cancel }).click();
+  await expect(taskCard(page, title)).toHaveCount(1);
+
+  // Then for real.
+  await taskCard(page, title).getByRole('button', { name: new RegExp(title) }).click();
+  await page.getByTestId('composer').getByRole('button', { name: copy.tasks.deleteAction }).click();
+  const deleted = page.waitForResponse((r) => r.url().includes('/api/tasks/') && r.request().method() === 'DELETE');
+  await page.getByRole('dialog', { name: copy.tasks.deleteTitle }).getByRole('button', { name: copy.tasks.deleteShort }).click();
+  expect((await deleted).status()).toBe(200);
+  await expect(page.getByText(title, { exact: true })).toHaveCount(0);
 });

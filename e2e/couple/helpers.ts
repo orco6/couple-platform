@@ -93,17 +93,29 @@ export async function whoami(request: APIRequestContext): Promise<string> {
 
 /**
  * Drags a 1–5 slider the way a finger does: press at its "1" end, move to the
- * stop for `value`, let go. The slider is mirrored for Hebrew (1 at the right,
- * 5 at the left), and its light is `thumb` px wide, so the stops sit between
+ * stop for `value`, let go. The scale runs left to right (1 at the left, 5 at
+ * the right), and its light is `thumb` px wide, so the stops sit between
  * thumb/2 from each edge.
  */
 export async function dragSlider(page: Page, slider: Locator, value: 1 | 2 | 3 | 4 | 5, thumb = 56): Promise<void> {
   const box = await slider.locator('..').boundingBox();
   if (!box) throw new Error('the slider has no box');
   const y = box.y + box.height / 2;
-  const at = (v: number) => box.x + thumb / 2 + (box.width - thumb) * (1 - (v - 1) / 4);
+  const at = (v: number) => box.x + thumb / 2 + (box.width - thumb) * ((v - 1) / 4);
   await page.mouse.move(at(1), y);
   await page.mouse.down();
   await page.mouse.move(at(value), y, { steps: 10 });
   await page.mouse.up();
+}
+
+/**
+ * The rating sheet slides up (420ms). A finger lands on it once it has
+ * arrived, so a test waits for the same: the panel at rest, untransformed.
+ * (Before the dialog scroll fix the sheet appeared already in place, which is
+ * why earlier tests could drag at once.)
+ */
+export async function rateSheetSettled(page: Page): Promise<Locator> {
+  const sheet = page.getByTestId('rate-sheet');
+  await expect(sheet.locator('.sheet-panel')).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, 0)');
+  return sheet;
 }

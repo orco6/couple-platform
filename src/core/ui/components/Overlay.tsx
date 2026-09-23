@@ -121,6 +121,14 @@ export function Overlay({
 
     restoreFocusRef.current = document.activeElement as HTMLElement | null;
     if (!dialog.open) dialog.showModal();
+    // showModal() focuses the first control inside, WITHOUT preventScroll —
+    // and at that moment the panel is still off-screen (the enter transition
+    // starts at translateY(100%)), so the browser scrolls the overflow:hidden
+    // dialog to reveal it. The panel then flashes in un-animated, jumps up as
+    // the transition runs on top of that scroll, and snaps back. The dialog
+    // never scrolls on purpose: undo it before the first paint.
+    dialog.scrollTop = 0;
+    dialog.scrollLeft = 0;
 
     const root = document.documentElement;
     const previousOverflow = root.style.overflow;
@@ -220,6 +228,11 @@ export function Overlay({
         requestClose();
       }}
       onKeyDown={onKeyDown}
+      onScroll={(event) => {
+        // See above: nothing inside should ever scroll the dialog itself.
+        event.currentTarget.scrollTop = 0;
+        event.currentTarget.scrollLeft = 0;
+      }}
     >
       <div className="overlay-scrim" aria-hidden="true" onClick={requestClose} />
       <div ref={panelRef} className="overlay-panel" data-size={size} tabIndex={-1}>

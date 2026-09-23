@@ -29,8 +29,8 @@ import { spring, tick } from './motion';
  *   • `progress` (0..1, continuous) lets the screen around it follow the
  *     finger too — the daily question re-lights the room with it.
  *
- * Mirrored for Hebrew as iOS mirrors its sliders: 1 sits at the inline start
- * (right), 5 at the end. Underneath is a real <input type="range">, so the
+ * Drawn left to right in both languages — 1 (לא יצא) at the left, 5 (מושלם)
+ * at the right — which is how the owner reads a scale. Underneath is a real <input type="range">, so the
  * keyboard (arrows, Home/End) and VoiceOver (swipe up/down) work natively;
  * Enter confirms, and a keyboard change also confirms on its own after a
  * pause, because a screen-reader user has no "release".
@@ -82,7 +82,10 @@ export function Slider({
   const track = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const [width, setWidth] = useState(0);
-  const [rtl, setRtl] = useState(true);
+  // A magnitude axis, the same in both languages: 1 at the left, 5 at the
+  // right (the owner asked for מושלם on the right). Kept as a flag so the
+  // geometry below reads the same either way.
+  const rtl = false;
   const [held, setHeld] = useState(false);
   const [settled, setSettled] = useState(0);
   const drag = useRef<{ id: number; from: RatingValue | null; live: RatingValue | null } | null>(null);
@@ -95,7 +98,6 @@ export function Slider({
   useLayoutEffect(() => {
     const node = track.current;
     if (!node) return;
-    setRtl(getComputedStyle(node.parentElement ?? node).direction === 'rtl');
     const observer = new ResizeObserver(([entry]) => setWidth(entry?.contentRect.width ?? 0));
     observer.observe(node);
     return () => observer.disconnect();
@@ -269,7 +271,7 @@ export function Slider({
       </div>
 
       {/* The two ends, named once. */}
-      <p id={captionId} className="mt-1 flex justify-between px-1 text-meta text-ink-muted">
+      <p id={captionId} dir="ltr" className="mt-1 flex justify-between px-1 text-meta text-ink-muted">
         <span>{labels[1]}</span>
         <span className="sr-only">—</span>
         <span>{labels[5]}</span>

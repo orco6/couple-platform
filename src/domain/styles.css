@@ -556,10 +556,13 @@ div:has(> .slider-input:focus-visible) .slider-thumb {
   transform: none;
 }
 
-/* ≥16px so iOS never zooms into it. */
+/* ≥16px so iOS never zooms into it. The field and its mirror share every
+   metric (font, padding, line-height, border-box), so the mirror's height is
+   exactly the height the field needs. */
 .composer-field {
   min-block-size: 3.5rem;
-  padding-inline: 1.125rem;
+  padding: 0.85rem 1.125rem;
+  line-height: 1.35;
   border-radius: 1.25rem;
   font-size: 1.3125rem;
   font-weight: 600;
@@ -571,6 +574,22 @@ div:has(> .slider-input:focus-visible) .slider-thumb {
     inset 0 0 0 1px var(--color-rule);
   outline: none;
   caret-color: var(--brand-partner-a);
+}
+
+.composer-grow {
+  resize: none;
+  overflow-y: auto;
+  transition: height 160ms var(--ease-enter);
+}
+
+.composer-mirror {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .composer-field::placeholder {
@@ -726,6 +745,25 @@ div:has(> .slider-input:focus-visible) .slider-thumb {
   }
 }
 
+/* ── Swipe to delete ─────────────────────────────────────────────────────
+   The red action fills exactly the gap the row uncovers; a deleted row folds
+   away (height and opacity together), and the rows below close the gap. */
+.swipe-row {
+  touch-action: pan-y;
+}
+
+.swipe-delete {
+  background-color: var(--color-danger);
+  color: var(--brand-on-partner);
+}
+
+.row-removing {
+  opacity: 0;
+  transition:
+    height 280ms cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 200ms var(--ease-enter);
+}
+
 /* The floating + steps away while anything is open over Today. */
 .fab {
   transition:
@@ -839,6 +877,11 @@ body:has([data-immersive]) nav[data-mobile-tab-bar] {
     transform: none !important;
   }
 
+  .composer-grow,
+  .row-removing {
+    transition: none;
+  }
+
   .strike::after {
     transition: none;
   }
@@ -848,4 +891,30 @@ body:has([data-immersive]) nav[data-mobile-tab-bar] {
   nav[data-mobile-tab-bar] button:active {
     transform: none;
   }
+}
+
+/* Today's progress: each person's share grows as their tasks are ticked. */
+.progress-part {
+  transition: width 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-part {
+    transition: none;
+  }
+}
+
+/* Summary cards: a quiet solid surface, no backdrop blur. Several blurred
+   panels on one scrolling screen cost every frame, and a page of figures
+   reads better on a steady surface. */
+.figure-card {
+  background-color: var(--brand-glass-strong);
+  border-radius: var(--radius-surface);
+  box-shadow: var(--brand-glass-edge), var(--brand-shadow-card);
+}
+
+/* A closing composer or sheet is only a picture fading out: taps go through. */
+.composer[data-shown='false'],
+.sheet-dialog[data-shown='false'] {
+  pointer-events: none;
 }

@@ -9,7 +9,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { copy } from '@/domain/copy';
 
 import { login, uniqueName, watchForProblems } from '../helpers';
-import { addTask, completeTask, dragSlider, signOut, taskCard, OWNER, PARTNER } from './helpers';
+import { addTask, completeTask, dragSlider, rateSheetSettled, signOut, taskCard, OWNER, PARTNER } from './helpers';
 
 /** A task of the partner's, completed by the owner: the owner may rate it. */
 async function rateable(page: Page, name: string) {
@@ -17,7 +17,7 @@ async function rateable(page: Page, name: string) {
   const title = await addTask(page, uniqueName(name), 'partner');
   await completeTask(page, title);
   await taskCard(page, title).getByRole('button', { name: copy.taskRating.prompt }).click();
-  const sheet = page.getByTestId('rate-sheet');
+  const sheet = await rateSheetSettled(page);
   const slider = sheet.getByRole('slider');
   await expect(slider).toBeVisible();
   return { title, sheet, slider };
@@ -52,7 +52,7 @@ test('the partner rates a completed task with one drag, and the owner sees the r
   await card.getByRole('button', { name: copy.taskRating.prompt }).click();
 
   // One slider in a focused sheet, saying what it is before it is touched.
-  const sheet = page.getByTestId('rate-sheet');
+  const sheet = await rateSheetSettled(page);
   const slider = sheet.getByRole('slider', { name: copy.taskRating.prompt });
   await expect(slider).toHaveAttribute('aria-valuetext', copy.taskRating.hint);
 
@@ -87,11 +87,11 @@ test('nothing is saved while the finger is down — only when it lets go', async
 
   const box = (await slider.locator('..').boundingBox())!;
   const y = box.y + box.height / 2;
-  await page.mouse.move(box.x + box.width - 28, y);
+  await page.mouse.move(box.x + 28, y);
   await page.mouse.down();
   // A slow drag across the whole scale and back, holding on.
   for (const fraction of [0.2, 0.5, 0.9, 0.6]) {
-    await page.mouse.move(box.x + box.width - 28 - (box.width - 56) * fraction, y, { steps: 6 });
+    await page.mouse.move(box.x + 28 + (box.width - 56) * fraction, y, { steps: 6 });
     await page.waitForTimeout(250);
   }
   // Held for well over the confirm delay: still open, nothing sent.
@@ -112,7 +112,7 @@ test('a touch the browser takes back (pointercancel) gives no answer', async ({ 
 
   const box = (await slider.locator('..').boundingBox())!;
   const y = box.y + box.height / 2;
-  await page.mouse.move(box.x + box.width - 28, y);
+  await page.mouse.move(box.x + 28, y);
   await page.mouse.down();
   await page.mouse.move(box.x + box.width / 2, y, { steps: 6 });
   await expect(slider).toHaveAttribute('aria-valuetext', /^3 —/);
@@ -131,10 +131,10 @@ test('letting go outside the track commits what the light shows', async ({ page 
   const { sheet, slider } = await rateable(page, 'לקנות מתנה');
   const box = (await slider.locator('..').boundingBox())!;
   const y = box.y + box.height / 2;
-  await page.mouse.move(box.x + box.width - 28, y);
+  await page.mouse.move(box.x + 28, y);
   await page.mouse.down();
-  // Past the "5" end and well above the sheet.
-  await page.mouse.move(box.x - 60, y - 160, { steps: 10 });
+  // Past the "5" end (the right) and well above the sheet.
+  await page.mouse.move(box.x + box.width + 60, y - 160, { steps: 10 });
   await expect(slider).toHaveAttribute('aria-valuetext', `5 — ${copy.taskRating.scale[5]}`);
   const saved = page.waitForResponse((r) => r.url().endsWith('/api/task-ratings') && r.request().method() === 'POST');
   await page.mouse.up();
@@ -180,7 +180,7 @@ test('the rater may change their mind; the rating is replaced, not added to', as
   const rated = taskCard(page, title).getByRole('button', { name: copy.taskRating.myRatedLine(copy.taskRating.scale[2]) });
   await expect(rated).toBeVisible();
   await rated.click();
-  const sheet = page.getByTestId('rate-sheet');
+  const sheet = await rateSheetSettled(page);
   const again = sheet.getByRole('slider');
   await expect(again).toHaveAttribute('aria-valuetext', `2 — ${copy.taskRating.scale[2]}`);
 

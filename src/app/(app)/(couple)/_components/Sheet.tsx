@@ -56,12 +56,28 @@ export function Sheet({
     return () => window.clearTimeout(timer);
   }, [open, mounted]);
 
+  // Closing: the exit fade still plays, but not as a MODAL — a modal dialog
+  // makes the page behind inert, and a tap in those ~200ms (the next task's
+  // circle, a swipe) would be swallowed. Re-shown non-modally, it is only a
+  // picture fading out, and it lets the finger through (pointer-events: none).
+  useEffect(() => {
+    if (open) return;
+    const node = dialog.current;
+    if (node?.open && node.matches(':modal')) {
+      node.close();
+      node.show();
+    }
+  }, [open]);
+
   useLayoutEffect(() => {
     if (!mounted) return;
     const node = dialog.current;
     if (!node) return;
     restore.current = document.activeElement as HTMLElement | null;
     if (!node.open) node.showModal();
+    // showModal() focuses the first control without preventScroll while the
+    // panel is still below the screen, scrolling the dialog; undo it before paint.
+    node.scrollTop = 0;
     const root = document.documentElement;
     const previous = root.style.overflow;
     root.style.overflow = 'hidden';
@@ -110,6 +126,9 @@ export function Sheet({
       onCancel={(event) => {
         event.preventDefault();
         if (dismissible) onClose();
+      }}
+      onScroll={(event) => {
+        event.currentTarget.scrollTop = 0;
       }}
       className="sheet-dialog"
     >

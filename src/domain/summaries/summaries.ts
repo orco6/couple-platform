@@ -33,7 +33,10 @@ import {
   bestDay,
   closedTogetherStreak,
   completion,
+  completionByDay,
+  completionByOwner,
   coupleRespectAverage,
+  type Tally,
   daysClosedTogether,
   executionAverage,
   myRespectAverage,
@@ -108,6 +111,10 @@ export interface WeekSummary {
   partner: PartnerRef | null;
 
   completion: Completion;
+  /** Sunday → Saturday, one tally per day (an empty day is 0 of 0). */
+  byDay: (Tally & { date: CalendarDate })[];
+  /** Mine first, then my partner's: by whose task it was. */
+  byOwner: (Tally & { ownerId: string })[];
   executionAverage: number | null;
   respectAverage: number | null;
   myRespectAverage: number | null;
@@ -149,6 +156,8 @@ export async function getWeekSummary(
     me,
     partner: other,
     completion: done,
+    byDay: completionByDay(tasks, days.map((day) => day.date)) as (Tally & { date: CalendarDate })[],
+    byOwner: completionByOwner(tasks, other ? [me.id, other.id] : [me.id]),
     executionAverage: executionAverage(tasks),
     respectAverage: coupleRespectAverage(days),
     myRespectAverage: myRespectAverage(days),
@@ -170,6 +179,8 @@ export interface WeekPoint {
   index: number;
   from: CalendarDate;
   completionPercent: number | null;
+  done: number;
+  total: number;
   executionAverage: number | null;
   respectAverage: number | null;
 }
@@ -181,6 +192,8 @@ export interface MonthSummary {
   partner: PartnerRef | null;
 
   weeks: WeekPoint[];
+  /** Mine first, then my partner's: by whose task it was. */
+  byOwner: (Tally & { ownerId: string })[];
   /** Every day of the month, with the same reveal rule as the week (R-DAY-05). */
   days: RangeDay[];
   completion: Completion;
@@ -235,6 +248,8 @@ export async function getMonthSummary(
       index,
       from,
       completionPercent: completion(weekTasks, actor.id).percent,
+      done: completion(weekTasks, actor.id).done,
+      total: weekTasks.length,
       executionAverage: executionAverage(weekTasks),
       respectAverage: coupleRespectAverage(weekDays),
     });
@@ -251,6 +266,7 @@ export async function getMonthSummary(
     me,
     partner: other,
     weeks,
+    byOwner: completionByOwner(tasks, other ? [me.id, other.id] : [me.id]),
     days,
     completion: done,
     executionAverage: executionAverage(tasks),

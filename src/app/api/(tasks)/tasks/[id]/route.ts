@@ -1,7 +1,7 @@
 import { requireActor } from '@/core/auth/guards';
 import { db } from '@/core/db/client';
 import { apiRoute, readBody } from '@/core/http/handler';
-import { updateTask, updateTaskSchema } from '@/domain/tasks/tasks';
+import { deleteTask, deleteTaskSchema, updateTask, updateTaskSchema } from '@/domain/tasks/tasks';
 
 /**
  * The id in the path and the id in the body must agree — the service scopes by
@@ -11,4 +11,10 @@ export const PATCH = apiRoute<{ id: string }>('tasks.update', async ({ request, 
   const actor = await requireActor();
   const input = await readBody(request, updateTaskSchema);
   return updateTask(db, actor, { ...input, id: params.id });
+});
+
+export const DELETE = apiRoute<{ id: string }>('tasks.delete', async ({ request, params }) => {
+  const actor = await requireActor();
+  const input = await readBody(request, deleteTaskSchema);
+  return deleteTask(db, actor, { ...input, id: params.id });
 });

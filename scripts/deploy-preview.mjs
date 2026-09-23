@@ -169,7 +169,11 @@ if (!/^[A-Za-z0-9_-]+$/.test(hashes)) stop('scripts/preview-credentials.ts did n
 /* ── 6. Deploy: this one build migrates and seeds ───────────────────────── */
 
 step(6, `Deploying (preview) — the build migrates "${DATABASE}" and seeds it if empty`);
-const buildEnv = [`PREVIEW_DB_SETUP=1`, `PREVIEW_DB_CONFIRM=${DATABASE}`, `REVIEW_PASSWORD_HASHES=${hashes}`]
+// `--clear-data` (on request only): this one build also empties the review
+// list and day closings — scripts/preview-clear-data.ts.
+const clearData = process.argv.includes('--clear-data') ? [`PREVIEW_CLEAR_DATA=${DATABASE}`] : [];
+if (clearData.length) console.log(`This deployment will EMPTY the tasks, ratings and day closings in "${DATABASE}" (users and settings stay).`);
+const buildEnv = [`PREVIEW_DB_SETUP=1`, `PREVIEW_DB_CONFIRM=${DATABASE}`, `REVIEW_PASSWORD_HASHES=${hashes}`, ...clearData]
   .map((pair) => `--build-env ${pair}`)
   .join(' ');
 let deployed;
