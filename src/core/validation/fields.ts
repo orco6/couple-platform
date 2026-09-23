@@ -22,6 +22,15 @@ import { isCalendarDate, parseIsoDate, type CalendarDate } from '@/core/dates/ca
 import { parseLocalTime, type LocalTime } from '@/core/dates/local-time';
 import { MAX_ROW_AMOUNT, type Minor } from '@/core/money/money';
 
+/**
+ * No validation message a person can see is ever Zod's own. Every field here
+ * names its message; anything that still falls through (a missing id, a
+ * version of the wrong type — client bugs, not user mistakes) gets the
+ * generic Hebrew sentence instead of "Invalid input: expected string, received
+ * undefined". Explicit messages always win over this. docs/adr/0015.
+ */
+z.config({ customError: () => copy.errors.validation });
+
 const INVISIBLE = /[\u200b\u200e\u200f\u061c\u202a-\u202e\u2066-\u2069\ufeff]/g;
 
 export function cleanSingleLine(value: string): string {

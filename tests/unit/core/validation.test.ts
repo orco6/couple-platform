@@ -57,3 +57,21 @@ describe('request field schemas', () => {
     expect(toFieldErrors(result.error!).name).toContain('שם הלקוח');
   });
 });
+
+describe('messages a person can see', () => {
+  it('never falls back to Zod’s own English text, even for a missing id or version', () => {
+    const schema = z.object({ id: fields.id(), version: fields.version() }).strict();
+    const result = schema.safeParse({});
+    expect(result.success).toBe(false);
+    const errors = toFieldErrors(result.error!);
+    expect(Object.keys(errors).sort()).toEqual(['id', 'version']);
+    for (const message of Object.values(errors)) {
+      expect(message).not.toMatch(/[A-Za-z]/);
+    }
+  });
+
+  it('keeps the explicit message where a field names one', () => {
+    const result = z.object({ title: fields.text({ label: 'כותרת', max: 200 }) }).safeParse({});
+    expect(toFieldErrors(result.error!).title).toContain('כותרת');
+  });
+});

@@ -5,23 +5,19 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } f
 import { cx } from '@/core/ui/cx';
 
 /**
- * THE SHEET — for the two small moments that happen over Today: adding a task
- * and rating one.
+ * THE SHEET — for small moments over Today that need no keyboard (rating a
+ * task). Anything with typing is a full-screen Composer instead: on a real
+ * iPhone, a bottom sheet with a text field fights the keyboard however it is
+ * built (Safari pans the whole viewport to reveal the field), and the fourth
+ * edition stopped trying.
  *
- * Why not the foundation's BottomSheet: on a real iPhone it opened, then
- * shifted by ~10px as focus landed, and its footer sat under the keyboard
- * (iOS does not move position:fixed content above the keyboard). This one:
- *
- *   • is a native <dialog> opened with showModal() — focus stays inside,
- *     Escape closes, the page behind is inert — so none of that is re-built;
- *   • rides the keyboard: it reads visualViewport and lifts itself by exactly
- *     the keyboard's height, with a transition matching the keyboard's own
- *     (~250ms), so the input and its send button stay above it and nothing
- *     jumps;
- *   • enters on the drawer curve (cubic-bezier(.32,.72,0,1), 420ms) and
- *     leaves faster (240ms) — transform and opacity only;
- *   • has a natural height: content decides, and it never re-measures while
- *     typing (nothing inside changes size unless the person asks for more).
+ *   • A native <dialog> opened with showModal() — focus stays inside, Escape
+ *     closes, the page behind is inert.
+ *   • Enters on the drawer curve (cubic-bezier(.32,.72,0,1), 420ms), leaves
+ *     faster (240ms) — transform and opacity only.
+ *   • Follows the finger: the grip (a full-width strip at the top) drags the
+ *     sheet down 1:1, the scrim fading with it; let go past a third of its
+ *     height or with a flick and it leaves, otherwise it springs back.
  */
 export function Sheet({
   open,
@@ -85,24 +81,23 @@ export function Sheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted]);
 
-  // Ride the keyboard.
-  useEffect(() => {
-    if (!mounted) return;
-    const viewport = window.visualViewport;
+  // Drag to dismiss, from the grip.
+  const panel = useRef<HTMLDivElement>(null);
+  const pull = useRef<{ id: number; y: number; t: number; dy: number; v: number } | null>(null);
+  function setPull(dy: number | null) {
     const node = dialog.current;
-    if (!viewport || !node) return;
-    const update = () => {
-      const keyboard = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
-      node.style.setProperty('--sheet-keyboard', `${Math.round(keyboard)}px`);
-    };
-    update();
-    viewport.addEventListener('resize', update);
-    viewport.addEventListener('scroll', update);
-    return () => {
-      viewport.removeEventListener('resize', update);
-      viewport.removeEventListener('scroll', update);
-    };
-  }, [mounted]);
+    if (!node) return;
+    if (dy === null) {
+      node.removeAttribute('data-pulling');
+      node.style.removeProperty('--sheet-pull');
+      node.style.removeProperty('--sheet-pull-ratio');
+      return;
+    }
+    const height = panel.current?.offsetHeight ?? 400;
+    node.setAttribute('data-pulling', '');
+    node.style.setProperty('--sheet-pull', `${dy}px`);
+    node.style.setProperty('--sheet-pull-ratio', String(Math.min(1, dy / height)));
+  }
 
   if (!mounted) return null;
 
@@ -122,8 +117,49 @@ export function Sheet({
       <h2 id={titleId} className="sr-only">
         {label}
       </h2>
-      <div className={cx('sheet-panel', className)}>
-        <span aria-hidden="true" className="sheet-grip" />
+      <div ref={panel} className={cx('sheet-panel', className)}>
+        <div
+          aria-hidden="true"
+          className="sheet-grip-zone"
+          onPointerDown={(event) => {
+            if (!dismissible) return;
+            event.currentTarget.setPointerCapture(event.pointerId);
+            pull.current = { id: event.pointerId, y: event.clientY, t: event.timeStamp, dy: 0, v: 0 };
+          }}
+          onPointerMove={(event) => {
+            const current = pull.current;
+            if (current?.id !== event.pointerId) return;
+            const raw = event.clientY - current.y;
+            // Down follows the finger; up resists (a sheet has nowhere to go).
+            const dy = raw > 0 ? raw : raw / 6;
+            const dt = Math.max(1, event.timeStamp - current.t);
+            current.v = (dy - current.dy) / dt;
+            current.dy = dy;
+            current.t = event.timeStamp;
+            setPull(dy);
+          }}
+          onPointerUp={(event) => {
+            const current = pull.current;
+            if (current?.id !== event.pointerId) return;
+            pull.current = null;
+            const height = panel.current?.offsetHeight ?? 400;
+            const leave = current.dy > height / 3 || (current.dy > 24 && current.v > 0.5);
+            if (leave) {
+              // Leave from where the finger let go: the exit transition starts at the
+              // pulled position, so nothing snaps back first.
+              dialog.current?.removeAttribute('data-pulling');
+              onClose();
+            } else {
+              setPull(null);
+            }
+          }}
+          onPointerCancel={() => {
+            pull.current = null;
+            setPull(null);
+          }}
+        >
+          <span className="sheet-grip" />
+        </div>
         {children}
       </div>
     </dialog>

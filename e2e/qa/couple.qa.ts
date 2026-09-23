@@ -16,7 +16,7 @@ import { expect, test } from '@playwright/test';
 import { copy } from '@/domain/copy';
 
 import { apiLogin, login, uniqueName } from '../helpers';
-import { addTask, completeTask, setReviewTime, taskCard, OWNER, PARTNER } from '../couple/helpers';
+import { addTask, completeTask, setReviewTime, taskCard, OWNER, PARTNER, dragSlider } from '../couple/helpers';
 import { capture, resetCounter, watch } from './capture';
 
 function daysAgo(n: number): string {
@@ -50,21 +50,26 @@ test('couple: the cards, the stars and the reveal', async ({ page }) => {
   await expect(invite).toBeVisible();
   await capture(page, 'today-open-waiting-and-to-rate', problems);
 
-  // The rating sheet, then one tap on the fourth light: the signature interaction.
+  // The rating sheet, then one drag to the fourth stop: the signature interaction.
   await invite.click();
   const sheet = page.getByTestId('rate-sheet');
-  await expect(sheet.getByRole('radio')).toHaveCount(5);
+  const slider = sheet.getByRole('slider');
+  await expect(slider).toBeVisible();
   await page.waitForTimeout(500);
   await capture(page, 'rate-sheet', problems, { fullPage: false });
-  await sheet.getByRole('radio').nth(3).click();
+  await dragSlider(page, slider, 4);
   await expect(sheet).toBeHidden();
   await expect(taskCard(page, toRate).getByRole('button', { name: copy.taskRating.myRatedLine(copy.taskRating.scale[4]) })).toBeVisible();
   await capture(page, 'today-just-rated', problems);
 
   // ── Adding a task ─────────────────────────────────────────────────────
   await page.getByRole('button', { name: copy.tasks.addAction }).first().click();
-  await expect(page.getByRole('dialog')).toBeVisible();
-  await capture(page, 'task-sheet', problems, { fullPage: false });
+  await expect(page.getByTestId('composer')).toBeVisible();
+  await page.waitForTimeout(400);
+  await capture(page, 'composer', problems, { fullPage: false });
+  await page.getByRole('button', { name: copy.tasks.chooseDate }).click();
+  await expect(page.getByTestId('calendar')).toBeVisible();
+  await capture(page, 'composer-calendar', problems, { fullPage: false });
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
 
@@ -74,7 +79,7 @@ test('couple: the cards, the stars and the reveal', async ({ page }) => {
   await page.goto(`/review?date=${UNCLOSED()}`);
   await capture(page, 'review-empty-form', problems);
 
-  await page.getByRole('radio', { name: /^5 —/ }).click();
+  await page.getByRole('slider', { name: copy.day.respectLabel }).fill('5');
   await page.getByLabel(copy.day.noteLabel).fill('יום טוב. הספקנו הכל ועוד יצאנו לקפה.');
   await capture(page, 'review-answered', problems);
 
@@ -114,7 +119,7 @@ test('couple: closing today, from too-early to waiting', async ({ page, request,
 
   await setReviewTime(request, baseURL!, '00:00');
   await page.goto('/review');
-  await page.getByRole('radio', { name: /^4 —/ }).click();
+  await page.getByRole('slider', { name: copy.day.respectLabel }).fill('4');
   await page.getByRole('button', { name: copy.day.submitAction }).click();
   await expect(page.getByText(copy.day.waitingTitle('מיכל'))).toBeVisible();
   await capture(page, 'evening-waiting-for-partner', problems);

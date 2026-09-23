@@ -21,6 +21,7 @@ export const he = {
     me: 'אני',
     both: 'שנינו',
     cancel: 'ביטול',
+    close: 'סגירה',
     save: 'שמירה',
     add: 'הוספה',
     edit: 'עריכה',
@@ -93,6 +94,11 @@ export const he = {
     otherDay: 'יום אחר',
     addTime: 'שעה',
     addNote: 'פתק',
+    chooseDate: 'בחירת תאריך',
+    previousMonth: 'החודש הקודם',
+    nextMonth: 'החודש הבא',
+    removeTime: 'בלי שעה',
+    titleMissing: 'כתבו מה צריך לעשות.',
     dateLabel: 'לאיזה יום',
     timeLabel: 'עד שעה',
     timeHint: 'לא חייב.',
@@ -124,6 +130,10 @@ export const he = {
     awaitingShort: 'ממתין לדירוג',
     /** Shown to the partner who may rate. */
     prompt: 'איך יצא?',
+    /** The row's invitation: one word, so it fits beside any title. */
+    rateShort: 'דרגו',
+    /** In the slider's word slot before anything is chosen. */
+    hint: 'גררו או הקישו',
     promptFor: (name: string) => `${name} סגר/ה את זה. איך יצא?`,
     ratedBy: (name: string, value: number) => `${name} נתן/ה ${value}`,
     myRating: (value: number) => `נתתי ${value}`,
@@ -133,7 +143,7 @@ export const he = {
     /** The five steps. Kind, but honest enough to be worth giving. */
     scale: {
       1: 'לא יצא',
-      2: 'ככה ככה',
+      2: 'חלקית',
       3: 'בסדר',
       4: 'טוב',
       5: 'מושלם',

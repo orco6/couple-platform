@@ -91,7 +91,7 @@ test('once both have closed, both answers appear together', async ({ page }) => 
   await page.getByRole('button', { name: copy.day.submitAction }).click();
   await expect(page.getByRole('alert').filter({ hasText: copy.day.chooseFirst })).toBeVisible();
 
-  await page.getByRole('radio', { name: /^4 —/ }).click();
+  await page.getByRole('slider', { name: copy.day.respectLabel }).fill('4');
   await page.getByLabel(copy.day.noteLabel).fill(MY_NOTE);
   await page.getByRole('button', { name: copy.day.submitAction }).click();
 

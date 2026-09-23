@@ -13,7 +13,7 @@ import { expect, test, type Locator } from '@playwright/test';
 import { copy } from '@/domain/copy';
 
 import { expectNoHorizontalOverflow, login, uniqueName, watchForProblems } from '../helpers';
-import { addTask, completeTask, taskCard, OWNER } from './helpers';
+import { addTask, completeTask, taskCard, OWNER, dragSlider } from './helpers';
 
 test.skip(({ isMobile }) => !isMobile, 'phone layout only');
 
@@ -72,9 +72,13 @@ test('every tap target on a task card is big enough for a thumb', async ({ page 
 
   // The completion mark, the title, and the invitation to rate.
   await expectThumbSized(card.getByRole('button'), 3);
-  // And the five lights of the rating sheet it opens.
+  // And the rating sheet it opens: one generous track for the thumb (the
+  // whole strip is the target, well past 44px tall), not five small ones.
   await card.getByRole('button', { name: copy.taskRating.prompt }).click();
-  await expectThumbSized(page.getByTestId('rate-sheet').getByRole('radio'), 5);
+  const track = page.getByTestId('rate-sheet').getByRole('slider').locator('..');
+  const box = await track.boundingBox();
+  expect(Math.round(box!.height)).toBeGreaterThanOrEqual(72);
+  expect(Math.round(box!.width)).toBeGreaterThanOrEqual(240);
 });
 
 test('the whole flow fits the phone: add, complete, rate', async ({ page }) => {
@@ -88,8 +92,7 @@ test('the whole flow fits the phone: add, complete, rate', async ({ page }) => {
   await taskCard(page, title).getByRole('button', { name: copy.taskRating.prompt }).click();
   const sheet = page.getByTestId('rate-sheet');
   await expectNoHorizontalOverflow(page);
-  await sheet.getByRole('radio').nth(4).click();
-  await expect(sheet.getByRole('radio', { checked: true })).toHaveAttribute('aria-label', /^5 —/);
+  await dragSlider(page, sheet.getByRole('slider'), 5);
   await expect(sheet).toBeHidden();
   await expectNoHorizontalOverflow(page);
 

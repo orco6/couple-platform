@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   BRAND THEME — שנינו (third edition, after the second real-iPhone review)
+   BRAND THEME — שנינו (fourth edition, after the third real-iPhone review)
 
    ── The idea ──────────────────────────────────────────────────────────────
    **Two lights, one room.** The page is a place, not a sheet of paper: warm
@@ -10,7 +10,13 @@
    question and the two circles of the reveal. Never hearts.
 
    The first two editions were white paper with a little light; on a real
-   phone that read as unfinished software. The light is now the environment.
+   phone that read as unfinished software. The third made light the
+   environment but kept it too faint to be felt. The fourth lights the room
+   like a scene: each partner's light is a key light with a bloom and a soft
+   shaft falling across the room at an angle (warm from the top right, cool
+   from the lower left), the two meet in a faint lilac in the middle, and
+   the lights drift very slowly. Today should look like a place even with
+   nothing on the list.
 
    ── Typography ────────────────────────────────────────────────────────────
    Rubik (Hebrew-first), 400–700, weight-led. Titles 30px, task titles 17px,
@@ -82,25 +88,48 @@
   --brand-scrim: rgb(24 16 34 / 0.34);
 
   /* ── The room ─────────────────────────────────────────────────────────── */
-  --brand-room: linear-gradient(180deg, #f6ede7 0%, #efe5e4 46%, #e7e5ee 100%);
-  --brand-light-a: radial-gradient(100% 62% at 106% -6%, rgb(236 122 110 / 0.56), rgb(236 122 110 / 0) 72%);
-  --brand-light-b: radial-gradient(105% 70% at -12% 72%, rgb(84 128 226 / 0.42), rgb(84 128 226 / 0) 72%);
-  --brand-sun: radial-gradient(120% 50% at 50% -14%, rgb(255 250 244 / 0.9), rgb(255 250 244 / 0) 62%);
-  --brand-grain-opacity: 0.1;
+  --brand-room:
+    radial-gradient(140% 100% at 50% 40%, rgb(0 0 0 / 0) 55%, rgb(70 40 70 / 0.1) 100%),
+    linear-gradient(180deg, #f8efe8 0%, #f2e6e2 42%, #e8e2ef 100%);
+  /* Partner A: a warm key light, its bloom, and a shaft falling down-left. */
+  --brand-light-a:
+    radial-gradient(42% 30% at 90% 6%, rgb(255 176 128 / 0.85), rgb(255 176 128 / 0) 70%),
+    radial-gradient(110% 64% at 104% -4%, rgb(242 112 104 / 0.55), rgb(242 112 104 / 0) 72%),
+    linear-gradient(222deg, rgb(255 196 160 / 0.42) 0%, rgb(255 196 160 / 0) 46%);
+  /* Partner B: a cool light low on the other side, its bloom, a shaft up-right. */
+  --brand-light-b:
+    radial-gradient(40% 28% at 6% 80%, rgb(128 158 255 / 0.7), rgb(128 158 255 / 0) 70%),
+    radial-gradient(115% 70% at -8% 92%, rgb(78 112 232 / 0.45), rgb(78 112 232 / 0) 72%),
+    linear-gradient(40deg, rgb(150 176 255 / 0.34) 0%, rgb(150 176 255 / 0) 48%);
+  /* Where the two meet. */
+  --brand-meet: radial-gradient(70% 34% at 50% 52%, rgb(206 150 214 / 0.26), rgb(206 150 214 / 0) 72%);
+  --brand-sun: radial-gradient(120% 44% at 50% -12%, rgb(255 251 246 / 0.85), rgb(255 251 246 / 0) 62%);
+  --brand-grain-opacity: 0.12;
   --brand-grain-blend: multiply;
 
   /* The one surface. */
-  --brand-glass: rgb(255 251 249 / 0.54);
-  --brand-glass-strong: rgb(255 251 249 / 0.86);
+  --brand-glass: rgb(255 251 249 / 0.6);
+  --brand-glass-strong: rgb(255 251 249 / 0.88);
   --brand-glass-edge: inset 0 1px 0 rgb(255 255 255 / 0.85);
   --brand-glass-shadow: 0 30px 60px -32px rgb(58 30 52 / 0.34), 0 2px 6px -2px rgb(58 30 52 / 0.08);
 
   /* The daily question: the room re-lit by the answer, 1 (dusk) → 5 (dawn). */
-  --brand-mood-1: radial-gradient(120% 80% at 50% 30%, rgb(122 142 186 / 0.55), rgb(122 142 186 / 0) 70%);
-  --brand-mood-2: radial-gradient(120% 80% at 50% 30%, rgb(144 138 196 / 0.55), rgb(144 138 196 / 0) 70%);
-  --brand-mood-3: radial-gradient(120% 80% at 50% 30%, rgb(196 150 196 / 0.55), rgb(196 150 196 / 0) 70%);
-  --brand-mood-4: radial-gradient(120% 80% at 50% 30%, rgb(238 150 140 / 0.6), rgb(238 150 140 / 0) 70%);
-  --brand-mood-5: radial-gradient(120% 80% at 50% 30%, rgb(250 176 120 / 0.68), rgb(250 176 120 / 0) 70%);
+  /* 1 cool, quiet, dim → 3 balanced warmth → 5 warm, glowing, open. */
+  --brand-mood-1:
+    radial-gradient(90% 55% at 50% 22%, rgb(104 128 186 / 0.62), rgb(104 128 186 / 0) 72%),
+    linear-gradient(180deg, rgb(92 108 160 / 0.28), rgb(60 70 120 / 0.34));
+  --brand-mood-2:
+    radial-gradient(90% 55% at 50% 22%, rgb(140 130 204 / 0.6), rgb(140 130 204 / 0) 72%),
+    linear-gradient(180deg, rgb(130 120 190 / 0.2), rgb(96 90 160 / 0.26));
+  --brand-mood-3:
+    radial-gradient(95% 58% at 50% 22%, rgb(208 152 206 / 0.6), rgb(208 152 206 / 0) 72%),
+    linear-gradient(180deg, rgb(220 170 200 / 0.14), rgb(170 130 190 / 0.16));
+  --brand-mood-4:
+    radial-gradient(100% 62% at 50% 20%, rgb(246 146 132 / 0.66), rgb(246 146 132 / 0) 72%),
+    linear-gradient(180deg, rgb(255 190 160 / 0.18), rgb(240 150 150 / 0.12));
+  --brand-mood-5:
+    radial-gradient(110% 68% at 50% 18%, rgb(255 178 104 / 0.78), rgb(255 178 104 / 0) 74%),
+    radial-gradient(80% 40% at 50% 100%, rgb(255 206 150 / 0.4), rgb(255 206 150 / 0) 72%);
 
   /* The day's five lights, dusk → dawn (the orbs). */
   --orb-day-1: #7d8fbd;
@@ -196,10 +225,20 @@
 
     --brand-scrim: rgb(4 2 10 / 0.6);
 
-    --brand-room: radial-gradient(130% 75% at 50% -12%, #34264b 0%, #1d1529 55%, #120e19 100%);
-    --brand-light-a: radial-gradient(90% 55% at 106% -2%, rgb(255 111 125 / 0.34), rgb(255 111 125 / 0) 72%);
-    --brand-light-b: radial-gradient(95% 62% at -12% 72%, rgb(111 157 255 / 0.3), rgb(111 157 255 / 0) 72%);
-    --brand-sun: radial-gradient(100% 40% at 50% -10%, rgb(180 150 230 / 0.16), rgb(180 150 230 / 0) 60%);
+    /* Night: the same room with two lamps lit. */
+    --brand-room:
+      radial-gradient(150% 100% at 50% 40%, rgb(0 0 0 / 0) 50%, rgb(0 0 0 / 0.45) 100%),
+      radial-gradient(130% 80% at 50% -10%, #2c2140 0%, #181226 55%, #0c0914 100%);
+    --brand-light-a:
+      radial-gradient(38% 26% at 90% 6%, rgb(255 138 104 / 0.44), rgb(255 138 104 / 0) 70%),
+      radial-gradient(100% 60% at 104% -4%, rgb(232 84 104 / 0.38), rgb(232 84 104 / 0) 72%),
+      linear-gradient(222deg, rgb(255 150 120 / 0.2) 0%, rgb(255 150 120 / 0) 46%);
+    --brand-light-b:
+      radial-gradient(38% 26% at 6% 80%, rgb(104 140 255 / 0.5), rgb(104 140 255 / 0) 70%),
+      radial-gradient(110% 66% at -8% 92%, rgb(70 100 240 / 0.36), rgb(70 100 240 / 0) 72%),
+      linear-gradient(40deg, rgb(120 150 255 / 0.18) 0%, rgb(120 150 255 / 0) 48%);
+    --brand-meet: radial-gradient(70% 34% at 50% 52%, rgb(160 90 200 / 0.2), rgb(160 90 200 / 0) 72%);
+    --brand-sun: radial-gradient(100% 40% at 50% -10%, rgb(180 150 230 / 0.12), rgb(180 150 230 / 0) 60%);
     --brand-grain-opacity: 0.16;
     --brand-grain-blend: overlay;
 
@@ -208,11 +247,19 @@
     --brand-glass-edge: inset 0 1px 0 rgb(255 255 255 / 0.08);
     --brand-glass-shadow: 0 30px 60px -30px rgb(0 0 0 / 0.6);
 
-    --brand-mood-1: radial-gradient(120% 80% at 50% 30%, rgb(70 96 160 / 0.6), rgb(70 96 160 / 0) 70%);
-    --brand-mood-2: radial-gradient(120% 80% at 50% 30%, rgb(98 90 170 / 0.6), rgb(98 90 170 / 0) 70%);
-    --brand-mood-3: radial-gradient(120% 80% at 50% 30%, rgb(150 96 170 / 0.6), rgb(150 96 170 / 0) 70%);
-    --brand-mood-4: radial-gradient(120% 80% at 50% 30%, rgb(214 96 120 / 0.62), rgb(214 96 120 / 0) 70%);
-    --brand-mood-5: radial-gradient(120% 80% at 50% 30%, rgb(240 140 96 / 0.66), rgb(240 140 96 / 0) 70%);
+    --brand-mood-1:
+      radial-gradient(90% 55% at 50% 22%, rgb(60 86 160 / 0.62), rgb(60 86 160 / 0) 72%),
+      linear-gradient(180deg, rgb(20 28 60 / 0.4), rgb(10 14 36 / 0.5));
+    --brand-mood-2:
+      radial-gradient(90% 55% at 50% 22%, rgb(92 82 176 / 0.6), rgb(92 82 176 / 0) 72%),
+      linear-gradient(180deg, rgb(30 24 60 / 0.3), rgb(16 12 36 / 0.36));
+    --brand-mood-3:
+      radial-gradient(95% 58% at 50% 22%, rgb(150 90 176 / 0.6), rgb(150 90 176 / 0) 72%);
+    --brand-mood-4:
+      radial-gradient(100% 62% at 50% 20%, rgb(222 92 118 / 0.62), rgb(222 92 118 / 0) 72%);
+    --brand-mood-5:
+      radial-gradient(110% 68% at 50% 18%, rgb(255 140 84 / 0.7), rgb(255 140 84 / 0) 74%),
+      radial-gradient(80% 40% at 50% 100%, rgb(255 170 110 / 0.28), rgb(255 170 110 / 0) 72%);
 
     --orb-day-1: #8aa2e0;
     --orb-day-2: #9d8fe0;

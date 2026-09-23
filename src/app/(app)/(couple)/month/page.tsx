@@ -11,6 +11,7 @@ import { copy } from '@/domain/copy';
 import { getMonthSummary, monthBounds, shiftMonth } from '@/domain/summaries/summaries';
 
 import { MonthLights, RangeStepper, ReflectionTabs, Story } from '../_components/ReflectionParts';
+import { RoomTone } from '../_components/RoomTone';
 import { Screen } from '../_components/Screen';
 
 export const metadata = { title: copy.month.pageTitle };
@@ -40,6 +41,7 @@ export default async function MonthPage({ searchParams }: { searchParams: Promis
 
   return (
     <Screen className="pb-24">
+      <RoomTone average={summary.respectAverage} strength={0.55} />
       <ReflectionTabs current="month" />
       <RangeStepper
         title={copy.month.pageTitle}

@@ -1,5 +1,6 @@
 'use client';
 
+import { useMotionValue } from 'motion/react';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -10,16 +11,18 @@ import type { CalendarDate } from '@/core/dates/calendar-date';
 import { copy } from '@/domain/copy';
 import type { DayEntryValues } from '@/domain/day-entries/day-entries';
 
-import { Orbs, type RatingValue } from './Orbs';
+import { Moods } from './Moods';
+import { Slider, type RatingValue } from './Slider';
 
 /**
  * CLOSING THE DAY — one question, and the room answers.
  *
- * Five lights from dusk to dawn. Choosing one re-lights the whole screen in
- * its colour (a crossfade between five fixed layers — opacity only), so a
- * low answer is a quiet blue evening and a high one a warm morning; never a
- * red alarm, never confetti. The note is one quiet line, optional. The button
- * appears once there is an answer; its space is reserved, so nothing moves.
+ * The same slider as a task's rating, larger. As the finger moves, the whole
+ * room re-lights continuously (five fixed colour fields whose weights follow
+ * the finger — opacity only): 1 is a quiet blue dusk, 3 a balanced warmth,
+ * 5 an open warm morning. Never a red alarm, never confetti. The word says
+ * where you are. Letting go does not close the day — the button does, so an
+ * answer can be felt out first.
  *
  * Nothing is pre-selected: a default of 3 would be an answer nobody gave.
  */
@@ -37,6 +40,7 @@ export function ReviewForm({
   const [respect, setRespect] = useState<RatingValue | null>((existing?.respectRating as RatingValue | undefined) ?? null);
   const [note, setNote] = useState(existing?.note ?? '');
   const [missing, setMissing] = useState(false);
+  const progress = useMotionValue(respect === null ? 0.5 : (respect - 1) / 4);
 
   async function save() {
     if (respect === null) {
@@ -55,19 +59,18 @@ export function ReviewForm({
 
   return (
     <form method="post" onSubmit={(event) => event.preventDefault()} className="flex flex-col items-center">
-      {[1, 2, 3, 4, 5].map((step) => (
-        <span key={step} aria-hidden="true" data-on={respect === step} className={`mood-layer mood-${step}`} />
-      ))}
+      <Moods progress={progress} on={respect !== null} />
 
       <FormError message={formError} />
 
       <div className="w-full">
-        <Orbs
-          legend={copy.day.respectLabel}
+        <Slider
+          label={copy.day.respectLabel}
           labels={copy.day.scale}
+          hint={copy.taskRating.hint}
           value={respect}
-          tone="day"
           size="lg"
+          progress={progress}
           onChange={(next) => {
             setMissing(false);
             setRespect(next);
@@ -103,9 +106,13 @@ export function ReviewForm({
         onClick={save}
         aria-busy={pending || undefined}
         className={cx(
-          'tap-quiet press mt-8 h-14 w-full max-w-sm rounded-full bg-accent text-row font-semibold text-on-accent shadow-[var(--brand-shadow-float)] transition-opacity duration-300',
+          'tap-quiet press mt-8 h-14 w-full max-w-sm rounded-full text-row font-semibold transition-[background-color,color,box-shadow] duration-300',
           'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
-          respect === null && 'opacity-40',
+          // Quiet until there is an answer, then the one primary action — never
+          // faded to a contrast nobody can read.
+          respect === null
+            ? 'bg-[var(--brand-glass-strong)] text-ink-muted shadow-[var(--brand-glass-edge)]'
+            : 'bg-accent text-on-accent shadow-[var(--brand-shadow-float)]',
         )}
       >
         {mode === 'submit' ? copy.day.submitAction : copy.common.save}

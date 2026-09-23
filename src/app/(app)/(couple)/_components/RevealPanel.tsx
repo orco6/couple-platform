@@ -10,7 +10,7 @@ import type { PartnerRef } from '@/domain/partners';
 
 import { reducedFade, spring } from './motion';
 import { ReviewForm } from './ReviewForm';
-import type { RatingValue } from './Orbs';
+import type { RatingValue } from './Slider';
 
 /**
  * THE REVEAL.
@@ -69,7 +69,7 @@ export function RevealPanel({
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3, delay: reduced ? 0.05 : 0.35 }}
           >
-            <span className="block truncate text-meta text-ink-subtle">{caption}</span>
+            <span className="block truncate text-meta text-ink-muted">{caption}</span>
             <span className="block text-section font-semibold text-ink">{word(value)}</span>
           </motion.span>
         ))}
@@ -170,7 +170,7 @@ function Meeting({ me, partner }: { me: PartnerRef; partner: PartnerRef }) {
 function Note({ label, text }: { label: string; text: string }) {
   return (
     <figure className="px-4 py-3.5">
-      <figcaption className="text-meta font-medium text-ink-subtle">{label}</figcaption>
+      <figcaption className="text-meta font-medium text-ink-muted">{label}</figcaption>
       <blockquote className="mt-1 text-row whitespace-pre-line text-ink">{text}</blockquote>
     </figure>
   );
@@ -217,14 +217,14 @@ export function WaitingPanel({
         />
         <span className="rounded-full border-2 border-dashed border-rule-strong" style={{ width: size, height: size }} />
       </div>
-      <p className="mt-3 text-center text-meta text-ink-subtle" dir="ltr">
+      <p className="mt-3 text-center text-meta text-ink-muted" dir="ltr">
         <span className="inline-block w-24 text-center">{copy.day.scale[mine.respectRating as RatingValue]}</span>
         <span className="inline-block w-24" />
       </p>
 
       <div className="mt-6 text-center">
         <p className="text-section font-semibold text-balance text-ink">{partner ? copy.day.waitingTitle(partnerName.split(' ')[0] ?? partnerName) : copy.errors.noPartnerYet}</p>
-        <p className="mx-auto mt-1 max-w-xs text-body text-balance text-ink-subtle">{copy.day.waitingWhy}</p>
+        <p className="mx-auto mt-1 max-w-xs text-body text-balance text-ink-muted">{copy.day.waitingWhy}</p>
       </div>
 
       {canAmend && (

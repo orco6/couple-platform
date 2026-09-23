@@ -12,6 +12,7 @@ import type { Insight } from '@/domain/summaries/calculations';
 import { getWeekSummary, shiftWeek, weekBounds } from '@/domain/summaries/summaries';
 
 import { Fact, Facts, RangeStepper, ReflectionTabs, Story, Thought, WeekLights } from '../_components/ReflectionParts';
+import { RoomTone } from '../_components/RoomTone';
 import { Screen } from '../_components/Screen';
 
 export const metadata = { title: copy.week.pageTitle };
@@ -43,6 +44,7 @@ export default async function WeekPage({ searchParams }: { searchParams: Promise
 
   return (
     <Screen className="pb-24">
+      <RoomTone average={summary.respectAverage} strength={0.75} />
       <ReflectionTabs current="week" />
       <RangeStepper
         title={copy.week.pageTitle}

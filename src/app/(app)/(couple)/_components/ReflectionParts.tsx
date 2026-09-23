@@ -25,7 +25,7 @@ export function ReflectionTabs({ current }: { current: 'week' | 'month' }) {
   ] as const;
   return (
     <nav aria-label={copy.nav.reflection} className="mb-6 flex justify-center">
-      <span className="glass inline-flex gap-1 rounded-full p-1">
+      <span className="glass inline-flex gap-1 rounded-full bg-[var(--brand-glass-strong)] p-1">
         {tabs.map((tab) => {
           const active = tab.key === current;
           return (
@@ -111,7 +111,7 @@ export function RangeStepper({
 /** The sentence a reflection hangs on. */
 export function Story({ children }: { children: ReactNode }) {
   return (
-    <p className="mx-auto mt-8 max-w-sm text-center text-[1.875rem] leading-tight font-semibold text-balance text-ink">
+    <p className="mx-auto mt-10 max-w-sm text-center text-[2.25rem] leading-[1.1] font-bold tracking-tight text-balance text-ink">
       {children}
     </p>
   );
@@ -160,7 +160,7 @@ export function WeekLights({
 }) {
   const byWeekday = new Map(days.map((day) => [new Date(`${day.date}T12:00:00Z`).getUTCDay(), day]));
   const partnerName = partner?.name ?? copy.common.partnerFallback;
-  const size = (value: number) => 16 + value * 4;
+  const size = (value: number) => 18 + value * 4;
 
   return (
     <section className="mt-10" aria-label={copy.reflection.rhythmTitle}>
@@ -175,7 +175,7 @@ export function WeekLights({
             value !== null ? word(value) : hidden ? copy.reflection.hidden : copy.reflection.notClosed;
 
           return (
-            <li key={letter} className="flex flex-col items-center">
+            <li key={letter} className="day-rise flex flex-col items-center" style={{ animationDelay: `${weekday * 45}ms` }}>
               <span className="sr-only">
                 {`${copy.reflection.dayNames[weekday]}: ${copy.common.me} ${describe(mine, false)}, ${partnerName} ${describe(theirs, Boolean(day?.partnerSubmitted))}`}
               </span>

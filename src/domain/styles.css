@@ -1,8 +1,9 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   DOMAIN STYLES — שנינו (third edition)
+   DOMAIN STYLES — שנינו (fourth edition)
 
    The room (the two lights), the one frosted surface, the two people, the
-   completion mark, the orbs, the immersive daily question, and the chrome.
+   completion moment, the slider and the light it throws, the composer, the
+   sheet, and the chrome.
 
    Colour never appears here as a literal — every value is a --brand-* or
    semantic token, so both schemes follow automatically. Nothing here edits
@@ -11,38 +12,79 @@
 
    Motion rules (Emil Kowalski's, adopted): transform and opacity only; CSS
    transitions for anything a finger can re-trigger (they retarget mid-way,
-   keyframes restart from zero); press = scale(0.97) in ~40ms, release
-   ~160ms; nothing appears from scale(0); reduced motion keeps colour and
-   opacity changes and drops movement.
+   keyframes restart from zero); what a finger holds follows it 1:1, what it
+   lets go of settles on a spring; nothing appears from scale(0); reduced
+   motion keeps colour and opacity changes and drops movement.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* ── The room ─────────────────────────────────────────────────────────────
-   Fixed to the LARGE viewport height, not inset:0 — when Safari's toolbar
-   collapses, an inset:0 layer resizes and the whole light shifts under the
-   content. 100lvh never changes. */
-body::before {
-  content: '';
-  position: fixed;
-  inset-inline: 0;
-  top: 0;
-  height: 100lvh;
-  z-index: -2;
-  pointer-events: none;
-  background-image: var(--brand-sun), var(--brand-light-a), var(--brand-light-b), var(--brand-room);
-}
-
-/* Fine grain, so the light reads as a material and gradients never band. */
+   Four fixed layers, all sized to the LARGE viewport (100lvh never changes
+   when Safari's toolbar comes and goes, so the light never shifts under the
+   content):
+     html::before  the room itself — its gradient, the vignette, the sun
+     body::before  partner A's light: key, bloom, shaft
+     body::after   partner B's light, and where the two meet
+     html::after   grain, so light reads as a material and never bands
+   The lights do NOT drift. A first version moved them slowly and forever;
+   the frosted surfaces blur whatever is behind them, so a background that
+   moves every frame makes every blur recompute every frame — battery and
+   smoothness spent on motion nobody asked for (it also stretched every
+   route fade under test load). The room moves when something happens: the
+   owner's light brightens when a task is completed ([data-pulse]), and the
+   daily question and a rating re-light it under the finger. */
+html::before,
+html::after,
+body::before,
 body::after {
   content: '';
   position: fixed;
+  pointer-events: none;
+}
+
+html::before {
+  inset-inline: 0;
+  top: 0;
+  height: 100lvh;
+  z-index: -4;
+  background-color: var(--brand-canvas);
+  background-image: var(--brand-sun), var(--brand-room);
+}
+
+body::before,
+body::after {
+  inset-inline: 0;
+  top: 0;
+  height: 100lvh;
+  transition: opacity 700ms var(--ease-enter);
+}
+
+body::before {
+  z-index: -3;
+  opacity: 0.9;
+  background-image: var(--brand-light-a);
+}
+
+body::after {
+  z-index: -2;
+  opacity: 0.9;
+  background-image: var(--brand-light-b), var(--brand-meet);
+}
+
+html::after {
   inset-inline: 0;
   top: 0;
   height: 100lvh;
   z-index: -1;
-  pointer-events: none;
   opacity: var(--brand-grain-opacity);
   mix-blend-mode: var(--brand-grain-blend);
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .5 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+/* A completed task: its owner's light brightens, then settles. */
+html[data-pulse='a'] body::before,
+html[data-pulse='b'] body::after {
+  opacity: 1;
+  transition-duration: 220ms;
 }
 
 /* ── The one surface ─────────────────────────────────────────────────────── */
@@ -181,18 +223,34 @@ body::after {
 }
 
 /* ── Completion ──────────────────────────────────────────────────────────
-   A local state change, nothing else moves: the ring fills with the owner's
-   light, the check appears, the title dims and is struck from the inline
-   start. Used tens of times a day, so short and quiet. */
+   A physical moment that stays inside the row (nothing else moves):
+     0ms    the ring presses in under the finger (scale .86)
+     ~0ms   it fills with the owner's light, overshooting a little
+     90ms   the tick draws itself
+     120ms  the strike travels across the title, which dims
+     0–760  a sweep of the owner's light passes through the row, once
+   CSS transitions throughout, so a second tap mid-way retargets instead of
+   restarting. Reopening runs the same properties backwards, faster. */
+.task-row {
+  isolation: isolate;
+}
+
 .check {
   position: relative;
   display: grid;
   place-items: center;
-  inline-size: 1.625rem;
-  block-size: 1.625rem;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
   border-radius: 999px;
   box-shadow: inset 0 0 0 2px var(--color-rule-strong);
-  transition: box-shadow 180ms var(--ease-enter);
+  transition:
+    box-shadow 180ms var(--ease-enter),
+    transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.check-button:active .check {
+  transform: scale(0.86);
+  transition-duration: 60ms;
 }
 
 .check::before {
@@ -201,20 +259,23 @@ body::after {
   inset: 0;
   border-radius: inherit;
   background: var(--check-fill);
+  box-shadow: 0 0 0 0 transparent;
   opacity: 0;
-  transform: scale(0.6);
+  transform: scale(0.4);
   transition:
-    opacity 160ms var(--ease-enter),
-    transform 260ms cubic-bezier(0.34, 1.4, 0.64, 1);
+    opacity 140ms var(--ease-enter),
+    transform 360ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 500ms var(--ease-enter);
 }
 
 .check > svg {
   position: relative;
-  opacity: 0;
-  transform: scale(0.7);
-  transition:
-    opacity 140ms var(--ease-enter) 60ms,
-    transform 220ms var(--ease-enter) 60ms;
+}
+
+.check-tick {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset 160ms var(--ease-enter);
 }
 
 .check[data-done='true'] {
@@ -224,75 +285,215 @@ body::after {
 .check[data-done='true']::before {
   opacity: 1;
   transform: none;
+  box-shadow: 0 0 14px 2px var(--check-glow);
 }
 
-.check[data-done='true'] > svg {
-  opacity: 1;
-  transform: none;
+.check[data-done='true'] .check-tick {
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 260ms cubic-bezier(0.65, 0, 0.35, 1) 90ms;
 }
 
 .check--a {
-  --check-fill: var(--brand-partner-a);
+  --check-fill: radial-gradient(circle at 35% 30%, color-mix(in oklab, var(--brand-partner-a) 60%, white), var(--brand-partner-a) 72%);
+  --check-glow: color-mix(in oklab, var(--brand-partner-a) 45%, transparent);
 }
 
 .check--b {
-  --check-fill: var(--brand-partner-b);
+  --check-fill: radial-gradient(circle at 35% 30%, color-mix(in oklab, var(--brand-partner-b) 60%, white), var(--brand-partner-b) 72%);
+  --check-glow: color-mix(in oklab, var(--brand-partner-b) 45%, transparent);
 }
 
 .strike {
   position: relative;
-  transition: color 220ms var(--ease-enter);
+  transition: color 260ms var(--ease-enter) 100ms;
 }
 
 .strike::after {
   content: '';
   position: absolute;
   inset-inline: 0;
-  top: 0.6em;
+  top: 0.62em;
   height: 1.5px;
   border-radius: 1px;
   background-color: currentColor;
   transform: scaleX(0);
   transform-origin: inline-start;
-  transition: transform 280ms var(--ease-enter) 40ms;
+  transition: transform 180ms var(--ease-enter);
 }
 
 .strike[data-done='true']::after {
   transform: scaleX(1);
+  transition: transform 340ms cubic-bezier(0.65, 0, 0.35, 1) 120ms;
 }
 
-/* ── The orbs — the product's 1–5 ─────────────────────────────────────── */
-.orb {
-  border-radius: 999px;
-  transition:
-    transform 220ms cubic-bezier(0.34, 1.35, 0.64, 1),
-    opacity 200ms var(--ease-enter),
-    box-shadow 260ms var(--ease-enter),
-    background-color 200ms var(--ease-enter);
+/* The owner's light passing through the row, from the check outward. */
+.row-sweep {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(to left, transparent 0%, var(--sweep) 35%, transparent 70%);
+  opacity: 0;
+  animation: row-sweep 760ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-/* Not chosen yet: the same light, unlit — a soft tinted glass bead. */
-.orb-idle {
-  background-color: color-mix(in oklab, var(--orb-colour) 30%, var(--brand-glass-strong));
-  box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--orb-colour) 65%, transparent);
+.row-sweep--a {
+  --sweep: color-mix(in oklab, var(--brand-partner-a) 34%, transparent);
 }
 
-/* ── The daily question's room ───────────────────────────────────────────
-   Five layers, one per answer; only the chosen one is visible. Opacity only,
-   so the change is a crossfade of light, never a repaint of a gradient. */
-.mood-layer {
+.row-sweep--b {
+  --sweep: color-mix(in oklab, var(--brand-partner-b) 34%, transparent);
+}
+
+@keyframes row-sweep {
+  0% {
+    opacity: 0;
+    transform: translateX(45%);
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-60%);
+  }
+}
+
+/* A task that was just sent arrives: from a little above. */
+.row-enter {
+  animation: row-enter 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes row-enter {
+  from {
+    opacity: 0.35;
+    transform: translateY(-8px);
+  }
+}
+
+/* ── The slider — every 1–5 in the product ───────────────────────────── */
+.slider-rail {
+  background: linear-gradient(var(--rail-dir), var(--orb-day-1), var(--orb-day-2), var(--orb-day-3), var(--orb-day-4), var(--orb-day-5));
+  opacity: 0.55;
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.12);
+}
+
+.slider-stop {
+  background-color: rgb(255 255 255 / 0.9);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.06);
+}
+
+.slider-thumb {
+  position: relative;
+  background-color: var(--brand-glass-strong);
+  box-shadow:
+    0 0 0 1px var(--color-rule),
+    0 12px 28px -10px rgb(28 23 38 / 0.35);
+  transition: transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.slider-thumb.is-held {
+  transform: scale(1.14);
+  transition-duration: 160ms;
+}
+
+/* Nothing chosen yet: a neutral light that breathes, asking to be moved. */
+.slider-thumb.is-idle {
+  animation: breathe 2.6s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+.slider-thumb-tone {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle at 35% 30%, color-mix(in oklab, var(--tone) 40%, white), var(--tone) 72%);
+  box-shadow:
+    0 0 0 8px color-mix(in oklab, var(--tone) 18%, transparent),
+    0 14px 34px -8px var(--tone);
+}
+
+.slider-tone-1 {
+  --tone: var(--orb-day-1);
+}
+.slider-tone-2 {
+  --tone: var(--orb-day-2);
+}
+.slider-tone-3 {
+  --tone: var(--orb-day-3);
+}
+.slider-tone-4 {
+  --tone: var(--orb-day-4);
+}
+.slider-tone-5 {
+  --tone: var(--orb-day-5);
+}
+
+/* The real range input: there for the keyboard and VoiceOver, never seen,
+   never in the way of the finger. Its focus ring is drawn on the light. */
+.slider-input {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+div:has(> .slider-input:focus-visible) .slider-thumb {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 4px;
+}
+
+.word-in {
+  animation: word-in 200ms var(--ease-enter);
+}
+
+@keyframes word-in {
+  from {
+    opacity: 0.35;
+    transform: translateY(3px);
+  }
+}
+
+/* ── The light an answer throws (Moods) ───────────────────────────────────
+   Five fixed colour fields; their weights follow the finger (Motion writes
+   each layer's opacity). The group fades in once there is an answer. */
+.moods {
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 500ms var(--ease-enter);
+}
+
+.moods[data-on='true'] {
+  opacity: var(--moods-strength, 1);
+}
+
+.moods--room {
   position: fixed;
   inset-inline: 0;
   top: 0;
   height: 100lvh;
   z-index: -1;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 600ms var(--ease-enter);
 }
 
-.mood-layer[data-on='true'] {
-  opacity: 1;
+.moods--contained {
+  position: absolute;
+  inset-inline: -1.25rem;
+  top: -2.5rem;
+  height: 20rem;
+  -webkit-mask-image: linear-gradient(to bottom, black 40%, transparent);
+  mask-image: linear-gradient(to bottom, black 40%, transparent);
+}
+
+.mood-layer {
+  position: absolute;
+  inset: 0;
 }
 
 .mood-1 {
@@ -311,7 +512,131 @@ body::after {
   background-image: var(--brand-mood-5);
 }
 
-/* ── The sheet ──────────────────────────────────────────────────────────── */
+/* ── The composer (adding / editing a task) ───────────────────────────────
+   Full screen, content at the top, nothing at the bottom for the keyboard to
+   cover or push. It fades in over the room while its content settles 10px —
+   both compositor-only — and the keyboard rises on its own below. */
+.composer {
+  position: fixed;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  max-inline-size: none;
+  max-block-size: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: var(--color-ink);
+  background-color: var(--brand-canvas);
+  background-image: var(--brand-sun), var(--brand-light-a), var(--brand-light-b), var(--brand-meet), var(--brand-room);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  opacity: 0;
+  transition: opacity 160ms var(--ease-enter);
+}
+
+.composer::backdrop {
+  background: transparent;
+}
+
+.composer[data-shown='true'] {
+  opacity: 1;
+  transition-duration: 200ms;
+}
+
+.composer-body {
+  max-inline-size: 34rem;
+  margin-inline: auto;
+  padding: max(0.5rem, env(safe-area-inset-top)) 1.25rem 2rem;
+  transform: translateY(10px);
+  transition: transform 360ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.composer[data-shown='true'] .composer-body {
+  transform: none;
+}
+
+/* ≥16px so iOS never zooms into it. */
+.composer-field {
+  min-block-size: 3.5rem;
+  padding-inline: 1.125rem;
+  border-radius: 1.25rem;
+  font-size: 1.3125rem;
+  font-weight: 600;
+  color: var(--color-ink);
+  background-color: var(--brand-glass-strong);
+  box-shadow:
+    var(--brand-glass-edge),
+    0 10px 30px -18px rgb(28 23 38 / 0.35),
+    inset 0 0 0 1px var(--color-rule);
+  outline: none;
+  caret-color: var(--brand-partner-a);
+}
+
+.composer-field::placeholder {
+  color: var(--color-ink-subtle);
+  font-weight: 500;
+}
+
+.composer-field:focus {
+  box-shadow:
+    var(--brand-glass-edge),
+    0 10px 30px -18px rgb(28 23 38 / 0.35),
+    inset 0 0 0 2px var(--color-ink);
+}
+
+.composer-panel {
+  padding: 0.75rem;
+  border-radius: 1.5rem;
+  background-color: var(--brand-glass-strong);
+  box-shadow: var(--brand-glass-edge), var(--brand-glass-shadow);
+  transform-origin: top center;
+  animation: panel-in 260ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Movement only: content never depends on an animation finishing to be seen. */
+@keyframes panel-in {
+  from {
+    transform: translateY(-8px) scale(0.97);
+  }
+}
+
+/* Sending: the arrow lifts away the moment the tap lands, and waits there
+   (aria-busy) until the task is saved — the tap is answered at once. */
+.send-button svg {
+  transition:
+    transform 260ms cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 200ms var(--ease-enter);
+}
+
+.send-button[aria-busy='true'] svg {
+  transform: translateY(-160%);
+  opacity: 0;
+}
+
+.send-button[aria-busy='true'] {
+  animation: send-wait 900ms ease-in-out infinite;
+}
+
+@keyframes send-wait {
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in oklab, var(--color-accent) 18%, transparent);
+  }
+}
+
+/* The week arriving: each day rises into place, a beat after the one before.
+   Movement only, so the lights are there even if the animation never runs. */
+.day-rise {
+  animation: day-rise 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes day-rise {
+  from {
+    transform: translateY(10px);
+  }
+}
+
+/* ── The sheet (rating a task) ──────────────────────────────────────────── */
 .sheet-dialog {
   position: fixed;
   inset: 0;
@@ -340,19 +665,22 @@ body::after {
 }
 
 .sheet-dialog[data-shown='true'] .sheet-scrim {
-  opacity: 1;
+  opacity: calc(1 - var(--sheet-pull-ratio, 0));
 }
 
 .sheet-panel {
   position: absolute;
   inset-inline: 0;
   bottom: 0;
+  overflow: hidden;
   margin-inline: auto;
   max-inline-size: 34rem;
   padding: 0.5rem 1.25rem max(1.25rem, env(safe-area-inset-bottom));
   border-start-start-radius: var(--radius-sheet);
   border-start-end-radius: var(--radius-sheet);
-  background-color: var(--brand-glass-strong);
+  /* Solid enough that nothing behind it (the + button, the tab bar) ghosts
+     through the slider. */
+  background-color: color-mix(in oklab, var(--color-surface) 97%, transparent);
   -webkit-backdrop-filter: blur(28px) saturate(1.5);
   backdrop-filter: blur(28px) saturate(1.5);
   box-shadow: var(--brand-glass-edge), 0 -20px 50px -20px rgb(0 0 0 / 0.25);
@@ -361,18 +689,34 @@ body::after {
 }
 
 .sheet-dialog[data-shown='true'] .sheet-panel {
-  transform: translateY(calc(-1 * var(--sheet-keyboard, 0px)));
+  transform: translateY(var(--sheet-pull, 0px));
   transition: transform 420ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* While a finger holds the grip, the sheet is the finger. */
+.sheet-dialog[data-pulling] .sheet-panel,
+.sheet-dialog[data-pulling] .sheet-scrim {
+  transition: none;
+}
+
+.sheet-grip-zone {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  block-size: 2rem;
+  margin: -0.5rem -1.25rem 0.5rem;
+  touch-action: none;
+  cursor: grab;
 }
 
 .sheet-grip {
   display: block;
-  inline-size: 2.25rem;
+  inline-size: 2.5rem;
   block-size: 0.3125rem;
-  margin: 0 auto 0.75rem;
   border-radius: 999px;
   background-color: var(--color-rule-strong);
-  opacity: 0.5;
+  opacity: 0.55;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -380,6 +724,18 @@ body::after {
   .sheet-dialog[data-shown='true'] .sheet-panel {
     transition: opacity 120ms linear;
   }
+}
+
+/* The floating + steps away while anything is open over Today. */
+.fab {
+  transition:
+    opacity 180ms var(--ease-enter),
+    transform 160ms var(--ease-enter);
+}
+
+body:has(dialog[open]) .fab {
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* ── Touch ──────────────────────────────────────────────────────────────── */
@@ -461,9 +817,25 @@ body:has([data-immersive]) nav[data-mobile-tab-bar] {
 
 /* ── Reduced motion ─────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
+  .slider-thumb.is-idle,
+  .row-sweep,
+  .row-enter,
+  .word-in,
+  .composer-panel,
+  .day-rise,
+  .send-button[aria-busy='true'] {
+    animation: none !important;
+  }
+
+  .row-sweep {
+    display: none;
+  }
+
   .check::before,
-  .check > svg,
-  .orb {
+  .check-button:active .check,
+  .slider-thumb,
+  .composer-body,
+  .send-button svg {
     transform: none !important;
   }
 

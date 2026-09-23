@@ -127,8 +127,10 @@ test('both partners sign in, and the list is genuinely shared', async ({ page })
   const saved = page.waitForResponse((r) => r.url().endsWith('/api/task-ratings') && r.request().method() === 'POST');
   await card(page, theirs).getByRole('button', { name: copy.taskRating.prompt }).click();
   const sheet = page.getByTestId('rate-sheet');
-  await sheet.getByRole('radio').nth(3).click();
-  await expect(sheet.getByRole('radio', { checked: true })).toHaveAttribute('aria-label', /^4 —/);
+  const slider = sheet.getByRole('slider');
+  await slider.fill('4');
+  await expect(slider).toHaveAttribute('aria-valuetext', /^4 —/);
+  await slider.press('Enter');
   expect((await saved).ok()).toBe(true);
   await expect(sheet).toBeHidden();
 
@@ -144,9 +146,9 @@ test('both partners sign in, and the list is genuinely shared', async ({ page })
 
   // B sees A's list, and may rate the task A owns — which A could not.
   await card(page, mine).getByRole('button', { name: copy.taskRating.prompt }).click();
-  await expect(sheet.getByRole('radio')).toHaveCount(5);
-  await sheet.getByRole('radio').nth(4).click();
-  await expect(sheet.getByRole('radio', { checked: true })).toHaveAttribute('aria-label', /^5 —/);
+  await slider.fill('5');
+  await expect(slider).toHaveAttribute('aria-valuetext', /^5 —/);
+  await slider.press('Enter');
   await expect(sheet).toBeHidden();
 
   problems.assertClean();
@@ -165,7 +167,7 @@ test('the day closes, waits, and reveals', async ({ page }) => {
   // the waiting state is then the whole assertion (deploy:preview re-runs it).
   await expect(submit.or(waiting)).toBeVisible();
   if (await submit.isVisible()) {
-    await page.getByRole('radio', { name: /^4 —/ }).click();
+    await page.getByRole('slider', { name: copy.day.respectLabel }).fill('4');
     await submit.click();
   }
   await expect(waiting).toBeVisible();

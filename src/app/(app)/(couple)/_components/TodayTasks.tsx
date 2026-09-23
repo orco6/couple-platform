@@ -11,9 +11,9 @@ import { copy } from '@/domain/copy';
 import type { PartnerRef } from '@/domain/partners';
 import type { TaskView } from '@/domain/tasks/tasks';
 
-import type { RatingValue } from './Orbs';
+import { ArchiveDialog, Composer, primeKeyboard } from './Composer';
 import { RateSheet } from './RateSheet';
-import { ArchiveDialog, TaskFormSheet, primeKeyboard } from './TaskFormSheet';
+import type { RatingValue } from './Slider';
 import { TaskRow } from './TaskRow';
 
 /**
@@ -34,6 +34,14 @@ import { TaskRow } from './TaskRow';
  * Rating is not in the list: it opens a small sheet from the row's
  * invitation (RateSheet).
  */
+
+/** The room's light for this person brightens for a beat (styles.css, [data-pulse]). */
+function pulse(side: 'a' | 'b') {
+  const root = document.documentElement;
+  root.dataset.pulse = side;
+  window.clearTimeout(Number(root.dataset.pulseTimer));
+  root.dataset.pulseTimer = String(window.setTimeout(() => delete root.dataset.pulse, 900));
+}
 
 function messageFor(error: unknown): string {
   return error instanceof ApiError && error.userMessage ? error.userMessage : copy.errors.taskChangedMeanwhile;
@@ -61,6 +69,9 @@ export function TodayTasks({
   const [adding, setAdding] = useState(false);
   const [archiving, setArchiving] = useState<TaskView | null>(null);
   const [rating, setRating] = useState<TaskView | null>(null);
+  const addButton = useRef<HTMLButtonElement>(null);
+  /** Tasks that arrived while this screen was open (a task just sent). */
+  const [fresh, setFresh] = useState<Record<string, true>>({});
 
   /** Where each task sits: its group and position when this screen first saw it. */
   const [seen, setSeen] = useState<Record<string, { group: number; index: number }>>(() =>
@@ -68,6 +79,7 @@ export function TodayTasks({
   );
   const unseen = tasks.filter((task) => !(task.id in seen));
   if (unseen.length > 0) {
+    setFresh((previous) => ({ ...previous, ...Object.fromEntries(unseen.map((task) => [task.id, true as const])) }));
     setSeen((previous) => {
       const next = { ...previous };
       for (const task of unseen) {
@@ -123,6 +135,7 @@ export function TodayTasks({
   function toggle(task: TaskView) {
     const current = view(task);
     const next = current.state === 'COMPLETED' ? 'OPEN' : 'COMPLETED';
+    if (next === 'COMPLETED') pulse(current.ownerId === me.id ? me.side : (partner?.side ?? me.side));
     setOptimistic((previous) => ({
       ...previous,
       [task.id]: {
@@ -179,6 +192,7 @@ export function TodayTasks({
               onToggle={toggle}
               onOpen={setEditing}
               onRate={setRating}
+              fresh={Boolean(fresh[task.id])}
             />
           ))}
         </ul>
@@ -188,20 +202,22 @@ export function TodayTasks({
 
       {/* The one action. Above the tab bar, where the thumb already is. */}
       <button
+        ref={addButton}
         type="button"
         onClick={() => {
           primeKeyboard();
           setAdding(true);
         }}
         aria-label={copy.tasks.addAction}
-        className="tap-quiet press fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] z-20 mx-auto flex h-14 w-fit items-center gap-2 rounded-full bg-accent ps-5 pe-6 text-row font-semibold text-on-accent shadow-[var(--brand-shadow-float)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:bottom-8"
+        className="fab tap-quiet press fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] z-20 mx-auto flex h-14 w-fit items-center gap-2 rounded-full bg-accent ps-5 pe-6 text-row font-semibold text-on-accent shadow-[var(--brand-shadow-float)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:bottom-8"
       >
         <Plus aria-hidden="true" size={22} strokeWidth={2.4} />
         <span aria-hidden="true">{copy.tasks.addShort}</span>
       </button>
 
-      <TaskFormSheet
+      <Composer
         open={adding || editing !== null}
+        returnFocus={editing ? undefined : addButton}
         onClose={() => {
           setAdding(false);
           setEditing(null);
@@ -214,7 +230,7 @@ export function TodayTasks({
           editing
             ? (task) => {
                 setEditing(null);
-                setTimeout(() => setArchiving(task), 280);
+                setTimeout(() => setArchiving(task), 220);
               }
             : undefined
         }

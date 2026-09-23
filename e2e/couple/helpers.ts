@@ -1,4 +1,4 @@
-import { expect, type APIRequestContext, type Page } from '@playwright/test';
+import { expect, type APIRequestContext, type Locator, type Page } from '@playwright/test';
 
 import { copy } from '@/domain/copy';
 
@@ -89,4 +89,21 @@ export async function whoami(request: APIRequestContext): Promise<string> {
   const response = await request.get('/api/auth/me');
   expect(response.status()).toBe(200);
   return ((await response.json()) as { id: string }).id;
+}
+
+/**
+ * Drags a 1–5 slider the way a finger does: press at its "1" end, move to the
+ * stop for `value`, let go. The slider is mirrored for Hebrew (1 at the right,
+ * 5 at the left), and its light is `thumb` px wide, so the stops sit between
+ * thumb/2 from each edge.
+ */
+export async function dragSlider(page: Page, slider: Locator, value: 1 | 2 | 3 | 4 | 5, thumb = 56): Promise<void> {
+  const box = await slider.locator('..').boundingBox();
+  if (!box) throw new Error('the slider has no box');
+  const y = box.y + box.height / 2;
+  const at = (v: number) => box.x + thumb / 2 + (box.width - thumb) * (1 - (v - 1) / 4);
+  await page.mouse.move(at(1), y);
+  await page.mouse.down();
+  await page.mouse.move(at(value), y, { steps: 10 });
+  await page.mouse.up();
 }

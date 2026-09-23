@@ -9,7 +9,7 @@ import { copy } from '@/domain/copy';
 export function TooEarlyPanel({ reviewTime, openTasks }: { reviewTime: string; openTasks: number }) {
   return (
     <section className="text-center">
-      <p className="text-body font-medium text-ink-subtle">{copy.day.notOpenYetTitle}</p>
+      <p className="text-body font-medium text-ink-muted">{copy.day.notOpenYetTitle}</p>
       <p className="mt-2 text-[3.25rem] leading-none font-semibold tabular-nums text-ink" dir="ltr">
         {reviewTime}
       </p>

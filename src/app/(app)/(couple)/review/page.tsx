@@ -85,7 +85,7 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
         >
           <X aria-hidden="true" size={22} />
         </Link>
-        <p className="text-body text-ink-subtle">{dateLabel}</p>
+        <p className="text-body text-ink-muted">{dateLabel}</p>
       </div>
 
       <div className="flex flex-1 flex-col justify-center pb-10">
@@ -98,7 +98,7 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
         ) : day.revealed && day.mine && day.theirs && day.partner ? (
           <>
             <RevealPanel me={day.me} partner={day.partner} mine={day.mine} theirs={day.theirs} />
-            <p className="mt-8 text-center text-meta text-ink-subtle">{copy.day.frozenNotice}</p>
+            <p className="mt-8 text-center text-meta text-ink-muted">{copy.day.frozenNotice}</p>
           </>
         ) : day.mine ? (
           <WaitingPanel
