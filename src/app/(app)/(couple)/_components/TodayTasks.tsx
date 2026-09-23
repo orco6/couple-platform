@@ -1,8 +1,7 @@
 'use client';
 
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Plus } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { ApiError, apiRequest } from '@/core/http/client';
@@ -12,40 +11,29 @@ import { copy } from '@/domain/copy';
 import type { PartnerRef } from '@/domain/partners';
 import type { TaskView } from '@/domain/tasks/tasks';
 
-import { spring } from './motion';
-import type { RatingValue } from './Scale';
+import type { RatingValue } from './Orbs';
+import { RateSheet } from './RateSheet';
 import { ArchiveDialog, TaskFormSheet, primeKeyboard } from './TaskFormSheet';
 import { TaskRow } from './TaskRow';
 
 /**
  * TODAY'S LIST — every task on the screen, and the writes behind them.
  *
- * ONE list, not three sections. The first edition moved a task between
- * "waiting for my rating", "open" and "closed today" on every tap: it
- * unmounted from one list and mounted in another, which on a phone is a row
- * that vanishes and reappears somewhere else. Now a row only ever moves
- * *within* this list, and only after a beat: a completed task stays where the
- * finger left it for 650ms (long enough to see the check land and the strike
- * draw), then glides down to the finished ones on a spring. Reopening glides it
- * back up the same way.
+ * Nothing moves. The order is fixed the first time this screen sees a task —
+ * open ones first, finished ones after (the server's order at load) — and a
+ * task completed or reopened here stays exactly where the finger left it. The
+ * second edition glided rows to their new group; on a real phone that read as
+ * the list re-arranging itself under the thumb. The list re-groups on the next
+ * visit, quietly.
  *
- * Completion and rating are optimistic, per card, through one promise chain
- * per task — taps on two cards run in parallel, taps on the same card run in
- * order and each is addressed with the version the previous answer returned.
- * If the server refuses, the card snaps back and says so.
+ * Completion and rating are optimistic, through one promise chain per task —
+ * taps on two tasks run in parallel, taps on the same task run in order, each
+ * addressed with the version the previous answer returned. If the server
+ * refuses, the task snaps back and says so.
+ *
+ * Rating is not in the list: it opens a small sheet from the row's
+ * invitation (RateSheet).
  */
-
-/** How long a toggled row stays under the finger before it moves. */
-const HOLD_MS = 650;
-
-/**
- * Where a task belongs: waiting for MY rating first (someone is waiting on the
- * other end, and it costs one tap), then open, then finished.
- */
-function rankOf(task: TaskView): number {
-  if (task.state === 'COMPLETED' && task.permissions.rate && task.rating === null) return 0;
-  return task.state === 'COMPLETED' ? 2 : 1;
-}
 
 function messageFor(error: unknown): string {
   return error instanceof ApiError && error.userMessage ? error.userMessage : copy.errors.taskChangedMeanwhile;
@@ -64,32 +52,30 @@ export function TodayTasks({
 }) {
   const router = useRouter();
   const toast = useToast();
-  const reduced = useReducedMotion();
 
   const [optimistic, setOptimistic] = useState<Record<string, Partial<TaskView>>>({});
-  /** The row just completed here, for the one-time ring. */
-  const [justCompleted, setJustCompleted] = useState<string | null>(null);
-  /** Rows whose rating appeared because of a tap here, so it opens instead of appearing. */
-  const [revealed, setRevealed] = useState<Record<string, true>>({});
-  /** Rows held in their old place (their old rank) for a beat after a tap. */
-  const [held, setHeld] = useState<Record<string, number>>({});
-  const holdTimers = useRef<Record<string, number>>({});
-  /** First-seen position of every task on this screen. */
-  const [seen, setSeen] = useState<Record<string, number>>(() =>
-    Object.fromEntries(tasks.map((task, index) => [task.id, index])),
-  );
-
   const confirmed = useRef<Record<string, TaskView>>({});
   const chain = useRef<Record<string, Promise<void>>>({});
 
   const [editing, setEditing] = useState<TaskView | null>(null);
   const [adding, setAdding] = useState(false);
   const [archiving, setArchiving] = useState<TaskView | null>(null);
+  const [rating, setRating] = useState<TaskView | null>(null);
 
-  useEffect(() => {
-    const timers = holdTimers.current;
-    return () => Object.values(timers).forEach((timer) => window.clearTimeout(timer));
-  }, []);
+  /** Where each task sits: its group and position when this screen first saw it. */
+  const [seen, setSeen] = useState<Record<string, { group: number; index: number }>>(() =>
+    Object.fromEntries(tasks.map((task, index) => [task.id, { group: task.state === 'COMPLETED' ? 1 : 0, index }])),
+  );
+  const unseen = tasks.filter((task) => !(task.id in seen));
+  if (unseen.length > 0) {
+    setSeen((previous) => {
+      const next = { ...previous };
+      for (const task of unseen) {
+        next[task.id] = { group: task.state === 'COMPLETED' ? 1 : 0, index: Object.keys(next).length };
+      }
+      return next;
+    });
+  }
 
   // Forget a patch once the server has caught up, or the task left the day.
   const settled = Object.keys(optimistic).filter((id) => {
@@ -115,7 +101,6 @@ export function TodayTasks({
       const { [id]: _dropped, ...rest } = previous;
       return rest;
     });
-    setJustCompleted(null);
     toast.show(message, 'error');
   }
 
@@ -135,35 +120,9 @@ export function TodayTasks({
     chain.current[id] = entry;
   }
 
-  /**
-   * Where a row sits right now. A task completed HERE that is now waiting for
-   * my rating stays where it was (with its scale open under my thumb) instead
-   * of jumping to the top; once rated, it settles with the finished ones.
-   */
-  function currentRank(task: TaskView): number {
-    const heldRank = held[task.id];
-    if (heldRank !== undefined) return heldRank;
-    if (revealed[task.id] && task.state === 'COMPLETED' && task.rating === null) return 1;
-    return rankOf(task);
-  }
-
-  /** Keep the row where it is for a beat, then let it find its place. */
-  function hold(id: string, rank: number) {
-    window.clearTimeout(holdTimers.current[id]);
-    setHeld((previous) => (id in previous ? previous : { ...previous, [id]: rank }));
-    holdTimers.current[id] = window.setTimeout(() => {
-      setHeld((previous) => {
-        const { [id]: _released, ...rest } = previous;
-        return rest;
-      });
-    }, HOLD_MS);
-  }
-
   function toggle(task: TaskView) {
     const current = view(task);
     const next = current.state === 'COMPLETED' ? 'OPEN' : 'COMPLETED';
-
-    hold(task.id, currentRank(current));
     setOptimistic((previous) => ({
       ...previous,
       [task.id]: {
@@ -172,20 +131,14 @@ export function TodayTasks({
         permissions: { ...current.permissions, rate: next === 'COMPLETED' && current.ownerId !== me.id },
       },
     }));
-    setJustCompleted(next === 'COMPLETED' ? task.id : null);
-    if (next === 'COMPLETED' && current.ownerId !== me.id) {
-      setRevealed((previous) => ({ ...previous, [task.id]: true }));
-    }
 
     enqueue(task.id, async () => {
       const from = base(task);
       if (from.state === next) return;
-
       const result = await apiRequest<TaskView>(`/api/tasks/${task.id}/transition`, {
         method: 'POST',
         body: { id: task.id, version: from.version, to: next },
       });
-
       confirmed.current[task.id] = result;
       setOptimistic((previous) => ({ ...previous, [task.id]: result }));
       router.refresh();
@@ -193,106 +146,59 @@ export function TodayTasks({
   }
 
   function rate(task: TaskView, value: RatingValue) {
-    hold(task.id, currentRank(view(task)));
     setOptimistic((previous) => ({
       ...previous,
-      [task.id]: {
-        ...previous[task.id],
-        rating: { value, ratedByName: me.name },
-        awaitingPartnerRating: false,
-      },
+      [task.id]: { ...previous[task.id], rating: { value, ratedByName: me.name }, awaitingPartnerRating: false },
     }));
-
     enqueue(task.id, async () => {
       await apiRequest('/api/task-ratings', { method: 'POST', body: { taskId: task.id, value } });
       router.refresh();
     });
   }
 
-  const views = tasks.map(view);
-  // Waiting for my rating, then open, then finished — otherwise in the order this screen first
-  // saw them. The server re-sorts the list on every refresh (finished last),
-  // so ordering by the server's index would move a row the moment its write
-  // came back — before the hold below had let the check land. Remembered
-  // order keeps a row where the finger left it; `held` keeps its group for
-  // a beat; then it glides.
-  const unseen = tasks.filter((task) => !(task.id in seen));
-  if (unseen.length > 0) {
-    // Render-phase adjustment: a task added since, placed after everything seen.
-    setSeen((previous) => {
-      const next = { ...previous };
-      for (const task of unseen) next[task.id] = Object.keys(next).length;
-      return next;
+  const ordered = tasks
+    .map(view)
+    .sort((a, b) => {
+      const x = seen[a.id] ?? { group: 0, index: 0 };
+      const y = seen[b.id] ?? { group: 0, index: 0 };
+      return x.group - y.group || x.index - y.index;
     });
-  }
-  const rank = currentRank;
-  const ordered = [...views].sort(
-    (a, b) => rank(a) - rank(b) || (seen[a.id] ?? 0) - (seen[b.id] ?? 0),
-  );
 
-  const doneCount = views.filter((task) => task.state === 'COMPLETED').length;
-
-  function openComposer() {
-    primeKeyboard();
-    setAdding(true);
-  }
+  const ownerOf = (task: TaskView | null) => (task ? (task.ownerId === me.id ? me : partner) : null);
 
   return (
-    <section aria-labelledby="today-list-title">
-      <div className="mb-2.5 flex items-baseline justify-between gap-3 px-1">
-        <h2 id="today-list-title" className="text-section font-semibold text-ink">
-          {copy.today.listTitle}
-        </h2>
-        {views.length > 0 && (
-          <span className="text-meta text-ink-subtle tabular-nums">
-            {doneCount === views.length ? copy.today.allDone : copy.today.progress(doneCount, views.length)}
-          </span>
-        )}
-      </div>
-
-      <ul className="panel panel-rows overflow-hidden [overflow-anchor:none]">
-        <li>
-          <button
-            type="button"
-            onClick={openComposer}
-            className="tap-quiet press-row flex min-h-14 w-full items-center gap-1 ps-1.5 pe-4 text-start focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
-          >
-            <span className="grid size-12 shrink-0 place-items-center">
-              <span className="grid size-[1.625rem] place-items-center rounded-full bg-accent text-on-accent">
-                <Plus aria-hidden="true" size={16} strokeWidth={2.6} />
-              </span>
-            </span>
-            <span className="text-[1rem] font-semibold text-ink">{copy.tasks.addAction}</span>
-          </button>
-        </li>
-
-        <AnimatePresence initial={false}>
+    <>
+      {ordered.length > 0 ? (
+        <ul className="glass overflow-hidden [&>li+li]:border-t [&>li+li]:border-rule-faint" aria-label={copy.today.listTitle}>
           {ordered.map((task) => (
             <TaskRow
               key={task.id}
               task={task}
               me={me}
               partner={partner}
-              celebrate={justCompleted === task.id}
               onToggle={toggle}
-              onRate={rate}
               onOpen={setEditing}
+              onRate={setRating}
             />
           ))}
-        </AnimatePresence>
+        </ul>
+      ) : (
+        <p className="px-2 pt-10 text-center text-title font-semibold text-ink-subtle">{copy.today.emptyTitle}</p>
+      )}
 
-        {views.length === 0 && (
-          <motion.li
-            initial={reduced ? false : { opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={spring.soft}
-            className="px-5 py-6"
-          >
-            <p className="text-row text-ink-muted">{copy.today.emptyLine}</p>
-            <p className="mt-0.5 text-body text-ink-subtle">{copy.tasks.emptyWhy}</p>
-          </motion.li>
-        )}
-      </ul>
+      {/* The one action. Above the tab bar, where the thumb already is. */}
+      <button
+        type="button"
+        onClick={() => {
+          primeKeyboard();
+          setAdding(true);
+        }}
+        aria-label={copy.tasks.addAction}
+        className="tap-quiet press fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4.75rem)] z-20 mx-auto flex h-14 w-fit items-center gap-2 rounded-full bg-accent ps-5 pe-6 text-row font-semibold text-on-accent shadow-[var(--brand-shadow-float)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:bottom-8"
+      >
+        <Plus aria-hidden="true" size={22} strokeWidth={2.4} />
+        <span aria-hidden="true">{copy.tasks.addShort}</span>
+      </button>
 
       <TaskFormSheet
         open={adding || editing !== null}
@@ -308,11 +214,13 @@ export function TodayTasks({
           editing
             ? (task) => {
                 setEditing(null);
-                setTimeout(() => setArchiving(task), 0);
+                setTimeout(() => setArchiving(task), 280);
               }
             : undefined
         }
       />
+
+      <RateSheet task={rating} owner={ownerOf(rating)} onRate={rate} onClose={() => setRating(null)} />
 
       <ArchiveDialog
         task={archiving}
@@ -322,6 +230,6 @@ export function TodayTasks({
           router.refresh();
         }}
       />
-    </section>
+    </>
   );
 }

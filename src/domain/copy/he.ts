@@ -49,6 +49,12 @@ export const he = {
       night: 'לילה טוב',
     },
     greet: (greeting: string, firstName: string) => `${greeting}, ${firstName}`,
+    /** The shared space's name: "אור ונטיה". */
+    couple: (a: string, b: string) => `${a} ו${b}`,
+    invite: 'איך היה לנו היום?',
+    waitingFor: (name: string) => `מחכים ל${name}`,
+    ours: 'היום שלנו',
+    emptyTitle: 'מה צריך היום?',
     listTitle: 'מה יש לנו היום',
     progress: (done: number, total: number) => `${done} מתוך ${total}`,
     allDone: 'הכל נסגר להיום.',
@@ -76,11 +82,13 @@ export const he = {
     archived: 'בארכיון',
 
     ownerLabel: 'על מי',
+    moreOptions: 'עוד אפשרויות',
+    addShort: 'משימה',
     ownerMe: 'עליי',
     ownerPartner: (name: string) => `על ${name}`,
 
     titleLabel: 'מה צריך לעשות',
-    titlePlaceholder: 'מה צריך לעשות?',
+    titlePlaceholder: 'מה צריך?',
     tomorrow: 'מחר',
     otherDay: 'יום אחר',
     addTime: 'שעה',
@@ -149,7 +157,7 @@ export const he = {
     respectQuestion: 'הרגשתי מכובד/ת, ודיברנו טוב',
     noteLabel: 'פתק',
     noteHint: 'לא חייב. רק אם יש משהו שכדאי לזכור.',
-    notePlaceholder: 'משהו מהיום…',
+    notePlaceholder: 'מילה על היום…',
 
     scale: {
       1: 'היה קשה',
@@ -161,22 +169,23 @@ export const he = {
 
     chooseFirst: 'בחרו דירוג כדי לסגור את היום.',
     submitAction: 'סגירת היום',
+    close: 'חזרה',
     amendAction: 'שינוי מה שכתבתי',
 
     notOpenYetTitle: 'עוד מוקדם',
     notOpenYetWhy: (time: string) => `אפשר לסגור את היום מ-${time}.`,
-    notOpenYetWhat: 'עד אז אפשר להמשיך לסמן משימות.',
+    notOpenYetWhat: 'עד אז, הרשימה.',
     notOpenYetOpenTasks: (n: number) => (n === 1 ? 'משימה אחת עוד פתוחה' : `${n} משימות עוד פתוחות`),
     notOpenYetNothingOpen: 'הרשימה כבר ריקה.',
     backToList: 'לרשימה',
 
     waitingTitle: (name: string) => `${name} עוד לא סגר/ה את היום`,
-    waitingWhy: 'מה שכתבתם יתגלה לשניכם ברגע ששניכם תסגרו.',
-    partnerClosedAlready: (name: string) => `${name} כבר סגר/ה. מה שנכתב יתגלה כשתסגרו גם אתם.`,
+    waitingWhy: 'זה ייחשף כששניכם תסגרו.',
+    partnerClosedAlready: (name: string) => `${name} כבר סגר/ה.`,
 
     revealedTitle: 'שניכם סגרתם',
     seeWhatYouWrote: 'לראות מה כתבתם',
-    frozenNotice: 'אחרי שהיום נגלה, מה שנכתב נשאר כמו שהוא.',
+    frozenNotice: 'נשמר כמו שהוא.',
 
     gapExact: 'אותו יום, אותה הרגשה.',
     gapClose: 'קרוב מאוד.',
@@ -245,7 +254,7 @@ export const he = {
     allTasksDone: 'סגרתם את כל הרשימה',
     perfectTask: (title: string) => `«${title}» קיבלה 5`,
 
-    insightTitle: 'מחשבה אחת לשבוע הבא',
+    insightTitle: 'לשבוע הבא',
     insight: {
       unbalancedTasks: (name: string) => `רוב המשימות היו על ${name}. שווה לחלק אחרת.`,
       lowCompletion: 'נסגרה פחות מחצי מהרשימה. אולי כדאי לשים פחות משימות ליום.',
@@ -264,6 +273,8 @@ export const he = {
   month: {
     pageTitle: 'החודש שלנו',
     weeklyAveragesTitle: 'שבוע אחר שבוע',
+    facts: (tasks: number, days: number) =>
+      `${tasks === 1 ? 'משימה אחת' : `${tasks} משימות`} נסגרו · ${days === 1 ? 'יום אחד' : `${days} ימים`} ביחד`,
     completionTrendTitle: 'מגמת הרשימה',
     toneTrendTitle: 'מגמת הכיבוד',
     weekLabel: (index: number) => `שבוע ${index}`,

@@ -77,6 +77,16 @@ async function main() {
     const existing = await db.user.count();
     if (existing > 0) {
       if (process.argv.includes('--skip-if-seeded')) {
+        // The one thing a re-run still does: keep the review accounts' display
+        // names in step with REVIEW_ACCOUNTS. Matched by username, so ids,
+        // roles, passwords and data are untouched, and nothing is created.
+        for (const account of [a, b]) {
+          const renamed = await db.user.updateMany({
+            where: { username: normalizeUsername(account.username), NOT: { name: account.name } },
+            data: { name: account.name },
+          });
+          if (renamed.count > 0) console.log(`Renamed ${account.username} to its review display name.`);
+        }
         console.log(`Seed skipped: this database already has ${existing} user(s) — the review accounts exist.`);
         return;
       }

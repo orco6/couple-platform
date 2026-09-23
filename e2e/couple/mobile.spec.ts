@@ -8,7 +8,7 @@
  * project runs it too, where it has nothing to say.
  */
 
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 
 import { copy } from '@/domain/copy';
 
@@ -56,20 +56,25 @@ test('every tap target on a task card is big enough for a thumb', async ({ page 
   await completeTask(page, title);
 
   const card = taskCard(page, title);
-  // The completion mark, the card body, and the five stops of the scale.
-  const targets = card.getByRole('button').or(card.getByRole('radio'));
-  const count = await targets.count();
-  expect(count).toBeGreaterThan(5);
+  // 40px is the floor this product set; nothing may be smaller than that on a
+  // surface people use one-handed, at night. Rounded, because a phone's
+  // device-pixel ratio reports a 40px box as 39.99997 and that is arithmetic,
+  // not a design finding.
+  const expectThumbSized = async (targets: Locator, least: number) => {
+    const count = await targets.count();
+    expect(count).toBeGreaterThanOrEqual(least);
+    for (let index = 0; index < count; index += 1) {
+      const box = await targets.nth(index).boundingBox();
+      expect(box, `target ${index} has no box`).not.toBeNull();
+      expect(Math.round(Math.min(box!.width, box!.height)), `target ${index}`).toBeGreaterThanOrEqual(40);
+    }
+  };
 
-  for (let index = 0; index < count; index += 1) {
-    const box = await targets.nth(index).boundingBox();
-    expect(box, `target ${index} has no box`).not.toBeNull();
-    // 40px is the floor this product set for the star row; nothing may be
-    // smaller than that on a surface people use one-handed, at night. Rounded,
-    // because a phone's device-pixel ratio reports a 40px box as 39.99997 and
-    // that is arithmetic, not a design finding.
-    expect(Math.round(Math.min(box!.width, box!.height)), `target ${index}`).toBeGreaterThanOrEqual(40);
-  }
+  // The completion mark, the title, and the invitation to rate.
+  await expectThumbSized(card.getByRole('button'), 3);
+  // And the five lights of the rating sheet it opens.
+  await card.getByRole('button', { name: copy.taskRating.prompt }).click();
+  await expectThumbSized(page.getByTestId('rate-sheet').getByRole('radio'), 5);
 });
 
 test('the whole flow fits the phone: add, complete, rate', async ({ page }) => {
@@ -80,8 +85,12 @@ test('the whole flow fits the phone: add, complete, rate', async ({ page }) => {
   await expectNoHorizontalOverflow(page);
 
   await completeTask(page, title);
-  await taskCard(page, title).getByRole('radio').nth(4).click();
-  await expect(taskCard(page, title).getByRole('radio', { checked: true })).toHaveAttribute('aria-label', /^5 —/);
+  await taskCard(page, title).getByRole('button', { name: copy.taskRating.prompt }).click();
+  const sheet = page.getByTestId('rate-sheet');
+  await expectNoHorizontalOverflow(page);
+  await sheet.getByRole('radio').nth(4).click();
+  await expect(sheet.getByRole('radio', { checked: true })).toHaveAttribute('aria-label', /^5 —/);
+  await expect(sheet).toBeHidden();
   await expectNoHorizontalOverflow(page);
 
   problems.assertClean();

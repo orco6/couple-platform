@@ -112,12 +112,12 @@ test('both partners sign in, and the list is genuinely shared', async ({ page })
   await signIn(page, A, PASSWORD_A);
   await expect(page.getByRole('heading', { name: copy.today.listTitle })).toBeVisible();
 
-  // A task A owns: A finishes it and is told they are waiting. No stars for
-  // the person whose task it is.
+  // A task A owns: A finishes it and is told they are waiting. No rating
+  // offered to the person whose task it is.
   const mine = await addTask(page, `בדיקה ${stamp} — שלי`, 'me');
   await card(page, mine).getByRole('button', { name: copy.tasks.completeAction }).click();
   await expect(card(page, mine).getByText(copy.taskRating.awaitingShort, { exact: false })).toBeVisible();
-  await expect(card(page, mine).getByRole('radio')).toHaveCount(0);
+  await expect(card(page, mine).getByRole('button', { name: copy.taskRating.prompt })).toHaveCount(0);
 
   // A task B owns: A finishes it, and A may rate it.
   const theirs = await addTask(page, `בדיקה ${stamp} — של הפרטנר`, 'partner');
@@ -125,14 +125,17 @@ test('both partners sign in, and the list is genuinely shared', async ({ page })
   // The rating is optimistic and queued behind the completion; reloading
   // before its request leaves would abort it (seen on the deployment).
   const saved = page.waitForResponse((r) => r.url().endsWith('/api/task-ratings') && r.request().method() === 'POST');
-  await card(page, theirs).getByRole('radio').nth(3).click();
-  await expect(card(page, theirs).getByRole('radio', { checked: true })).toHaveAttribute('aria-label', /^4 —/);
+  await card(page, theirs).getByRole('button', { name: copy.taskRating.prompt }).click();
+  const sheet = page.getByTestId('rate-sheet');
+  await sheet.getByRole('radio').nth(3).click();
+  await expect(sheet.getByRole('radio', { checked: true })).toHaveAttribute('aria-label', /^4 —/);
   expect((await saved).ok()).toBe(true);
+  await expect(sheet).toBeHidden();
 
   // The write survived the round trip, not just the optimistic render.
   // After a reload the rated row is folded to one line that says what was given.
   await page.reload();
-  await expect(card(page, theirs).getByText(copy.taskRating.myRatedLine(copy.taskRating.scale[4]))).toBeVisible();
+  await expect(card(page, theirs).getByRole('button', { name: copy.taskRating.myRatedLine(copy.taskRating.scale[4]) })).toBeVisible();
 
   // ── Partner B ──────────────────────────────────────────────────────────
   await signOut(page);
@@ -140,9 +143,11 @@ test('both partners sign in, and the list is genuinely shared', async ({ page })
   await page.goto('/');
 
   // B sees A's list, and may rate the task A owns — which A could not.
-  await expect(card(page, mine).getByRole('radio')).toHaveCount(5);
-  await card(page, mine).getByRole('radio').nth(4).click();
-  await expect(card(page, mine).getByRole('radio', { checked: true })).toHaveAttribute('aria-label', /^5 —/);
+  await card(page, mine).getByRole('button', { name: copy.taskRating.prompt }).click();
+  await expect(sheet.getByRole('radio')).toHaveCount(5);
+  await sheet.getByRole('radio').nth(4).click();
+  await expect(sheet.getByRole('radio', { checked: true })).toHaveAttribute('aria-label', /^5 —/);
+  await expect(sheet).toBeHidden();
 
   problems.assertClean();
 });
@@ -155,7 +160,7 @@ test('the day closes, waits, and reveals', async ({ page }) => {
   // spend today — the reviewer closes today themselves.
   await page.goto(`/review?date=${daysAgo(5)}`);
   const submit = page.getByRole('button', { name: copy.day.submitAction });
-  const waiting = page.getByText(copy.day.waitingTitle('מיכל ביטון'));
+  const waiting = page.getByText(copy.day.waitingTitle('נטיה'));
   // A second run the same day finds this day already closed by the first:
   // the waiting state is then the whole assertion (deploy:preview re-runs it).
   await expect(submit.or(waiting)).toBeVisible();
@@ -192,9 +197,9 @@ test('the summaries load and the phone bar reaches every screen', async ({ page 
 
   // The summaries have real figures behind them, not empty states.
   await page.goto('/week');
-  await expect(page.getByText(/^\d{1,3}%$/)).toBeVisible();
+  await expect(page.getByText(/^\d+ מתוך \d+$/)).toBeVisible();
   await page.goto('/month');
-  await expect(page.getByText(copy.month.weeklyAveragesTitle).first()).toBeVisible();
+  await expect(page.getByRole('list', { name: copy.month.weeklyAveragesTitle }).getByRole('listitem').first()).toBeAttached();
 
   problems.assertClean();
 });

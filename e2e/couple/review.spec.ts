@@ -69,7 +69,7 @@ test('one partner closes the day; the other is served a page that does not conta
   // The owner has not closed it. They are told the partner has, and no more.
   await login(page, OWNER);
   await page.goto('/review');
-  await expect(page.getByText(copy.day.partnerClosedAlready('מיכל ביטון'))).toBeVisible();
+  await expect(page.getByText(copy.day.partnerClosedAlready('מיכל'))).toBeVisible();
   await expect(page.getByText(copy.day.revealedTitle)).toHaveCount(0);
 
   // The gate is structural: the note and the rating are not in the document the

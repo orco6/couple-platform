@@ -47,18 +47,26 @@ test('the same screens hold up in dark mode', async ({ page }) => {
   }
 });
 
-test('a task card offering its stars has no WCAG A/AA violations', async ({ page }) => {
+test('a task card offering a rating, and the rating sheet, have no WCAG A/AA violations', async ({ page }) => {
   await login(page, OWNER);
   const title = await addTask(page, uniqueName('לשטוף כלים'), 'partner');
   await completeTask(page, title);
 
-  // The state under test: a completed card with the rating radiogroup open.
-  await expect(taskCard(page, title).getByRole('radio')).toHaveCount(5);
+  // A completed card inviting a rating.
+  const invite = taskCard(page, title).getByRole('button', { name: copy.taskRating.prompt });
+  await expect(invite).toBeVisible();
   expect(await violations(page)).toEqual([]);
 
-  // And after rating, where the value is announced beside the stars.
-  await taskCard(page, title).getByRole('radio').nth(3).click();
-  await expect(taskCard(page, title).getByRole('radio', { checked: true })).toHaveAttribute('aria-label', /^4 —/);
+  // The sheet it opens, with its five lights.
+  await invite.click();
+  const sheet = page.getByTestId('rate-sheet');
+  await expect(sheet.getByRole('radio')).toHaveCount(5);
+  expect(await violations(page)).toEqual([]);
+
+  // And after rating, where the word stands in the row.
+  await sheet.getByRole('radio').nth(3).click();
+  await expect(sheet).toBeHidden();
+  await expect(taskCard(page, title).getByRole('button', { name: copy.taskRating.myRatedLine(copy.taskRating.scale[4]) })).toBeVisible();
   expect(await violations(page)).toEqual([]);
 });
 

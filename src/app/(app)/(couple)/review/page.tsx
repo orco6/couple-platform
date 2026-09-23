@@ -1,3 +1,6 @@
+import Link from 'next/link';
+import { X } from 'lucide-react';
+
 import { requireActorPage } from '@/core/auth/page-guards';
 import {
   compareCalendarDates,
@@ -7,16 +10,13 @@ import {
 } from '@/core/dates/calendar-date';
 import { db } from '@/core/db/client';
 import { businessLocale } from '@/brand/brand';
-import { EmptyState } from '@/core/ui/components/States';
 import { copy } from '@/domain/copy';
 import { getDay } from '@/domain/day-entries/day-entries';
 
 import { listTasksForDay } from '@/domain/tasks/tasks';
 
 import { ReviewForm } from '../_components/ReviewForm';
-import { PartnerMark } from '../_components/PartnerMark';
 import { RevealPanel, WaitingPanel } from '../_components/RevealPanel';
-import { Screen } from '../_components/Screen';
 import { TooEarlyPanel } from '../_components/TooEarlyPanel';
 
 export const metadata = { title: copy.day.pageTitle };
@@ -63,57 +63,65 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
   // now?" with the list rather than with an empty screen.
   const openTasks = day.canClose || day.mine ? [] : await listTasksForDay(db, actor, date);
 
-  const heading = day.revealed || day.mine || isFuture || !day.canClose ? copy.day.pageTitle : copy.day.question;
+  const dateLabel =
+    date === today
+      ? copy.common.today
+      : new Intl.DateTimeFormat(businessLocale.language, { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }).format(
+          new Date(`${date}T12:00:00Z`),
+        );
+  const asking = !isFuture && day.canClose && !day.mine && !day.revealed;
+  const partnerFirst = partnerName.split(' ')[0] ?? partnerName;
 
   return (
-    <Screen>
-      <header className="mb-2 px-1">
-        <p className="text-body text-ink-subtle">
-          {date === today
-            ? copy.common.today
-            : new Intl.DateTimeFormat(businessLocale.language, { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }).format(
-                new Date(`${date}T12:00:00Z`),
-              )}
-        </p>
-        <h1 className="mt-0.5 text-title leading-tight font-semibold text-balance text-ink">{heading}</h1>
-        {heading === copy.day.question && <p className="mt-1 text-row text-ink-muted">{copy.day.respectQuestion}</p>}
-      </header>
+    // The day is a moment, not a tab: the bar steps aside (data-immersive) and
+    // the screen is one centred column in a frame sized to the SMALL viewport,
+    // so Safari's toolbar coming and going never moves it.
+    <div data-immersive className="mx-auto flex min-h-[calc(100svh-5rem)] w-full max-w-md flex-col px-2">
+      <div className="flex items-center justify-between pt-2">
+        <Link
+          href="/"
+          aria-label={copy.day.close}
+          className="tap-quiet press grid size-11 place-items-center rounded-full text-ink-muted focus-visible:outline-2 focus-visible:outline-focus"
+        >
+          <X aria-hidden="true" size={22} />
+        </Link>
+        <p className="text-body text-ink-subtle">{dateLabel}</p>
+      </div>
 
-      {isFuture ? (
-        <EmptyState title={copy.day.notOpenYetTitle} description={copy.day.notOpenYetWhy(day.reviewTime)} />
-      ) : day.revealed && day.mine && day.theirs && day.partner ? (
-        <div className="pt-6">
-          <RevealPanel me={day.me} partner={day.partner} mine={day.mine} theirs={day.theirs} />
-          <p className="mt-6 text-center text-meta text-ink-subtle">{copy.day.frozenNotice}</p>
-        </div>
-      ) : day.mine ? (
-        <div className="pt-8">
+      <div className="flex flex-1 flex-col justify-center pb-10">
+        <h1 className="mb-10 text-center text-[1.875rem] leading-tight font-semibold text-balance text-ink">
+          {asking ? copy.day.question : day.revealed ? copy.day.revealedTitle : copy.day.pageTitle}
+        </h1>
+
+        {isFuture ? (
+          <p className="text-center text-row text-ink-muted">{copy.day.notOpenYetWhy(day.reviewTime)}</p>
+        ) : day.revealed && day.mine && day.theirs && day.partner ? (
+          <>
+            <RevealPanel me={day.me} partner={day.partner} mine={day.mine} theirs={day.theirs} />
+            <p className="mt-8 text-center text-meta text-ink-subtle">{copy.day.frozenNotice}</p>
+          </>
+        ) : day.mine ? (
           <WaitingPanel
-            me={day.me}
             partner={day.partner}
             partnerName={partnerName}
             date={date}
             mine={day.mine}
             canAmend={day.permissions.amend}
           />
-          {!day.permissions.amend && <p className="mt-6 text-center text-meta text-ink-subtle">{copy.day.frozenNotice}</p>}
-        </div>
-      ) : day.canClose ? (
-        <>
-          {day.partnerSubmitted && (
-            <p className="mt-3 flex items-center gap-2 px-1 text-body text-ink-muted">
-              <PartnerMark partner={day.partner ?? day.me} size={18} />
-              {copy.day.partnerClosedAlready(partnerName)}
-            </p>
-          )}
-          <ReviewForm date={date} mode="submit" />
-        </>
-      ) : (
-        <TooEarlyPanel
-          reviewTime={day.reviewTime}
-          openTasks={openTasks.filter((task) => task.state === 'OPEN').length}
-        />
-      )}
-    </Screen>
+        ) : day.canClose ? (
+          <>
+            {day.partnerSubmitted && day.partner && (
+              <p className="-mt-6 mb-8 flex items-center justify-center gap-2 text-body text-ink-muted">
+                <span aria-hidden="true" className={`${day.partner.side === 'a' ? 'light-a' : 'light-b'} size-3.5`} />
+                {copy.day.partnerClosedAlready(partnerFirst)}
+              </p>
+            )}
+            <ReviewForm date={date} mode="submit" />
+          </>
+        ) : (
+          <TooEarlyPanel reviewTime={day.reviewTime} openTasks={openTasks.filter((task) => task.state === 'OPEN').length} />
+        )}
+      </div>
+    </div>
   );
 }

@@ -118,8 +118,8 @@ The passwords live in **`C:\Users\orcoh\projects\couple-platform-review-credenti
 (outside the repository, mode 600). `deploy:preview` writes it before deploying and reuses it on every
 re-run; the hand-run seed prints and writes it itself. The accounts:
 
-- `review-partner-a` — נועה ברק, OWNER
-- `review-partner-b` — מיכל ביטון, PARTNER
+- `review-partner-a` — אור, OWNER
+- `review-partner-b` — נטיה, PARTNER
 
 The two are linked as a couple, and the data is the fictional set from `src/domain/dev-data.ts`:
 today's shared list with tasks owned by each of them, a completed task waiting for the other's

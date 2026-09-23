@@ -1,79 +1,65 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   BRAND THEME — שנינו
+   BRAND THEME — שנינו (third edition, after the second real-iPhone review)
 
-   ── The visual direction (second edition, September 2026) ─────────────────
-   **Two lights on warm paper.** The product is about two people, and the only
-   colours with a job are theirs: a warm coral and a cool blue. Everything
-   shared — the primary action, the current place, the text — is a deep plum
-   ink, which belongs to neither of them and never competes with them.
+   ── The idea ──────────────────────────────────────────────────────────────
+   **Two lights, one room.** The page is a place, not a sheet of paper: warm
+   light comes in from one corner (partner A's colour) and cool light from the
+   opposite corner (partner B's), and they meet softly in the middle. Content
+   sits on ONE frosted surface that exists for legibility, not decoration.
+   The same two lights are the owner marks on tasks, the two orbs of the daily
+   question and the two circles of the reveal. Never hearts.
 
-   The first edition lit every screen with a violet-to-blue gradient card and
-   a three-wash aurora. On a real iPhone that read as generated: one gradient
-   hero per screen, glows under buttons, a purple primary. It is gone. What is
-   left of the light is two very soft sources at the top of the page — warm on
-   one side, cool on the other — that the content sits *under*, not *on*.
+   The first two editions were white paper with a little light; on a real
+   phone that read as unfinished software. The light is now the environment.
 
-   The recurring motif is the logo itself: two circles that overlap. It is the
-   daily reveal (the two answers meeting), the week's rhythm (two dots a day),
-   and the mark on every task (whose it is). Never hearts.
+   ── Typography ────────────────────────────────────────────────────────────
+   Rubik (Hebrew-first), 400–700, weight-led. Titles 30px, task titles 17px,
+   everything secondary 13px — and there is very little secondary.
 
-   ── Typography: Tovli's discipline ────────────────────────────────────────
-   One family, **Rubik** (Hebrew-first), four weights. Measured in Tovli's
-   source (read-only, 2026-09-23): body at 16/14px, weight 600 the most used
-   weight, nothing above 22–24px. Hierarchy comes from weight and position.
+   ── How to change it ──────────────────────────────────────────────────────
+   Raw values only; components use semantic tokens (foundation.css) and the
+   atmosphere / glass / partner tokens below through src/domain/styles.css.
 
-   ── How to change it ─────────────────────────────────────────────────────
-   Raw values only. Components use the semantic tokens mapped in
-   src/core/ui/styles/foundation.css plus the partner, light and depth tokens
-   below, which reach components through src/domain/styles.css.
-
-   Contrast, measured (text on --brand-surface unless noted):
-     LIGHT  ink 17.1 · ink-muted 8.2 · ink-subtle 5.6 (5.1 on canvas) · accent-text 10.2
-            white on accent 16.5 · white on partner-a 4.6 · white on partner-b 5.7
-            partner-a as text 4.6 · partner-b as text 5.6 · rule-strong 3.5 (3.0 on sunken)
-     DARK   ink 14.7 · ink-muted 8.6 · ink-subtle 5.6 · accent-text 11.7
-            on-accent on accent 15.9 · white on partner-a 4.6 · on partner-b 4.8
-            partner-a-text 8.0 · partner-b-text 9.9 · rule-strong 3.2
+   Contrast, measured (text on the glass surface composited over the lightest
+   and darkest point of the atmosphere):
+     LIGHT  ink ≥ 14:1 · ink-muted ≥ 7:1 · ink-subtle ≥ 4.6:1
+     DARK   ink ≥ 13:1 · ink-muted ≥ 7:1 · ink-subtle ≥ 4.7:1
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
   color-scheme: light;
 
-  --brand-canvas: #f7f3ef;
-  --brand-surface: #fffdfb;
-  --brand-sunken: #f1ece7;
-  --brand-hover: #f4efea;
-  --brand-selected: #ece6ef;
+  --brand-canvas: #efe6e2;
+  --brand-surface: #fffaf7;
+  --brand-sunken: #f2ebe8;
+  --brand-hover: #f4ede9;
+  --brand-selected: #ece5ee;
 
-  --brand-ink: #1d1826;
-  --brand-ink-muted: #524b60;
-  --brand-ink-subtle: #6b6477;
+  --brand-ink: #1c1726;
+  --brand-ink-muted: #4f4860;
+  --brand-ink-subtle: #655e76;
   --brand-ink-on-accent: #ffffff;
 
-  --brand-rule-faint: #efe9e3;
-  --brand-rule: #e4ddd6;
-  --brand-rule-strong: #8e849b;
+  --brand-rule-faint: rgb(28 23 38 / 0.07);
+  --brand-rule: rgb(28 23 38 / 0.12);
+  --brand-rule-strong: #8a8098;
 
-  /* The shared ink: primary action, current place, links. Not a colour of
-     either partner, and not violet. */
-  --brand-accent: #221c2e;
-  --brand-accent-hover: #362d45;
-  --brand-accent-tint: #eee9f1;
-  --brand-accent-text: #463b5b;
+  --brand-accent: #1f1929;
+  --brand-accent-hover: #332a42;
+  --brand-accent-tint: #ece5ee;
+  --brand-accent-text: #3f3552;
   --brand-focus: #5c5470;
 
   /* The two people. */
-  --brand-partner-a: #d6394a;
-  --brand-partner-a-soft: #f7d9dc;
-  --brand-partner-a-tint: #fcefef;
-  --brand-partner-b: #2563c9;
-  --brand-partner-b-soft: #d6e3f7;
-  --brand-partner-b-tint: #edf3fc;
+  --brand-partner-a: #d9485a;
+  --brand-partner-a-soft: #f6d3d4;
+  --brand-partner-a-tint: #fbecec;
+  --brand-partner-a-text: #c33a4c;
+  --brand-partner-b: #3068d0;
+  --brand-partner-b-soft: #d3e0f6;
+  --brand-partner-b-tint: #eaf0fb;
+  --brand-partner-b-text: #2a5fbf;
   --brand-on-partner: #ffffff;
-  /* The partner colours as TEXT. Light mode can use the fills; at night the
-     fills are too dark to read on the surface, so text gets a lighter step. */
-  --brand-partner-a-text: #d6394a;
-  --brand-partner-b-text: #2563c9;
 
   --brand-danger: #b3261e;
   --brand-danger-text: #a31e17;
@@ -87,38 +73,50 @@
   --brand-info-text: #2159b4;
   --brand-info-tint: #edf3fc;
 
-  --brand-inverse: #1d1826;
+  --brand-inverse: #1c1726;
   --brand-on-inverse: #ffffff;
   --brand-on-inverse-muted: #c9c2d6;
   --brand-on-inverse-danger: #ff9e93;
   --brand-on-inverse-success: #7fe3d0;
 
-  --brand-scrim: rgb(22 17 30 / 0.4);
+  --brand-scrim: rgb(24 16 34 / 0.34);
 
-  /* ── Light ──────────────────────────────────────────────────────────────
-     Two sources at the top of the page, one per partner, very low. Fixed
-     behind everything (src/domain/styles.css, body::before). */
-  --brand-light-warm: radial-gradient(62% 34% at 104% -6%, rgb(236 112 104 / 0.16), transparent 70%);
-  --brand-light-cool: radial-gradient(56% 30% at -6% -4%, rgb(96 140 232 / 0.12), transparent 70%);
+  /* ── The room ─────────────────────────────────────────────────────────── */
+  --brand-room: linear-gradient(180deg, #f6ede7 0%, #efe5e4 46%, #e7e5ee 100%);
+  --brand-light-a: radial-gradient(100% 62% at 106% -6%, rgb(236 122 110 / 0.56), rgb(236 122 110 / 0) 72%);
+  --brand-light-b: radial-gradient(105% 70% at -12% 72%, rgb(84 128 226 / 0.42), rgb(84 128 226 / 0) 72%);
+  --brand-sun: radial-gradient(120% 50% at 50% -14%, rgb(255 250 244 / 0.9), rgb(255 250 244 / 0) 62%);
+  --brand-grain-opacity: 0.1;
+  --brand-grain-blend: multiply;
 
-  /* The day's tone: cool and low at 1, warm and bright at 5. Used behind the
-     daily scale only. */
-  --brand-tone-1: rgb(88 104 140 / 0.16);
-  --brand-tone-2: rgb(104 112 160 / 0.18);
-  --brand-tone-3: rgb(150 124 170 / 0.2);
-  --brand-tone-4: rgb(214 110 110 / 0.22);
-  --brand-tone-5: rgb(236 120 96 / 0.26);
+  /* The one surface. */
+  --brand-glass: rgb(255 251 249 / 0.54);
+  --brand-glass-strong: rgb(255 251 249 / 0.86);
+  --brand-glass-edge: inset 0 1px 0 rgb(255 255 255 / 0.85);
+  --brand-glass-shadow: 0 30px 60px -32px rgb(58 30 52 / 0.34), 0 2px 6px -2px rgb(58 30 52 / 0.08);
 
-  /* Depth. Warm-tinted and small: a surface is lifted just enough to be an
-     object, never floated. */
-  --brand-shadow-card: 0 1px 2px rgb(38 26 30 / 0.04), 0 6px 18px -10px rgb(38 26 30 / 0.12);
-  --brand-shadow-lift: 0 2px 6px rgb(38 26 30 / 0.05), 0 18px 36px -16px rgb(38 26 30 / 0.2);
-  --brand-shadow-float: 0 8px 18px -6px rgb(38 26 30 / 0.12), 0 28px 60px -24px rgb(38 26 30 / 0.26);
+  /* The daily question: the room re-lit by the answer, 1 (dusk) → 5 (dawn). */
+  --brand-mood-1: radial-gradient(120% 80% at 50% 30%, rgb(122 142 186 / 0.55), rgb(122 142 186 / 0) 70%);
+  --brand-mood-2: radial-gradient(120% 80% at 50% 30%, rgb(144 138 196 / 0.55), rgb(144 138 196 / 0) 70%);
+  --brand-mood-3: radial-gradient(120% 80% at 50% 30%, rgb(196 150 196 / 0.55), rgb(196 150 196 / 0) 70%);
+  --brand-mood-4: radial-gradient(120% 80% at 50% 30%, rgb(238 150 140 / 0.6), rgb(238 150 140 / 0) 70%);
+  --brand-mood-5: radial-gradient(120% 80% at 50% 30%, rgb(250 176 120 / 0.68), rgb(250 176 120 / 0) 70%);
+
+  /* The day's five lights, dusk → dawn (the orbs). */
+  --orb-day-1: #7d8fbd;
+  --orb-day-2: #8d84c3;
+  --orb-day-3: #bd88c0;
+  --orb-day-4: #e5857f;
+  --orb-day-5: #f19a5c;
+
+  --brand-shadow-card: 0 1px 2px rgb(38 26 30 / 0.05), 0 8px 20px -12px rgb(38 26 30 / 0.16);
+  --brand-shadow-lift: 0 2px 6px rgb(38 26 30 / 0.06), 0 18px 36px -16px rgb(38 26 30 / 0.22);
+  --brand-shadow-float: 0 10px 24px -8px rgb(28 23 38 / 0.35), 0 30px 60px -24px rgb(28 23 38 / 0.3);
   --brand-edge-light: inset 0 1px 0 rgb(255 255 255 / 0.8);
 
-  /* Kept for the core surfaces that still reference them. */
-  --brand-star-edge-warm: #d6394a;
-  --brand-star-edge-accent: #463b5b;
+  /* Kept for core surfaces that still reference them. */
+  --brand-star-edge-warm: #d9485a;
+  --brand-star-edge-accent: #3f3552;
   --brand-on-accent-bloom: rgb(255 255 255 / 0.2);
   --brand-on-accent-track: rgb(255 255 255 / 0.25);
   --brand-on-accent-fill: rgb(255 255 255 / 0.9);
@@ -129,58 +127,54 @@
   --brand-font-display: var(--brand-font-sans);
   --brand-title-weight: 600;
   --brand-section-weight: 600;
-  --brand-text-title: 1.5rem;
+  --brand-text-title: 1.875rem;
   --brand-text-section: 1.0625rem;
 
   --brand-row-padding-y: 0.875rem;
-
   --brand-chrome: transparent;
 
   --brand-radius-chip: 999px;
-  --brand-radius-control: 14px;
-  --brand-radius-surface: 22px;
-  --brand-radius-dialog: 26px;
-  --brand-radius-sheet: 28px;
+  --brand-radius-control: 16px;
+  --brand-radius-surface: 28px;
+  --brand-radius-dialog: 28px;
+  --brand-radius-sheet: 32px;
 }
 
-/* ── Dark ───────────────────────────────────────────────────────────────────
-   Deep plum night, not charcoal. The primary action inverts to a pale pill:
-   the ink becomes the light. The two partner lights are a little stronger,
-   because at night they are the only thing separating the layers. */
+/* ── Night: the same room after dark ─────────────────────────────────────── */
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
 
-    --brand-canvas: #13101a;
-    --brand-surface: #1c1825;
-    --brand-sunken: #17131f;
-    --brand-hover: #241f2e;
-    --brand-selected: #2a2436;
+    --brand-canvas: #16111f;
+    --brand-surface: #211a2e;
+    --brand-sunken: #1a1425;
+    --brand-hover: #2a2238;
+    --brand-selected: #2e2540;
 
-    --brand-ink: #efeaf5;
-    --brand-ink-muted: #bcb3c9;
-    --brand-ink-subtle: #978fa7;
-    --brand-ink-on-accent: #16121d;
+    --brand-ink: #f3eef8;
+    --brand-ink-muted: #c3b9d4;
+    --brand-ink-subtle: #a298b6;
+    --brand-ink-on-accent: #16111f;
 
-    --brand-rule-faint: #231e2d;
-    --brand-rule: #2e283a;
-    --brand-rule-strong: #6f6682;
+    --brand-rule-faint: rgb(255 255 255 / 0.07);
+    --brand-rule: rgb(255 255 255 / 0.12);
+    --brand-rule-strong: #7a7090;
 
-    --brand-accent: #f1ecf7;
+    --brand-accent: #f3eef8;
     --brand-accent-hover: #ffffff;
-    --brand-accent-tint: #2a2436;
-    --brand-accent-text: #d9cff0;
+    --brand-accent-tint: #2e2540;
+    --brand-accent-text: #dcd1f0;
     --brand-focus: #b8afc9;
 
-    --brand-partner-a: #d23f55;
-    --brand-partner-a-soft: #4a2230;
-    --brand-partner-a-tint: #2c1a24;
-    --brand-partner-b: #2f6fd6;
-    --brand-partner-b-soft: #1f3150;
-    --brand-partner-b-tint: #182236;
+    --brand-partner-a: #e45a6b;
+    --brand-partner-a-soft: #4b2332;
+    --brand-partner-a-tint: #2e1b27;
+    --brand-partner-a-text: #ff98a6;
+    --brand-partner-b: #3f77dc;
+    --brand-partner-b-soft: #21345a;
+    --brand-partner-b-tint: #1a2540;
+    --brand-partner-b-text: #9cc4ff;
     --brand-on-partner: #ffffff;
-    --brand-partner-a-text: #ff8fa0;
-    --brand-partner-b-text: #90c8ff;
 
     --brand-danger: #c9352c;
     --brand-danger-text: #ff9e93;
@@ -195,28 +189,43 @@
     --brand-info-tint: #182236;
 
     --brand-inverse: #f3eefa;
-    --brand-on-inverse: #1d1826;
+    --brand-on-inverse: #1c1726;
     --brand-on-inverse-muted: #524b60;
     --brand-on-inverse-danger: #a31e17;
     --brand-on-inverse-success: #0a7a6e;
 
-    --brand-scrim: rgb(6 4 12 / 0.62);
+    --brand-scrim: rgb(4 2 10 / 0.6);
 
-    --brand-light-warm: radial-gradient(62% 34% at 104% -6%, rgb(232 85 106 / 0.22), transparent 70%);
-    --brand-light-cool: radial-gradient(56% 30% at -6% -4%, rgb(63 128 228 / 0.2), transparent 70%);
+    --brand-room: radial-gradient(130% 75% at 50% -12%, #34264b 0%, #1d1529 55%, #120e19 100%);
+    --brand-light-a: radial-gradient(90% 55% at 106% -2%, rgb(255 111 125 / 0.34), rgb(255 111 125 / 0) 72%);
+    --brand-light-b: radial-gradient(95% 62% at -12% 72%, rgb(111 157 255 / 0.3), rgb(111 157 255 / 0) 72%);
+    --brand-sun: radial-gradient(100% 40% at 50% -10%, rgb(180 150 230 / 0.16), rgb(180 150 230 / 0) 60%);
+    --brand-grain-opacity: 0.16;
+    --brand-grain-blend: overlay;
 
-    --brand-tone-1: rgb(90 112 170 / 0.22);
-    --brand-tone-2: rgb(110 110 180 / 0.24);
-    --brand-tone-3: rgb(150 120 190 / 0.26);
-    --brand-tone-4: rgb(220 100 120 / 0.28);
-    --brand-tone-5: rgb(240 120 96 / 0.32);
+    --brand-glass: rgb(34 26 48 / 0.5);
+    --brand-glass-strong: rgb(34 26 48 / 0.86);
+    --brand-glass-edge: inset 0 1px 0 rgb(255 255 255 / 0.08);
+    --brand-glass-shadow: 0 30px 60px -30px rgb(0 0 0 / 0.6);
+
+    --brand-mood-1: radial-gradient(120% 80% at 50% 30%, rgb(70 96 160 / 0.6), rgb(70 96 160 / 0) 70%);
+    --brand-mood-2: radial-gradient(120% 80% at 50% 30%, rgb(98 90 170 / 0.6), rgb(98 90 170 / 0) 70%);
+    --brand-mood-3: radial-gradient(120% 80% at 50% 30%, rgb(150 96 170 / 0.6), rgb(150 96 170 / 0) 70%);
+    --brand-mood-4: radial-gradient(120% 80% at 50% 30%, rgb(214 96 120 / 0.62), rgb(214 96 120 / 0) 70%);
+    --brand-mood-5: radial-gradient(120% 80% at 50% 30%, rgb(240 140 96 / 0.66), rgb(240 140 96 / 0) 70%);
+
+    --orb-day-1: #8aa2e0;
+    --orb-day-2: #9d8fe0;
+    --orb-day-3: #cf93d6;
+    --orb-day-4: #f28a93;
+    --orb-day-5: #ffab6b;
 
     --brand-shadow-card: 0 1px 2px rgb(4 2 10 / 0.5), 0 8px 20px -12px rgb(4 2 10 / 0.6);
     --brand-shadow-lift: 0 2px 6px rgb(4 2 10 / 0.55), 0 22px 44px -18px rgb(4 2 10 / 0.7);
-    --brand-shadow-float: 0 8px 18px -6px rgb(4 2 10 / 0.6), 0 28px 60px -24px rgb(4 2 10 / 0.75);
+    --brand-shadow-float: 0 10px 30px -8px rgb(0 0 0 / 0.6), 0 0 40px rgb(243 238 248 / 0.12);
     --brand-edge-light: inset 0 1px 0 rgb(255 255 255 / 0.06);
 
-    --brand-star-edge-warm: #ff8fa0;
-    --brand-star-edge-accent: #d9cff0;
+    --brand-star-edge-warm: #ff98a6;
+    --brand-star-edge-accent: #dcd1f0;
   }
 }

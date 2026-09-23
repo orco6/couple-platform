@@ -11,8 +11,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 export const REVIEW_ACCOUNTS = {
-  a: { username: 'review-partner-a', name: 'נועה ברק', role: 'OWNER' },
-  b: { username: 'review-partner-b', name: 'מיכל ביטון', role: 'PARTNER' },
+  a: { username: 'review-partner-a', name: 'אור', role: 'OWNER' },
+  b: { username: 'review-partner-b', name: 'נטיה', role: 'PARTNER' },
 } as const;
 
 export const CREDENTIALS_FILE = resolve(process.cwd(), '..', 'couple-platform-review-credentials.txt');

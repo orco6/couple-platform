@@ -3,7 +3,6 @@
 import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion } from 'motion/react';
 import { useEffect, useId, useState } from 'react';
 
-import { cx } from '@/core/ui/cx';
 import type { CalendarDate } from '@/core/dates/calendar-date';
 import { copy } from '@/domain/copy';
 import type { DayEntryValues } from '@/domain/day-entries/day-entries';
@@ -11,7 +10,7 @@ import type { PartnerRef } from '@/domain/partners';
 
 import { reducedFade, spring } from './motion';
 import { ReviewForm } from './ReviewForm';
-import type { RatingValue } from './Scale';
+import type { RatingValue } from './Orbs';
 
 /**
  * THE REVEAL.
@@ -34,7 +33,7 @@ function gapLine(mine: DayEntryValues, theirs: DayEntryValues): string {
   return copy.day.gapFar;
 }
 
-const CIRCLE = 104;
+const CIRCLE = 120;
 const OVERLAP = 26;
 
 export function RevealPanel({
@@ -53,8 +52,6 @@ export function RevealPanel({
 
   return (
     <section>
-      <p className="mb-6 text-center text-body font-medium text-ink-muted">{copy.day.revealedTitle}</p>
-
       <Meeting me={me} partner={partner} />
 
       {/* The words, under the circles and in the same left-to-right order. */}
@@ -118,6 +115,8 @@ function Meeting({ me, partner }: { me: PartnerRef; partner: PartnerRef }) {
   const ax = useMotionValue(leftAt - travel);
   const bx = useMotionValue(rightAt + travel);
   const clipId = useId();
+  const gradA = useId();
+  const gradB = useId();
 
   useEffect(() => {
     const options = reduced ? { duration: 0 } : { ...spring.soft, delay: 0.08 };
@@ -129,7 +128,13 @@ function Meeting({ me, partner }: { me: PartnerRef; partner: PartnerRef }) {
     };
   }, [ax, bx, leftAt, rightAt, reduced]);
 
-  const fill = (side: 'a' | 'b') => (side === 'a' ? 'fill-partner-a' : 'fill-partner-b');
+  const fill = (side: 'a' | 'b') => `url(#${side === 'a' ? gradA : gradB})`;
+  const light = (id: string, token: string) => (
+    <radialGradient id={id} cx="35%" cy="30%" r="75%">
+      <stop offset="0%" style={{ stopColor: `color-mix(in oklab, var(${token}) 50%, white)` }} />
+      <stop offset="70%" style={{ stopColor: `var(${token})` }} />
+    </radialGradient>
+  );
 
   return (
     <motion.svg
@@ -137,19 +142,27 @@ function Meeting({ me, partner }: { me: PartnerRef; partner: PartnerRef }) {
       viewBox={`0 0 ${width} ${CIRCLE}`}
       width={width}
       height={CIRCLE}
-      className="mx-auto block"
+      className="mx-auto block overflow-visible"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={reduced ? reducedFade : { duration: 0.25 }}
     >
       <defs>
+        {light(gradA, '--brand-partner-a')}
+        {light(gradB, '--brand-partner-b')}
         <clipPath id={clipId}>
           <motion.circle cx={ax} cy={r} r={r} />
         </clipPath>
       </defs>
-      <motion.circle cx={ax} cy={r} r={r} className={fill(me.side)} />
-      <motion.circle cx={bx} cy={r} r={r} className={fill(partner.side)} />
-      <motion.circle cx={bx} cy={r} r={r} clipPath={`url(#${clipId})`} className="fill-accent" />
+      <motion.circle cx={ax} cy={r} r={r} fill={fill(me.side)} />
+      <motion.circle cx={bx} cy={r} r={r} fill={fill(partner.side)} />
+      <motion.circle
+        cx={bx}
+        cy={r}
+        r={r}
+        clipPath={`url(#${clipId})`}
+        style={{ fill: 'color-mix(in oklab, color-mix(in oklab, var(--brand-partner-a) 50%, var(--brand-partner-b)) 78%, black)' }}
+      />
     </motion.svg>
   );
 }
@@ -172,14 +185,12 @@ function Note({ label, text }: { label: string; text: string }) {
  * closes (R-DAY-03), one tap away rather than a second form on the screen.
  */
 export function WaitingPanel({
-  me,
   partner,
   partnerName,
   date,
   mine,
   canAmend,
 }: {
-  me: PartnerRef;
   partner: PartnerRef | null;
   partnerName: string;
   date: CalendarDate;
@@ -188,26 +199,32 @@ export function WaitingPanel({
 }) {
   const reduced = useReducedMotion();
   const [amending, setAmending] = useState(false);
-  const size = 72;
+  const size = 96;
+  const mineColour = `var(--orb-day-${mine.respectRating})`;
 
   return (
     <section>
-      <div className="flex items-center justify-center gap-4" dir="ltr" aria-hidden="true">
+      {/* Mine: a light in the colour of my own answer. Theirs: not yet. */}
+      <div className="flex items-center justify-center gap-5" dir="ltr" aria-hidden="true">
         <span
-          className={cx('grid place-items-center rounded-full', me.side === 'a' ? 'bg-partner-a' : 'bg-partner-b')}
-          style={{ width: size, height: size }}
-        >
-          <span className="text-on-partner px-2 text-body font-semibold">{copy.day.scale[mine.respectRating as RatingValue]}</span>
-        </span>
-        <span
-          className="rounded-full border-2 border-dashed border-rule-strong"
-          style={{ width: size, height: size }}
+          className="rounded-full"
+          style={{
+            width: size,
+            height: size,
+            background: `radial-gradient(circle at 35% 30%, color-mix(in oklab, ${mineColour} 45%, white), ${mineColour} 70%)`,
+            boxShadow: `0 0 0 8px color-mix(in oklab, ${mineColour} 16%, transparent), 0 18px 40px -10px ${mineColour}`,
+          }}
         />
+        <span className="rounded-full border-2 border-dashed border-rule-strong" style={{ width: size, height: size }} />
       </div>
+      <p className="mt-3 text-center text-meta text-ink-subtle" dir="ltr">
+        <span className="inline-block w-24 text-center">{copy.day.scale[mine.respectRating as RatingValue]}</span>
+        <span className="inline-block w-24" />
+      </p>
 
       <div className="mt-6 text-center">
-        <p className="text-section font-semibold text-balance text-ink">{partner ? copy.day.waitingTitle(partnerName) : copy.errors.noPartnerYet}</p>
-        <p className="mx-auto mt-1 max-w-xs text-body text-balance text-ink-muted">{copy.day.waitingWhy}</p>
+        <p className="text-section font-semibold text-balance text-ink">{partner ? copy.day.waitingTitle(partnerName.split(' ')[0] ?? partnerName) : copy.errors.noPartnerYet}</p>
+        <p className="mx-auto mt-1 max-w-xs text-body text-balance text-ink-subtle">{copy.day.waitingWhy}</p>
       </div>
 
       {canAmend && (

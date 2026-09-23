@@ -41,8 +41,14 @@ export function taskCard(page: Page, title: string) {
  */
 export async function completeTask(page: Page, title: string): Promise<void> {
   const saved = page.waitForResponse((r) => /\/api\/tasks\/[^/]+\/transition$/.test(r.url()) && r.request().method() === 'POST');
+  // The list then refreshes itself from the server. Navigating while that is
+  // in flight cancels it, which WebKit reports as a console error ("Load
+  // failed") — noise, but noise the sweeps rightly refuse, so wait for it.
+  const path = new URL(page.url()).pathname;
+  const refreshed = page.waitForResponse((r) => r.request().headers()['rsc'] === '1' && !r.request().headers()['next-router-prefetch'] && new URL(r.url()).pathname === path);
   await taskCard(page, title).getByRole('button', { name: copy.tasks.completeAction }).click();
   expect((await saved).ok()).toBe(true);
+  await refreshed;
 }
 
 /**
@@ -52,6 +58,10 @@ export async function completeTask(page: Page, title: string): Promise<void> {
  */
 export async function signOut(page: Page): Promise<void> {
   const more = page.getByRole('button', { name: 'עוד' });
+  // Closing the day is immersive: the bar steps aside there, so leave it first.
+  if (!(await more.isVisible()) && !(await page.getByRole('button', { name: 'יציאה' }).first().isVisible())) {
+    await page.goto('/');
+  }
   if (await more.isVisible()) {
     await more.click();
     const sheet = page.getByTestId('mobile-more-sheet');

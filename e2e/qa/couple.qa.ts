@@ -46,12 +46,19 @@ test('couple: the cards, the stars and the reveal', async ({ page }) => {
   await completeTask(page, toRate);
 
   await page.goto('/');
-  await expect(taskCard(page, toRate).getByRole('radio').first()).toBeVisible();
+  const invite = taskCard(page, toRate).getByRole('button', { name: copy.taskRating.prompt });
+  await expect(invite).toBeVisible();
   await capture(page, 'today-open-waiting-and-to-rate', problems);
 
-  // One tap on the fourth star: the signature interaction, mid-flight.
-  await taskCard(page, toRate).getByRole('radio').nth(3).click();
-  await expect(taskCard(page, toRate).getByRole('radio', { checked: true })).toHaveAttribute('aria-label', /^4 —/);
+  // The rating sheet, then one tap on the fourth light: the signature interaction.
+  await invite.click();
+  const sheet = page.getByTestId('rate-sheet');
+  await expect(sheet.getByRole('radio')).toHaveCount(5);
+  await page.waitForTimeout(500);
+  await capture(page, 'rate-sheet', problems, { fullPage: false });
+  await sheet.getByRole('radio').nth(3).click();
+  await expect(sheet).toBeHidden();
+  await expect(taskCard(page, toRate).getByRole('button', { name: copy.taskRating.myRatedLine(copy.taskRating.scale[4]) })).toBeVisible();
   await capture(page, 'today-just-rated', problems);
 
   // ── Adding a task ─────────────────────────────────────────────────────
@@ -109,7 +116,7 @@ test('couple: closing today, from too-early to waiting', async ({ page, request,
   await page.goto('/review');
   await page.getByRole('radio', { name: /^4 —/ }).click();
   await page.getByRole('button', { name: copy.day.submitAction }).click();
-  await expect(page.getByText(copy.day.waitingTitle('מיכל ביטון'))).toBeVisible();
+  await expect(page.getByText(copy.day.waitingTitle('מיכל'))).toBeVisible();
   await capture(page, 'evening-waiting-for-partner', problems);
 
   expect(problems, problems.join('\n')).toEqual([]);

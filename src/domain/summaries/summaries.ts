@@ -181,6 +181,8 @@ export interface MonthSummary {
   partner: PartnerRef | null;
 
   weeks: WeekPoint[];
+  /** Every day of the month, with the same reveal rule as the week (R-DAY-05). */
+  days: RangeDay[];
   completion: Completion;
   executionAverage: number | null;
   respectAverage: number | null;
@@ -249,6 +251,7 @@ export async function getMonthSummary(
     me,
     partner: other,
     weeks,
+    days,
     completion: done,
     executionAverage: executionAverage(tasks),
     respectAverage: coupleRespectAverage(days),

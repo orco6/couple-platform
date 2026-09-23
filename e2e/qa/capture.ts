@@ -40,7 +40,7 @@ export function watch(page: Page, problems: string[]) {
     // WebKit reports a Next.js route prefetch (?_rsc=) that was cancelled because the sweep
     // navigated away as 'due to access control checks'. Verified: the requests fail with
     // 'Load request cancelled', nothing functional breaks. Anything else still fails the sweep.
-    if (/\?_rsc=.*access control checks/.test(error.message)) return;
+    if (/[?&]_rsc=.*access control checks/.test(error.message)) return;
     problems.push(`pageerror: ${error.message.slice(0, 160)}`);
   });
 }

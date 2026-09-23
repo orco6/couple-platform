@@ -7,12 +7,11 @@ import {
   type CalendarDate,
 } from '@/core/dates/calendar-date';
 import { db } from '@/core/db/client';
-import { EmptyState } from '@/core/ui/components/States';
 import { copy } from '@/domain/copy';
 import type { Insight } from '@/domain/summaries/calculations';
 import { getWeekSummary, shiftWeek, weekBounds } from '@/domain/summaries/summaries';
 
-import { FactRow, RangeStepper, ReflectionTabs, Rhythm, Story } from '../_components/ReflectionParts';
+import { Fact, Facts, RangeStepper, ReflectionTabs, Story, Thought, WeekLights } from '../_components/ReflectionParts';
 import { Screen } from '../_components/Screen';
 
 export const metadata = { title: copy.week.pageTitle };
@@ -27,8 +26,7 @@ type Week = Awaited<ReturnType<typeof getWeekSummary>>;
  * late rating still lands in the right week.
  *
  * Reading order: one sentence about the week (chosen from the real averages,
- * never invented); the shape of the days, two circles each; the three figures
- * as sentences; what went well; one thing for next week.
+ * never invented); the days as lights; three facts; one thought for next week.
  */
 export default async function WeekPage({ searchParams }: { searchParams: Promise<{ w?: string }> }) {
   const actor = await requireActorPage();
@@ -44,11 +42,10 @@ export default async function WeekPage({ searchParams }: { searchParams: Promise
   const partnerName = summary.partner?.name ?? copy.common.partnerFallback;
 
   return (
-    <Screen>
-      <h1 className="mb-4 px-1 text-title leading-tight font-semibold text-ink">{copy.week.pageTitle}</h1>
+    <Screen className="pb-24">
       <ReflectionTabs current="week" />
-
       <RangeStepper
+        title={copy.week.pageTitle}
         from={summary.from}
         to={lastDay}
         kind="week"
@@ -57,44 +54,31 @@ export default async function WeekPage({ searchParams }: { searchParams: Promise
       />
 
       {summary.isEmpty ? (
-        <EmptyState
-          title={copy.week.emptyTitle}
-          description={
-            <>
-              {copy.week.emptyWhy} {copy.week.emptyWhat}
-            </>
-          }
-        />
+        <div className="mt-16 text-center">
+          <p className="text-section font-semibold text-balance text-ink">{copy.week.emptyTitle}</p>
+          <p className="mx-auto mt-2 max-w-xs text-body text-balance text-ink-subtle">{copy.week.emptyWhat}</p>
+        </div>
       ) : (
         <>
           <Story>{storyOf(summary)}</Story>
-
-          <Rhythm days={summary.days} me={summary.me} partner={summary.partner} today={today} />
-
-          <div className="panel panel-rows mb-4">
-            <FactRow
+          <WeekLights days={summary.days} partner={summary.partner} today={today} />
+          <Facts>
+            <Fact
               label={copy.week.completionTitle}
-              detail={copy.week.completionDetail(summary.completion.done, summary.completion.total)}
-              figure={summary.completion.percent === null ? null : `${summary.completion.percent}%`}
+              figure={summary.completion.total === 0 ? null : copy.week.completionDetail(summary.completion.done, summary.completion.total)}
             />
-            <FactRow
+            <Fact
               label={copy.week.executionTitle}
               figure={summary.executionAverage === null ? null : summary.executionAverage.toFixed(1)}
               suffix={copy.common.outOfFive}
             />
-            <FactRow
+            <Fact
               label={copy.week.respectTitle}
               figure={summary.respectAverage === null ? null : summary.respectAverage.toFixed(1)}
               suffix={copy.common.outOfFive}
             />
-          </div>
-
-          <Highlights summary={summary} />
-
-          <section className="px-1 pt-2">
-            <h2 className="text-meta font-semibold text-ink-subtle">{copy.week.insightTitle}</h2>
-            <p className="mt-1 text-row text-balance text-ink">{insightText(summary.insight, partnerName)}</p>
-          </section>
+          </Facts>
+          <Thought title={copy.week.insightTitle}>{insightText(summary.insight, partnerName)}</Thought>
         </>
       )}
     </Screen>
@@ -112,35 +96,6 @@ function storyOf(summary: Week): string {
     return story.hard;
   }
   return summary.completion.done > 0 ? story.busy : story.quiet;
-}
-
-/** What went well — only the things that are actually true this week. */
-function Highlights({ summary }: { summary: Week }) {
-  const rows: string[] = [];
-  if (summary.streak > 0) rows.push(`${copy.week.streakDays(summary.streak)} ${copy.week.streakHint}`);
-  if (summary.bestDay) {
-    const weekday = new Date(`${summary.bestDay.date}T12:00:00Z`).getUTCDay();
-    rows.push(copy.week.bestDay(copy.reflection.dayNames[weekday] ?? ''));
-  }
-  if (summary.completion.percent === 100 && summary.completion.total > 0) rows.push(copy.week.allTasksDone);
-  if (summary.perfectTaskTitle) rows.push(copy.week.perfectTask(summary.perfectTaskTitle));
-  if (rows.length === 0) return null;
-
-  return (
-    <section className="mb-5 px-1" aria-labelledby="highlights-title">
-      <h2 id="highlights-title" className="mb-1.5 text-meta font-semibold text-ink-subtle">
-        {copy.week.highlightsTitle}
-      </h2>
-      <ul className="space-y-1.5">
-        {rows.map((row) => (
-          <li key={row} className="flex items-start gap-2.5 text-row text-ink">
-            <span aria-hidden="true" className="mt-[0.6em] size-1.5 shrink-0 rounded-full bg-rule-strong" />
-            <span className="text-balance">{row}</span>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
 }
 
 function insightText(insight: Insight, partnerName: string): string {

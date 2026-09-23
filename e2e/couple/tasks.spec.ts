@@ -44,8 +44,8 @@ test('a completed task can be reopened, which withdraws the rating offer', async
   await completeTask(page, title);
 
   // The owner may rate it (it is the partner's task).
-  await expect(taskCard(page, title).getByRole('radio').first()).toBeVisible();
+  await expect(taskCard(page, title).getByRole('button', { name: copy.taskRating.prompt })).toBeVisible();
 
   await taskCard(page, title).getByRole('button', { name: copy.tasks.reopenAction }).click();
-  await expect(taskCard(page, title).getByRole('radio')).toHaveCount(0);
+  await expect(taskCard(page, title).getByRole('button', { name: copy.taskRating.prompt })).toHaveCount(0);
 });

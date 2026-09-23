@@ -1,48 +1,49 @@
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, Minus, TrendingDown, TrendingUp } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import type { CSSProperties, ReactNode } from 'react';
 
 import { cx } from '@/core/ui/cx';
 import { copy } from '@/domain/copy';
 import type { RangeDay } from '@/domain/day-entries/day-entries';
 import type { PartnerRef } from '@/domain/partners';
-import type { TrendDirection } from '@/domain/summaries/calculations';
 
 /**
  * THE PIECES BOTH REFLECTIONS ARE BUILT FROM.
  *
- * The rule: **a relationship's week is read, not analysed.** One sentence
- * leads; one picture carries the shape of the days; a few facts follow as
- * sentences with their figure at the end of the line. The first edition was a
- * gradient KPI card, two stat cards and a list of icon tiles — a dashboard of
- * a marriage. What stayed is every figure it showed, each exactly once.
+ * The rule: **a relationship's week is told, not reported.** One sentence
+ * leads; one picture carries the days — each day a light in the colour of the
+ * answer it was given, the same dusk-to-morning colours the daily question
+ * lights the room with; a few facts follow; one thought closes. No cards, no
+ * trend lines, no percentages. The figures that remain are each shown once.
  */
 
-/** Week | Month: two views of one destination. */
+/** Week | Month: two views of one destination, as one quiet switch. */
 export function ReflectionTabs({ current }: { current: 'week' | 'month' }) {
   const tabs = [
     { key: 'week', href: '/week', label: copy.nav.week },
     { key: 'month', href: '/month', label: copy.nav.month },
   ] as const;
   return (
-    <nav aria-label={copy.nav.reflection} className="mb-5 grid grid-cols-2 gap-1 rounded-control bg-sunken p-1 shadow-[inset_0_0_0_1px_var(--color-rule-faint)]">
-      {tabs.map((tab) => {
-        const active = tab.key === current;
-        return (
-          <Link
-            key={tab.key}
-            href={tab.href}
-            aria-current={active ? 'page' : undefined}
-            className={cx(
-              'tap-quiet press flex min-h-10 items-center justify-center rounded-[10px] text-body transition-[background-color,color,box-shadow] duration-200',
-              'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus',
-              active ? 'bg-surface font-semibold text-ink shadow-[var(--brand-shadow-card)]' : 'text-ink-muted',
-            )}
-          >
-            {tab.label}
-          </Link>
-        );
-      })}
+    <nav aria-label={copy.nav.reflection} className="mb-6 flex justify-center">
+      <span className="glass inline-flex gap-1 rounded-full p-1">
+        {tabs.map((tab) => {
+          const active = tab.key === current;
+          return (
+            <Link
+              key={tab.key}
+              href={tab.href}
+              aria-current={active ? 'page' : undefined}
+              className={cx(
+                'tap-quiet press flex min-h-9 min-w-20 items-center justify-center rounded-full px-4 text-body transition-[background-color,color] duration-200',
+                'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-focus',
+                active ? 'bg-accent font-semibold text-on-accent' : 'text-ink-muted',
+              )}
+            >
+              {tab.label}
+            </Link>
+          );
+        })}
+      </span>
     </nav>
   );
 }
@@ -63,14 +64,19 @@ export function rangeLabel(from: string, to: string, kind: 'week' | 'month'): st
   return `${dayMonth.format(a)} - ${dayMonth.format(b)}`;
 }
 
-/** Previous at the start edge, next at the end — the reading direction. */
+/**
+ * The page's name and the range it covers, between previous (start edge) and
+ * next (end edge) — the reading direction.
+ */
 export function RangeStepper({
+  title,
   from,
   to,
   kind,
   previousHref,
   nextHref,
 }: {
+  title: string;
   /** First and last day (ISO), also exposed as data attributes for tests and tools. */
   from: string;
   to: string;
@@ -79,15 +85,18 @@ export function RangeStepper({
   nextHref: string | null;
 }) {
   const button =
-    'grid size-11 place-items-center rounded-full text-ink-muted transition-colors duration-200 hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus';
+    'tap-quiet press grid size-11 place-items-center rounded-full text-ink-muted transition-colors duration-200 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus';
   return (
-    <div className="mb-4 flex items-center justify-between gap-2">
+    <div className="flex items-center justify-between gap-2">
       <Link href={previousHref} aria-label={copy.summariesNav.previous} className={button}>
         <ChevronRight aria-hidden="true" size={20} />
       </Link>
-      <p className="text-row font-medium text-ink" data-range-from={from} data-range-to={to}>
-        <bdi>{rangeLabel(from, to, kind)}</bdi>
-      </p>
+      <div className="min-w-0 text-center">
+        <h1 className="text-body font-semibold text-ink">{title}</h1>
+        <p className="text-meta text-ink-subtle" data-range-from={from} data-range-to={to}>
+          <bdi>{rangeLabel(from, to, kind)}</bdi>
+        </p>
+      </div>
       {nextHref ? (
         <Link href={nextHref} aria-label={copy.summariesNav.next} className={button}>
           <ChevronLeft aria-hidden="true" size={20} />
@@ -101,45 +110,60 @@ export function RangeStepper({
 
 /** The sentence a reflection hangs on. */
 export function Story({ children }: { children: ReactNode }) {
-  return <p className="mb-6 px-1 text-title leading-snug font-semibold text-balance text-ink">{children}</p>;
+  return (
+    <p className="mx-auto mt-8 max-w-sm text-center text-[1.875rem] leading-tight font-semibold text-balance text-ink">
+      {children}
+    </p>
+  );
 }
 
-/** 1 → faint, 5 → full: how solid a person's circle is on a day. */
-const STRENGTH = ['opacity-25', 'opacity-40', 'opacity-60', 'opacity-80', 'opacity-100'];
+type Rating = 1 | 2 | 3 | 4 | 5;
+const word = (value: number) => copy.day.scale[value as Rating];
+
+/** A lit bead in the colour of an answer — the ritual's own colours. */
+function lit(value: number, size: number): CSSProperties {
+  const colour = `var(--orb-day-${value})`;
+  return {
+    width: size,
+    height: size,
+    background: `radial-gradient(circle at 35% 30%, color-mix(in oklab, ${colour} 45%, white), ${colour} 72%)`,
+    boxShadow: `0 6px 16px -6px ${colour}`,
+  };
+}
+
+/** An answer that is not there (not closed yet, or not revealed): a ring, never a guess. */
+function Ring({ size }: { size: number }) {
+  return (
+    <span
+      className="block rounded-full border-[1.5px] border-dashed border-rule-strong"
+      style={{ width: size, height: size }}
+    />
+  );
+}
 
 /**
- * THE WEEK'S RHYTHM — seven days, two circles each, in the product's own shape.
+ * THE WEEK — seven days, two lights each: mine above, my partner's below.
  *
- * My circle is solid in proportion to my answer; my partner's appears only on
- * a day that has been revealed to me (the `theirs` key is absent otherwise —
- * R-DAY-05 — and an absent value is drawn as an outline, never guessed). A day
- * nobody closed is two dashed rings, not a zero.
+ * A light's size and colour are the answer (1 small and dusk-blue, 5 full and
+ * morning-orange). My partner's light appears only on a day that has been
+ * revealed to me (the `theirs` key is absent otherwise — R-DAY-05); an absent
+ * answer is a dashed ring, and a day still ahead is a faint point.
  */
-export function Rhythm({ days, me, partner, today }: { days: RangeDay[]; me: PartnerRef; partner: PartnerRef | null; today: string }) {
+export function WeekLights({
+  days,
+  partner,
+  today,
+}: {
+  days: RangeDay[];
+  partner: PartnerRef | null;
+  today: string;
+}) {
   const byWeekday = new Map(days.map((day) => [new Date(`${day.date}T12:00:00Z`).getUTCDay(), day]));
-  const fill = (side: 'a' | 'b') => (side === 'a' ? 'bg-partner-a' : 'bg-partner-b');
   const partnerName = partner?.name ?? copy.common.partnerFallback;
+  const size = (value: number) => 16 + value * 4;
 
   return (
-    <section className="panel mb-4 px-3 pt-4 pb-3" aria-labelledby="rhythm-title">
-      <div className="mb-3 flex items-center justify-between px-1">
-        <h2 id="rhythm-title" className="text-body font-semibold text-ink">
-          {copy.reflection.rhythmTitle}
-        </h2>
-        <span className="flex items-center gap-3 text-meta text-ink-subtle" aria-hidden="true">
-          <span className="flex items-center gap-1">
-            <span className={cx('size-2.5 rounded-full', fill(me.side))} />
-            {copy.common.me}
-          </span>
-          {partner && (
-            <span className="flex items-center gap-1">
-              <span className={cx('size-2.5 rounded-full', fill(partner.side))} />
-              {partnerName}
-            </span>
-          )}
-        </span>
-      </div>
-
+    <section className="mt-10" aria-label={copy.reflection.rhythmTitle}>
       <ol className="grid grid-cols-7">
         {copy.reflection.dayLetters.map((letter, weekday) => {
           const day = byWeekday.get(weekday);
@@ -148,20 +172,28 @@ export function Rhythm({ days, me, partner, today }: { days: RangeDay[]; me: Par
           const isToday = day?.date === today;
           const future = !day || day.date > today;
           const describe = (value: number | null, hidden: boolean) =>
-            value !== null ? copy.day.scale[value as 1 | 2 | 3 | 4 | 5] : hidden ? copy.reflection.hidden : copy.reflection.notClosed;
+            value !== null ? word(value) : hidden ? copy.reflection.hidden : copy.reflection.notClosed;
 
           return (
-            <li key={letter} className="flex flex-col items-center gap-2">
+            <li key={letter} className="flex flex-col items-center">
               <span className="sr-only">
                 {`${copy.reflection.dayNames[weekday]}: ${copy.common.me} ${describe(mine, false)}, ${partnerName} ${describe(theirs, Boolean(day?.partnerSubmitted))}`}
               </span>
-              <span aria-hidden="true" className={cx('flex h-7 items-center', future && 'opacity-40')} dir="ltr">
-                <Dot value={mine} className={fill(me.side)} />
-                <Dot value={theirs} className={partner ? fill(partner.side) : ''} overlap />
+              <span aria-hidden="true" className="flex h-[4.75rem] flex-col items-center justify-center">
+                {future ? (
+                  <span className="block size-1.5 rounded-full bg-rule-strong" />
+                ) : (
+                  <>
+                    {mine === null ? <Ring size={20} /> : <span className="block rounded-full" style={lit(mine, size(mine))} />}
+                    <span className="-mt-2">
+                      {theirs === null ? <Ring size={20} /> : <span className="block rounded-full" style={lit(theirs, size(theirs))} />}
+                    </span>
+                  </>
+                )}
               </span>
               <span
                 aria-hidden="true"
-                className={cx('text-meta', isToday ? 'font-semibold text-ink' : 'text-ink-subtle')}
+                className={cx('mt-2 text-meta', isToday ? 'font-semibold text-ink' : 'text-ink-subtle')}
               >
                 {letter}
               </span>
@@ -173,96 +205,91 @@ export function Rhythm({ days, me, partner, today }: { days: RangeDay[]; me: Par
   );
 }
 
-function Dot({ value, className, overlap }: { value: number | null; className: string; overlap?: boolean }) {
-  return (
-    <span
-      className={cx(
-        'block size-5 rounded-full',
-        overlap && '-ms-2',
-        value === null ? 'border-[1.5px] border-dashed border-rule-strong' : cx(className, STRENGTH[value - 1]),
-      )}
-    />
-  );
-}
-
 /**
- * One fact: what it is, a line of context, and the figure at the end of the
- * line. `figure` and `detail` are separate elements on purpose — the figure is
- * what the eye jumps to, and each has to be findable on its own.
+ * THE MONTH — the days as a field of lights, week under week.
+ *
+ * One light per day: the colour of the answer we both gave (their mean) once
+ * the day is revealed, or of mine alone, dimmer, while it is not. No numbers,
+ * no axis; the colour moving from blue to orange down the rows is the trend.
  */
-export function FactRow({
-  label,
-  detail,
-  figure,
-  suffix,
-}: {
-  label: string;
-  detail?: ReactNode;
-  figure: string | null;
-  suffix?: string;
-}) {
+export function MonthLights({ days, today }: { days: RangeDay[]; today: string }) {
+  const weeks: (RangeDay | null)[][] = [];
+  for (const day of days) {
+    const weekday = new Date(`${day.date}T12:00:00Z`).getUTCDay();
+    if (weeks.length === 0 || weekday === 0) weeks.push(Array.from({ length: 7 }, () => null));
+    weeks[weeks.length - 1]![weekday] = day;
+  }
+
+  const valueOf = (day: RangeDay): { value: number; together: boolean } | null => {
+    if (!day.mine) return null;
+    if (day.theirs) return { value: Math.round((day.mine.respectRating + day.theirs.respectRating) / 2), together: true };
+    return { value: day.mine.respectRating, together: false };
+  };
+
   return (
-    <div className="px-4 py-3.5">
-      <div className="flex items-center justify-between gap-3">
-        <span className="block min-w-0">
-          <span className="block text-row font-medium text-ink">{label}</span>
-          {detail && <span className="block text-meta text-ink-subtle">{detail}</span>}
-        </span>
-        <p className="flex shrink-0 items-baseline gap-1 tabular-nums" dir="ltr">
-          <span className="text-section font-semibold text-ink">{figure ?? '—'}</span>
-          {suffix && figure !== null && <span className="text-meta text-ink-subtle" dir="rtl">{suffix}</span>}
-        </p>
-      </div>
+    <section className="mt-10">
+      <p aria-hidden="true" className="grid grid-cols-7 text-center text-meta text-ink-subtle">
+        {copy.reflection.dayLetters.map((letter) => (
+          <span key={letter}>{letter}</span>
+        ))}
+      </p>
+      <ol aria-label={copy.month.weeklyAveragesTitle} className="mt-2 space-y-2">
+        {weeks.map((week, index) => {
+          const closed = week.flatMap((day) => (day ? [valueOf(day)] : [])).filter((v) => v !== null);
+          const mean = closed.length === 0 ? null : Math.round(closed.reduce((sum, v) => sum + v.value, 0) / closed.length);
+          return (
+            <li key={index} className="grid grid-cols-7">
+              <span className="sr-only">
+                {`${copy.month.weekLabel(index + 1)}: ${mean === null ? copy.reflection.notClosed : word(mean)}`}
+              </span>
+              {week.map((day, weekday) => {
+                const v = day && day.date <= today ? valueOf(day) : null;
+                return (
+                  <span key={weekday} aria-hidden="true" className="grid h-11 place-items-center">
+                    {!day ? null : v ? (
+                      <span
+                        className={cx('block rounded-full', !v.together && 'opacity-55', day.date === today && 'ring-2 ring-ink ring-offset-2 ring-offset-transparent')}
+                        style={lit(v.value, 30)}
+                      />
+                    ) : (
+                      <span
+                        className={cx('block size-1.5 rounded-full bg-rule-strong', day.date > today && 'opacity-50')}
+                      />
+                    )}
+                  </span>
+                );
+              })}
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
+/** A few facts, each a line: what it is, and its figure at the end. */
+export function Facts({ children }: { children: ReactNode }) {
+  return <dl className="mt-10 divide-y divide-rule-faint">{children}</dl>;
+}
+
+export function Fact({ label, figure, suffix }: { label: string; figure: string | null; suffix?: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 px-1 py-3">
+      <dt className="text-row text-ink-muted">{label}</dt>
+      <dd className="flex shrink-0 items-baseline gap-1.5 tabular-nums">
+        <span className="text-section font-semibold text-ink">{figure ?? '—'}</span>
+        {suffix && figure !== null && <span className="text-meta text-ink-subtle">{suffix}</span>}
+      </dd>
     </div>
   );
 }
 
-/** A month's direction as one small line, with the word that says it. */
-export function TrendRow({
-  title,
-  values,
-  direction,
-  min,
-  max,
-}: {
-  title: string;
-  values: readonly (number | null)[];
-  direction: TrendDirection;
-  min: number;
-  max: number;
-}) {
-  const W = 120;
-  const H = 32;
-  const points = values.flatMap((value, index) => {
-    if (value === null) return [];
-    const x = values.length <= 1 ? W / 2 : (index / (values.length - 1)) * (W - 8) + 4;
-    const y = H - 5 - ((value - min) / Math.max(1, max - min)) * (H - 10);
-    return [{ x, y }];
-  });
-  const path = points.map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x} ${point.y}`).join(' ');
-  const Icon = direction === 'up' ? TrendingUp : direction === 'down' ? TrendingDown : Minus;
-  const word = direction === 'up' ? copy.month.trendUp : direction === 'down' ? copy.month.trendDown : copy.month.trendFlat;
-
+/** The one thought the week ends on. */
+export function Thought({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3.5">
-      <div className="min-w-0">
-        <p className="text-row font-medium text-ink">{title}</p>
-        <p className="flex items-center gap-1 text-meta text-ink-subtle">
-          <Icon aria-hidden="true" size={13} className="rtl:-scale-x-100" />
-          {word}
-        </p>
-      </div>
-      {points.length < 2 ? (
-        <span className="text-meta text-ink-subtle">{copy.month.noData}</span>
-      ) : (
-        // Time runs in the reading direction, like the week's days above it.
-        <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} className="shrink-0 text-ink rtl:-scale-x-100" role="img" aria-label={`${title}: ${word}`}>
-          <path d={path} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          {points.map((point, index) => (
-            <circle key={index} cx={point.x} cy={point.y} r="2.5" className="fill-surface" stroke="currentColor" strokeWidth="1.75" />
-          ))}
-        </svg>
-      )}
-    </div>
+    <section className="mt-8 px-1 text-center">
+      <h2 className="text-meta font-semibold text-ink-subtle">{title}</h2>
+      <p className="mx-auto mt-1.5 max-w-sm text-row text-balance text-ink">{children}</p>
+    </section>
   );
 }

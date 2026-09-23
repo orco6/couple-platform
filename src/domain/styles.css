@@ -1,56 +1,78 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   DOMAIN STYLES — שנינו (second edition)
+   DOMAIN STYLES — שנינו (third edition)
 
-   What the brand layer and the foundation's semantic tokens cannot express on
-   their own: the light behind the page, the grouped list, the two people, the
-   completion mark, the daily tone, and the chrome's consumer shape.
+   The room (the two lights), the one frosted surface, the two people, the
+   completion mark, the orbs, the immersive daily question, and the chrome.
 
    Colour never appears here as a literal — every value is a --brand-* or
-   semantic token, so both schemes follow automatically.
+   semantic token, so both schemes follow automatically. Nothing here edits
+   core: the chrome rules hook onto [data-mobile-tab-bar] and
+   header[data-app-chrome], the attributes the shell exposes for this.
 
-   Nothing here edits core. The chrome rules hook onto `[data-mobile-tab-bar]`
-   and `header[data-app-chrome]`, the attributes the foundation's shell exposes
-   for exactly this, so the shell keeps owning safe areas, the "step aside while
-   typing" behaviour and the scroll padding.
+   Motion rules (Emil Kowalski's, adopted): transform and opacity only; CSS
+   transitions for anything a finger can re-trigger (they retarget mid-way,
+   keyframes restart from zero); press = scale(0.97) in ~40ms, release
+   ~160ms; nothing appears from scale(0); reduced motion keeps colour and
+   opacity changes and drops movement.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ── The light ────────────────────────────────────────────────────────────
-   Two soft sources at the top of the viewport, one per partner. On the body
-   itself, as a fixed pseudo-element: the first edition put this layer inside
-   the page, where the route wrapper's animation became its containing block
-   and clipped it into a visible rectangle behind every page title. */
+/* ── The room ─────────────────────────────────────────────────────────────
+   Fixed to the LARGE viewport height, not inset:0 — when Safari's toolbar
+   collapses, an inset:0 layer resizes and the whole light shifts under the
+   content. 100lvh never changes. */
 body::before {
   content: '';
   position: fixed;
-  inset: 0;
+  inset-inline: 0;
+  top: 0;
+  height: 100lvh;
+  z-index: -2;
+  pointer-events: none;
+  background-image: var(--brand-sun), var(--brand-light-a), var(--brand-light-b), var(--brand-room);
+}
+
+/* Fine grain, so the light reads as a material and gradients never band. */
+body::after {
+  content: '';
+  position: fixed;
+  inset-inline: 0;
+  top: 0;
+  height: 100lvh;
   z-index: -1;
   pointer-events: none;
-  background-image: var(--brand-light-warm), var(--brand-light-cool);
+  opacity: var(--brand-grain-opacity);
+  mix-blend-mode: var(--brand-grain-blend);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .5 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
 }
 
-/* ── Surfaces ─────────────────────────────────────────────────────────────
-   One kind of container for a group of things (a list, a reflection), with a
-   hairline and a small warm shadow. Rows inside it are separated by rules, not
-   boxed again: card-in-card is how the first edition turned into a wall. */
+/* ── The one surface ─────────────────────────────────────────────────────── */
+.glass {
+  background-color: var(--brand-glass);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  backdrop-filter: blur(24px) saturate(1.4);
+  border-radius: var(--radius-surface);
+  box-shadow: var(--brand-glass-edge), var(--brand-glass-shadow);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass {
+    background-color: var(--brand-glass-strong);
+  }
+}
+
+/* Kept for the secondary screens (settings, archive, account). */
 .card,
 .panel {
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-rule-faint);
+  background-color: var(--brand-glass-strong);
   border-radius: var(--radius-surface);
-  box-shadow: var(--brand-shadow-card), var(--brand-edge-light);
-}
-
-.card-lift {
-  box-shadow: var(--brand-shadow-lift), var(--brand-edge-light);
+  box-shadow: var(--brand-glass-edge), var(--brand-shadow-card);
 }
 
 .panel-rows > * + * {
   border-top: 1px solid var(--color-rule-faint);
 }
 
-/* ── The two people ───────────────────────────────────────────────────────
-   A flat round mark carrying an initial. Colour identifies who; it is never
-   the only signal (a name is next to it, or the mark has an accessible name). */
+/* ── The two people ──────────────────────────────────────────────────────── */
 .partner-mark {
   display: inline-grid;
   place-items: center;
@@ -72,7 +94,6 @@ body::before {
   background-color: var(--brand-partner-b);
 }
 
-/* Not closed yet: the same person, as a ring in their colour — present, not done. */
 .partner-mark--open {
   background-color: transparent;
   box-shadow: inset 0 0 0 1.5px currentColor;
@@ -112,14 +133,6 @@ body::before {
   background-color: var(--brand-partner-b);
 }
 
-.bg-partner-a-soft {
-  background-color: var(--brand-partner-a-soft);
-}
-
-.bg-partner-b-soft {
-  background-color: var(--brand-partner-b-soft);
-}
-
 .bg-partner-a-tint {
   background-color: var(--brand-partner-a-tint);
 }
@@ -144,59 +157,238 @@ body::before {
   fill: var(--brand-partner-b);
 }
 
-.stroke-partner-a {
-  stroke: var(--brand-partner-a);
+/* The two lights as small glowing dots (owner marks, the pair, the rhythm). */
+.light-a,
+.light-b {
+  border-radius: 999px;
 }
 
-.stroke-partner-b {
-  stroke: var(--brand-partner-b);
+.light-a {
+  background: radial-gradient(circle at 35% 30%, color-mix(in oklab, var(--brand-partner-a) 55%, white), var(--brand-partner-a) 70%);
+  box-shadow: 0 0 18px color-mix(in oklab, var(--brand-partner-a) 45%, transparent);
 }
 
-/* ── Completion ───────────────────────────────────────────────────────────
-   The line-through is drawn, not toggled: a pseudo-element scaled from the
-   inline start (compositor-only, and correct on a title that wraps). */
+.light-b {
+  background: radial-gradient(circle at 35% 30%, color-mix(in oklab, var(--brand-partner-b) 55%, white), var(--brand-partner-b) 70%);
+  box-shadow: 0 0 18px color-mix(in oklab, var(--brand-partner-b) 40%, transparent);
+}
+
+/* The day's invitation: a small dawn — the warm end of the day's lights. */
+.invite-light {
+  border-radius: 999px;
+  background: radial-gradient(circle at 35% 30%, color-mix(in oklab, var(--orb-day-5) 40%, white), var(--orb-day-5) 55%, var(--orb-day-4) 100%);
+  box-shadow: 0 0 0 6px color-mix(in oklab, var(--orb-day-5) 16%, transparent), 0 10px 30px -6px var(--orb-day-5);
+}
+
+/* ── Completion ──────────────────────────────────────────────────────────
+   A local state change, nothing else moves: the ring fills with the owner's
+   light, the check appears, the title dims and is struck from the inline
+   start. Used tens of times a day, so short and quiet. */
+.check {
+  position: relative;
+  display: grid;
+  place-items: center;
+  inline-size: 1.625rem;
+  block-size: 1.625rem;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 2px var(--color-rule-strong);
+  transition: box-shadow 180ms var(--ease-enter);
+}
+
+.check::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--check-fill);
+  opacity: 0;
+  transform: scale(0.6);
+  transition:
+    opacity 160ms var(--ease-enter),
+    transform 260ms cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+.check > svg {
+  position: relative;
+  opacity: 0;
+  transform: scale(0.7);
+  transition:
+    opacity 140ms var(--ease-enter) 60ms,
+    transform 220ms var(--ease-enter) 60ms;
+}
+
+.check[data-done='true'] {
+  box-shadow: inset 0 0 0 0 transparent;
+}
+
+.check[data-done='true']::before {
+  opacity: 1;
+  transform: none;
+}
+
+.check[data-done='true'] > svg {
+  opacity: 1;
+  transform: none;
+}
+
+.check--a {
+  --check-fill: var(--brand-partner-a);
+}
+
+.check--b {
+  --check-fill: var(--brand-partner-b);
+}
+
 .strike {
   position: relative;
-  transition: color 260ms var(--ease-enter);
+  transition: color 220ms var(--ease-enter);
 }
 
 .strike::after {
   content: '';
   position: absolute;
   inset-inline: 0;
-  top: 0.62em;
+  top: 0.6em;
   height: 1.5px;
   border-radius: 1px;
   background-color: currentColor;
   transform: scaleX(0);
   transform-origin: inline-start;
-  transition: transform 340ms var(--ease-enter) 60ms;
+  transition: transform 280ms var(--ease-enter) 40ms;
 }
 
 .strike[data-done='true']::after {
   transform: scaleX(1);
 }
 
-/* ── Touch ────────────────────────────────────────────────────────────────
-   A press lands in 40ms and releases over 220ms (Tovli / Koma measurement:
-   a symmetric transition never reaches its pressed state in a real tap). */
+/* ── The orbs — the product's 1–5 ─────────────────────────────────────── */
+.orb {
+  border-radius: 999px;
+  transition:
+    transform 220ms cubic-bezier(0.34, 1.35, 0.64, 1),
+    opacity 200ms var(--ease-enter),
+    box-shadow 260ms var(--ease-enter),
+    background-color 200ms var(--ease-enter);
+}
+
+/* Not chosen yet: the same light, unlit — a soft tinted glass bead. */
+.orb-idle {
+  background-color: color-mix(in oklab, var(--orb-colour) 30%, var(--brand-glass-strong));
+  box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--orb-colour) 65%, transparent);
+}
+
+/* ── The daily question's room ───────────────────────────────────────────
+   Five layers, one per answer; only the chosen one is visible. Opacity only,
+   so the change is a crossfade of light, never a repaint of a gradient. */
+.mood-layer {
+  position: fixed;
+  inset-inline: 0;
+  top: 0;
+  height: 100lvh;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 600ms var(--ease-enter);
+}
+
+.mood-layer[data-on='true'] {
+  opacity: 1;
+}
+
+.mood-1 {
+  background-image: var(--brand-mood-1);
+}
+.mood-2 {
+  background-image: var(--brand-mood-2);
+}
+.mood-3 {
+  background-image: var(--brand-mood-3);
+}
+.mood-4 {
+  background-image: var(--brand-mood-4);
+}
+.mood-5 {
+  background-image: var(--brand-mood-5);
+}
+
+/* ── The sheet ──────────────────────────────────────────────────────────── */
+.sheet-dialog {
+  position: fixed;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  max-inline-size: none;
+  max-block-size: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: hidden;
+  color: var(--color-ink);
+}
+
+.sheet-dialog::backdrop {
+  background: transparent;
+}
+
+.sheet-scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--brand-scrim);
+  opacity: 0;
+  transition: opacity 240ms var(--ease-enter);
+}
+
+.sheet-dialog[data-shown='true'] .sheet-scrim {
+  opacity: 1;
+}
+
+.sheet-panel {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  margin-inline: auto;
+  max-inline-size: 34rem;
+  padding: 0.5rem 1.25rem max(1.25rem, env(safe-area-inset-bottom));
+  border-start-start-radius: var(--radius-sheet);
+  border-start-end-radius: var(--radius-sheet);
+  background-color: var(--brand-glass-strong);
+  -webkit-backdrop-filter: blur(28px) saturate(1.5);
+  backdrop-filter: blur(28px) saturate(1.5);
+  box-shadow: var(--brand-glass-edge), 0 -20px 50px -20px rgb(0 0 0 / 0.25);
+  transform: translateY(calc(100% + 2rem));
+  transition: transform 240ms cubic-bezier(0.4, 0, 1, 1);
+}
+
+.sheet-dialog[data-shown='true'] .sheet-panel {
+  transform: translateY(calc(-1 * var(--sheet-keyboard, 0px)));
+  transition: transform 420ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.sheet-grip {
+  display: block;
+  inline-size: 2.25rem;
+  block-size: 0.3125rem;
+  margin: 0 auto 0.75rem;
+  border-radius: 999px;
+  background-color: var(--color-rule-strong);
+  opacity: 0.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-panel,
+  .sheet-dialog[data-shown='true'] .sheet-panel {
+    transition: opacity 120ms linear;
+  }
+}
+
+/* ── Touch ──────────────────────────────────────────────────────────────── */
 .press {
-  transition: transform 220ms var(--ease-enter);
+  transition: transform 160ms var(--ease-enter);
 }
 
 .press:active {
   transform: scale(0.97);
-  transition-duration: 40ms;
-}
-
-.press-row {
-  transition:
-    background-color 220ms var(--ease-enter),
-    transform 220ms var(--ease-enter);
-}
-
-.press-row:active {
-  background-color: var(--color-hover);
   transition-duration: 40ms;
 }
 
@@ -207,38 +399,7 @@ body::before {
   touch-action: manipulation;
 }
 
-/* ── The day's tone ───────────────────────────────────────────────────────
-   Behind the daily scale only: a soft light whose colour follows the answer —
-   dusk at 1, dawn at 5. Opacity and background-color only; the element never
-   changes size. */
-.tone-light {
-  background-color: transparent;
-  transition:
-    background-color 520ms var(--ease-enter),
-    opacity 520ms var(--ease-enter);
-}
-
-.tone-light[data-tone='1'] {
-  background-color: var(--brand-tone-1);
-}
-.tone-light[data-tone='2'] {
-  background-color: var(--brand-tone-2);
-}
-.tone-light[data-tone='3'] {
-  background-color: var(--brand-tone-3);
-}
-.tone-light[data-tone='4'] {
-  background-color: var(--brand-tone-4);
-}
-.tone-light[data-tone='5'] {
-  background-color: var(--brand-tone-5);
-}
-
-/* ── Chrome ───────────────────────────────────────────────────────────────
-   Phones: no persistent top bar. Every screen opens with its own title, the
-   account lives in "more", and a brand strip across the top of a consumer app
-   is web chrome — on a real iPhone its translucent band also cut a hard edge
-   across the page's light. The page starts under the status bar instead. */
+/* ── Chrome ─────────────────────────────────────────────────────────────── */
 @media (width < 48rem) {
   header[data-app-chrome] {
     display: none;
@@ -249,17 +410,12 @@ body::before {
   }
 }
 
-/*
- * The bottom bar: the native shape. Full width, a hairline on top, translucent
- * canvas behind a blur, icon and label only — the current place is ink and
- * heavier, the rest recede. The first edition floated a capsule with a tinted
- * tile behind the current tab, which on a real phone read as a web widget.
- */
+/* The bottom bar as a material over the room: no rule, no slab. */
 nav[data-mobile-tab-bar] {
-  border-top: 1px solid var(--color-rule);
-  background-color: color-mix(in oklab, var(--color-canvas) 82%, transparent);
-  -webkit-backdrop-filter: blur(20px) saturate(1.5);
-  backdrop-filter: blur(20px) saturate(1.5);
+  border-top: 0;
+  background-color: color-mix(in oklab, var(--color-canvas) 55%, transparent);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  backdrop-filter: blur(24px) saturate(1.5);
 }
 
 nav[data-mobile-tab-bar] a,
@@ -270,8 +426,8 @@ nav[data-mobile-tab-bar] button {
   color: var(--color-ink-subtle);
   -webkit-tap-highlight-color: transparent;
   transition:
-    color 160ms ease-out,
-    transform 220ms var(--ease-enter);
+    color 140ms ease-out,
+    transform 160ms var(--ease-enter);
 }
 
 nav[data-mobile-tab-bar] a[aria-current='page'],
@@ -282,7 +438,7 @@ nav[data-mobile-tab-bar] a[data-pending] {
 
 nav[data-mobile-tab-bar] a:active,
 nav[data-mobile-tab-bar] button:active {
-  transform: scale(0.92);
+  transform: scale(0.94);
   transition-duration: 40ms;
 }
 
@@ -297,22 +453,27 @@ nav[data-mobile-tab-bar] a[data-pending] svg {
   stroke-width: 2.1;
 }
 
-/* ── Reduced motion ───────────────────────────────────────────────────────
-   Everything above that moves stops moving; colour changes stay. */
+/* The daily question is a moment, not a tab: while it is open the bar steps
+   out of the way (the page has its own way back). */
+body:has([data-immersive]) nav[data-mobile-tab-bar] {
+  display: none;
+}
+
+/* ── Reduced motion ─────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
+  .check::before,
+  .check > svg,
+  .orb {
+    transform: none !important;
+  }
+
   .strike::after {
     transition: none;
   }
 
-  .press,
   .press:active,
   nav[data-mobile-tab-bar] a:active,
   nav[data-mobile-tab-bar] button:active {
     transform: none;
-    transition: none;
-  }
-
-  .tone-light {
-    transition-duration: 120ms;
   }
 }

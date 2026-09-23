@@ -28,7 +28,7 @@ async function rangeDates(page: Page): Promise<[Date, Date]> {
   return [iso(await range.getAttribute('data-range-from')), iso(await range.getAttribute('data-range-to'))];
 }
 
-test('the week runs Sunday to Saturday and reports the four figures once each', async ({ page }) => {
+test('the week runs Sunday to Saturday and tells three figures, without a percentage', async ({ page }) => {
   const problems = watchForProblems(page);
   await login(page, OWNER);
   await page.goto('/week');
@@ -39,9 +39,10 @@ test('the week runs Sunday to Saturday and reports the four figures once each', 
   expect(from.getUTCDay(), 'a week starts on Sunday').toBe(0);
   expect(to.getUTCDay(), 'a week ends on Saturday').toBe(6);
 
-  // The list: a percentage, and the fraction it came from beside it.
-  await expect(page.getByText(/^\d{1,3}%$/)).toBeVisible();
+  // The list, as people say it: how many of how many. Not a percentage — the
+  // week is told, not reported (third edition).
   await expect(page.getByText(/^\d+ מתוך \d+$/)).toBeVisible();
+  await expect(page.getByText(/%/)).toHaveCount(0);
 
   // The two averages, each out of five. Not a score out of 100.
   for (const title of [copy.week.executionTitle, copy.week.respectTitle]) {
@@ -76,7 +77,7 @@ test('the week can be stepped back, and the current week has nothing after it', 
   expect(backAgain.getTime()).toBe(thisFrom.getTime());
 });
 
-test('the month shows week-by-week averages and two trends, and no chart library', async ({ page }) => {
+test('the month is its weeks as lights, with no percentages or trend charts', async ({ page }) => {
   const problems = watchForProblems(page);
   await login(page, OWNER);
   await page.goto('/month');
@@ -88,16 +89,16 @@ test('the month shows week-by-week averages and two trends, and no chart library
   expect(to.getUTCMonth()).toBe(from.getUTCMonth());
 
   // One row per week of the month, each labelled, between four and six of them.
-  const weekRows = page.getByRole('listitem').filter({ hasText: new RegExp(`^${copy.month.weekLabel(1).slice(0, 4)}`) });
+  const weekRows = page.getByRole('list', { name: copy.month.weeklyAveragesTitle }).getByRole('listitem');
   const rows = await weekRows.count();
   expect(rows).toBeGreaterThanOrEqual(4);
   expect(rows).toBeLessThanOrEqual(6);
 
-  await expect(page.getByText(copy.month.completionTrendTitle)).toBeVisible();
-  await expect(page.getByText(copy.month.toneTrendTitle)).toBeVisible();
+  await expect(weekRows.first()).toContainText(copy.month.weekLabel(1));
 
-  // The trends are drawn as inline SVG, not fetched from a charting CDN.
-  await expect(page.locator('svg').first()).toBeVisible();
+  // Direction is carried by the picture and one sentence; no dashboard.
+  await expect(page.getByText(/%/)).toHaveCount(0);
+  await expect(page.getByText(copy.month.completionTrendTitle)).toHaveCount(0);
 
   problems.assertClean();
 });

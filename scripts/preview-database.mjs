@@ -21,7 +21,7 @@
  * quietly ignored.
  *
  * Then: `db.ts deploy` (guarded `prisma migrate deploy`, idempotent) and the
- * preview seed with --skip-if-seeded (a no-op once the review accounts exist),
+ * preview seed with --skip-if-seeded (once the review accounts exist it only keeps their display names current),
  * given only password HASHES. docs/adr/0013-preview-database-setup.md.
  */
 
