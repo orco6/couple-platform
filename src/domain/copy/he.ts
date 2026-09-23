@@ -32,10 +32,39 @@ export const he = {
 
   nav: {
     today: 'היום',
-    /** Four items share a 402px bar — the label has to be one short word. */
-    review: 'סגירה',
+    /** Reached from Today when it matters, and from "more" always. */
+    review: 'סגירת היום',
+    /** One destination for looking back; the week and the month live inside it. */
+    reflection: 'סיכום',
     week: 'שבוע',
     month: 'חודש',
+  },
+
+  today: {
+    /** By the hour in Israel. A greeting that knows the time is the whole trick. */
+    greeting: {
+      morning: 'בוקר טוב',
+      noon: 'צהריים טובים',
+      evening: 'ערב טוב',
+      night: 'לילה טוב',
+    },
+    greet: (greeting: string, firstName: string) => `${greeting}, ${firstName}`,
+    listTitle: 'מה יש לנו היום',
+    progress: (done: number, total: number) => `${done} מתוך ${total}`,
+    allDone: 'הכל נסגר להיום.',
+    emptyLine: 'הרשימה של היום ריקה.',
+    toRate: (n: number, name: string) =>
+      n === 1 ? `${name} סגר/ה משימה. מחכה לדירוג שלך.` : `${name} סגר/ה ${n} משימות. מחכות לדירוג שלך.`,
+    day: {
+      tooEarly: (time: string) => `סגירת היום נפתחת ב-${time}`,
+      open: 'זמן לסגור את היום',
+      openHint: 'שאלה אחת, והיום נסגר.',
+      partnerFirst: (name: string) => `${name} כבר סגר/ה. התור שלך.`,
+      waiting: (name: string) => `סגרת. מחכים ל${name}.`,
+      revealed: 'שניכם סגרתם את היום',
+      go: 'לסגור',
+      see: 'לראות',
+    },
   },
 
   tasks: {
@@ -46,12 +75,16 @@ export const he = {
     closedToday: 'נסגר היום',
     archived: 'בארכיון',
 
-    ownerLabel: 'באחריות',
+    ownerLabel: 'על מי',
     ownerMe: 'עליי',
     ownerPartner: (name: string) => `על ${name}`,
 
     titleLabel: 'מה צריך לעשות',
-    titlePlaceholder: 'לאסוף את הכביסה',
+    titlePlaceholder: 'מה צריך לעשות?',
+    tomorrow: 'מחר',
+    otherDay: 'יום אחר',
+    addTime: 'שעה',
+    addNote: 'פתק',
     dateLabel: 'לאיזה יום',
     timeLabel: 'עד שעה',
     timeHint: 'לא חייב.',
@@ -87,6 +120,7 @@ export const he = {
     ratedBy: (name: string, value: number) => `${name} נתן/ה ${value}`,
     myRating: (value: number) => `נתתי ${value}`,
     change: 'שינוי הדירוג',
+    changeShort: 'שינוי',
     saved: 'נשמר',
     /** The five steps. Kind, but honest enough to be worth giving. */
     scale: {
@@ -99,6 +133,9 @@ export const he = {
     nothingToRate: 'אין כרגע משימות לדירוג',
     nothingToRateWhy: 'כשהפרטנר יסגור משימה, היא תופיע כאן.',
     sectionTitle: 'מחכה לדירוג שלי',
+    /** What the owner sees once it has been rated: who, and the word. */
+    ratedLine: (name: string, word: string) => `${name}: ${word}`,
+    myRatedLine: (word: string) => `דירגת: ${word}`,
   },
 
   day: {
@@ -106,10 +143,13 @@ export const he = {
     question: 'איך היה בינינו היום?',
 
     respectLabel: 'כיבוד ותקשורת',
+    submittedTitle: 'הסגירה שלך נשמרה',
+    addNote: 'הוספת פתק',
+    revealLine: (a: string, b: string) => `${a} · ${b}`,
     respectQuestion: 'הרגשתי מכובד/ת, ודיברנו טוב',
     noteLabel: 'פתק',
     noteHint: 'לא חייב. רק אם יש משהו שכדאי לזכור.',
-    notePlaceholder: 'משהו מהיום',
+    notePlaceholder: 'משהו מהיום…',
 
     scale: {
       1: 'היה קשה',
@@ -155,25 +195,53 @@ export const he = {
     next: 'הטווח הבא',
   },
 
+  reflection: {
+    /** Sunday first: the Hebrew week. */
+    dayLetters: ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'],
+    dayNames: ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'],
+    rhythmTitle: 'איך היו הימים',
+    rhythmDay: (day: string, mine: string, theirs: string) => `יום ${day}: אני ${mine}, הפרטנר ${theirs}`,
+    notClosed: 'לא נסגר',
+    hidden: 'עוד לא נגלה',
+    /** One sentence the whole week hangs on, chosen from the real averages. */
+    story: {
+      warm: 'שבוע של הרבה כבוד הדדי.',
+      good: 'שבוע טוב ביחד.',
+      mixed: 'שבוע עם עליות וירידות.',
+      hard: 'שבוע לא פשוט. שווה לדבר עליו.',
+      busy: 'שבוע של עשייה.',
+      quiet: 'שבוע שקט.',
+    },
+    monthStory: {
+      up: 'החודש הלך והשתפר.',
+      down: 'החודש היה קשה יותר לקראת הסוף.',
+      steady: 'חודש יציב.',
+    },
+    listFact: (done: number, total: number) => `סגרתם ${done} מתוך ${total} משימות`,
+    executionFact: (avg: string) => `המשימות דורגו בממוצע ${avg}`,
+    respectFact: (avg: string) => `הכיבוד בממוצע ${avg}`,
+    nextWeek: 'לשבוע הבא',
+  },
+
   week: {
     pageTitle: 'השבוע שלנו',
     /** Saturday is the end of the Hebrew week, so that is when it is ready. */
     readyOn: 'הסיכום מתעדכן בכל שבת',
     range: (from: string, to: string) => `${from} — ${to}`,
 
-    completionTitle: 'הרשימה',
+    completionTitle: 'משימות שנסגרו',
     completionDetail: (done: number, total: number) => `${done} מתוך ${total}`,
 
-    executionTitle: 'ביצוע',
+    executionTitle: 'איך יצאו המשימות',
     executionHint: 'הממוצע של דירוגי המשימות.',
 
-    respectTitle: 'כיבוד',
+    respectTitle: 'כבוד ותקשורת',
     respectHint: 'הממוצע של סגירות היום.',
 
     highlightsTitle: 'מה עבד',
     streakDays: (n: number) => (n === 1 ? 'יום אחד רצוף' : `${n} ימים רצופים`),
     streakHint: 'ששניכם סגרתם.',
-    bestDay: (date: string) => `היום הטוב: ${date}`,
+    bestDay: (day: string) => `היום הכי טוב: יום ${day}`,
     allTasksDone: 'סגרתם את כל הרשימה',
     perfectTask: (title: string) => `«${title}» קיבלה 5`,
 
@@ -185,7 +253,7 @@ export const he = {
         n === 1 ? 'משימה אחת שנסגרה עוד מחכה לדירוג. זה לוקח שנייה.' : `${n} משימות שנסגרו מחכות לדירוג. זה לוקח שנייה.`,
       fewClosedDays: 'סגרתם ביחד מעט ימים. אפילו שלוש פעמים בשבוע משנה את התמונה.',
       respectDip: 'הכיבוד ירד לקראת סוף השבוע. שווה לשים לב לימים העמוסים.',
-      allGood: 'שבוע טוב. אין מה לשפר — תמשיכו ככה.',
+      allGood: 'שבוע טוב. אין מה לשפר, תמשיכו ככה.',
     },
 
     emptyTitle: 'השבוע עוד לא התחיל להתמלא',

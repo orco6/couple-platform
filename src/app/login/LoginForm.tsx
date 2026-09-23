@@ -11,7 +11,6 @@ import { normalizePasswordInput } from '@/core/auth/password-input';
 import { submittedValue } from '@/core/ui/form-values';
 
 export function LoginForm({ nextPath }: { nextPath: string }) {
-  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const { submit, pending, formError, fieldErrors, clearOnInput } = useSubmit();
 
@@ -25,7 +24,7 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
         const form = event.currentTarget;
         const result = await submit<{ mustChangePassword: boolean }>('/api/auth/login', {
           body: {
-            username: submittedValue(form, 'username', username),
+            username: submittedValue(form, 'username', ''),
             password: normalizePasswordInput(submittedValue(form, 'password', password)),
           },
         });
@@ -48,8 +47,12 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
             spellCheck={false}
             enterKeyHint="next"
             autoFocus
-            value={username}
-            onChange={(event) => setUsername(event.target.value)}
+            // Uncontrolled on purpose. This is the field people type into first,
+            // often before hydration on a slow phone; a controlled input is
+            // reset to its initial "" when React hydrates, and the sign-in then
+            // answers "fill in username" to someone who did. Submit reads the
+            // DOM (submittedValue), so there is no state to keep in sync.
+            defaultValue=""
           />
         )}
       </FormField>

@@ -492,19 +492,21 @@ dialog.overlay::backdrop {
     spin 0.8s linear infinite;
 }
 
+/* Opacity only, and never from zero: the new screen settles in over what was
+   there rather than flashing blank. No transform — a moving page reads as the
+   layout rebuilding itself, and a transform (even mid-animation) becomes the
+   containing block for anything fixed inside the page (ADR 0014). */
 @keyframes route-settle {
   from {
-    opacity: 0;
-    transform: translateY(4px);
+    opacity: 0.35;
   }
   to {
     opacity: 1;
-    transform: none;
   }
 }
 
 .animate-route-settle {
-  animation: route-settle 180ms var(--ease-enter) both;
+  animation: route-settle 160ms var(--ease-enter) both;
 }
 
 @keyframes toast-in {

@@ -24,4 +24,7 @@ export interface NavItem {
   group?: string;
   /** Match nested routes as active. Default true. */
   matchPrefix?: boolean;
+  /** Other paths that belong to this destination, e.g. a second view reached
+   *  from inside it. Matched with the same prefix rule. */
+  alsoActiveOn?: string[];
 }

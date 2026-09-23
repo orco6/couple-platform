@@ -12,9 +12,6 @@ export default async function SignedInLayout({ children }: { children: React.Rea
       navItems={navigationFor(actor)}
       account={{ name: actor.name, roleLabel: access.roleLabel(actor.role), href: '/account' }}
     >
-      {/* The lit background, behind everything and inert. It is why the cards
-          in here need so little decoration of their own (brand/theme.css). */}
-      <div className="aurora" aria-hidden="true" />
       {children}
     </AppShell>
   );

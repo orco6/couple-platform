@@ -1,10 +1,16 @@
 /**
- * NAVIGATION — שנינו.
+ * NAVIGATION — שנינו (second edition).
  *
- * Three destinations, because the product is three things: the shared list,
- * closing the day, and looking back. All three are on the phone bar (the
- * foundation allows four), and everything administrative goes into "more" —
- * a couple should not see a management menu while making a shopping list.
+ * Two destinations and "more", because the product is two things: today, and
+ * looking back. The first edition had four tabs (today, closing, week, month),
+ * which on a real phone read as a feature menu for an app whose whole point is
+ * that there is very little to it.
+ *
+ *   • Closing the day is not a place you go every time you open the app; it is
+ *     a moment. It appears on Today when it is time (DayLine), and stays one
+ *     tap away in "more" for any other hour.
+ *   • The week and the month are one destination with two views (a segmented
+ *     control inside it), so the tab stays lit on either.
  *
  * Filtering by permission here is UX only: every page has its own guard and
  * every service re-checks.
@@ -18,13 +24,13 @@ import { copy } from './copy';
 
 const items: Array<NavItem & { permission?: Permission }> = [
   { href: '/', label: copy.nav.today, icon: 'home', mobile: 'bar', matchPrefix: false },
+  { href: '/week', label: copy.nav.reflection, icon: 'history', mobile: 'bar', alsoActiveOn: ['/month'] },
+
   // 'flag' rather than a tick: core's icon set has no check or moon, and the
   // attention flag is unused elsewhere in this product. A 'moon' icon would be
   // the natural fit and is a candidate generic addition to core — noted, not
   // taken, because one business wanting a nicer glyph is not a platform gap.
-  { href: '/review', label: copy.nav.review, icon: 'flag', mobile: 'bar' },
-  { href: '/week', label: copy.nav.week, icon: 'chart', mobile: 'bar' },
-  { href: '/month', label: copy.nav.month, icon: 'layers', mobile: 'bar' },
+  { href: '/review', label: copy.nav.review, icon: 'flag', mobile: 'more', group: 'אישי' },
 
   { href: '/attention', label: 'ימים פתוחים', icon: 'list', mobile: 'more', group: 'אישי' },
   { href: '/settings', label: 'הגדרות', icon: 'settings', mobile: 'more', group: 'אישי' },

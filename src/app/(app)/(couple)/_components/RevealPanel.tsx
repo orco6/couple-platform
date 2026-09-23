@@ -1,25 +1,31 @@
 'use client';
 
-import { motion, useReducedMotion } from 'motion/react';
-import { Star } from 'lucide-react';
+import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion } from 'motion/react';
+import { useEffect, useId, useState } from 'react';
 
+import { cx } from '@/core/ui/cx';
+import type { CalendarDate } from '@/core/dates/calendar-date';
 import { copy } from '@/domain/copy';
 import type { DayEntryValues } from '@/domain/day-entries/day-entries';
 import type { PartnerRef } from '@/domain/partners';
 
-import { PartnerMark } from './PartnerMark';
+import { reducedFade, spring } from './motion';
+import { ReviewForm } from './ReviewForm';
+import type { RatingValue } from './Scale';
 
 /**
  * THE REVEAL.
  *
  * The partner's answer existed before this screen was opened; it was withheld
  * until this partner committed their own (R-DAY-05, enforced server-side — by
- * the time this component renders the values are simply present or absent).
+ * the time this renders, the values are simply present).
  *
- * So it is staged as an arrival rather than a render: the two sides come in
- * from opposite edges and settle, then the line comparing them lands. Under
- * reduced motion it is a short fade in the same order — the sequence still
- * reads, nothing travels.
+ * It is staged as a meeting, in the product's own shape: two circles, one per
+ * person, travel toward each other and settle overlapping — the logo — and the
+ * part they share fills with the shared ink as they meet. The two answers
+ * appear under them, then the sentence comparing them. No confetti,
+ * no score: this is a reflection, not a result. Under reduced motion it is a
+ * short fade in the same order.
  */
 function gapLine(mine: DayEntryValues, theirs: DayEntryValues): string {
   const gap = Math.abs(mine.respectRating - theirs.respectRating);
@@ -27,6 +33,9 @@ function gapLine(mine: DayEntryValues, theirs: DayEntryValues): string {
   if (gap === 1) return copy.day.gapClose;
   return copy.day.gapFar;
 }
+
+const CIRCLE = 104;
+const OVERLAP = 26;
 
 export function RevealPanel({
   me,
@@ -40,69 +49,193 @@ export function RevealPanel({
   theirs: DayEntryValues;
 }) {
   const reduced = useReducedMotion();
-
-  const enter = (from: number) =>
-    reduced
-      ? { initial: { opacity: 0 }, animate: { opacity: 1 }, transition: { duration: 0.12 } }
-      : {
-          initial: { opacity: 0, x: from, scale: 0.97 },
-          animate: { opacity: 1, x: 0, scale: 1 },
-          transition: { type: 'spring' as const, stiffness: 160, damping: 22, mass: 1 },
-        };
+  const word = (value: number) => copy.day.scale[value as RatingValue];
 
   return (
     <section>
-      <p className="mb-4 text-label font-semibold text-ink-subtle">{copy.day.revealedTitle}</p>
+      <p className="mb-6 text-center text-body font-medium text-ink-muted">{copy.day.revealedTitle}</p>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <motion.div {...enter(18)}>
-          <Side partner={me} caption={copy.common.me} values={mine} />
-        </motion.div>
-        <motion.div {...enter(-18)}>
-          <Side partner={partner} caption={partner.name} values={theirs} />
-        </motion.div>
+      <Meeting me={me} partner={partner} />
+
+      {/* The words, under the circles and in the same left-to-right order. */}
+      <div dir="ltr" className="mt-3 flex justify-center gap-4">
+        {[
+          { person: me, caption: copy.common.me, value: mine.respectRating },
+          { person: partner, caption: partner.name, value: theirs.respectRating },
+        ].map(({ person, caption, value }) => (
+          <motion.span
+            key={person.id}
+            dir="rtl"
+            className="block text-center"
+            style={{ width: CIRCLE }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3, delay: reduced ? 0.05 : 0.35 }}
+          >
+            <span className="block truncate text-meta text-ink-subtle">{caption}</span>
+            <span className="block text-section font-semibold text-ink">{word(value)}</span>
+          </motion.span>
+        ))}
       </div>
 
       <motion.p
-        className="mt-6 text-section leading-snug font-semibold text-balance text-ink"
-        initial={reduced ? { opacity: 0 } : { opacity: 0, y: 8 }}
+        className="mt-7 text-center text-title leading-snug font-semibold text-balance text-ink"
+        initial={reduced ? { opacity: 0 } : { opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1], delay: reduced ? 0.1 : 0.45 }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1], delay: reduced ? 0.1 : 0.55 }}
       >
         {gapLine(mine, theirs)}
       </motion.p>
+
+      {(mine.note || theirs.note) && (
+        <motion.div
+          className="panel panel-rows mt-8"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, delay: reduced ? 0.15 : 0.8 }}
+        >
+          {mine.note && <Note label={copy.day.myNote} text={mine.note} />}
+          {theirs.note && <Note label={copy.day.noteFrom(partner.name)} text={theirs.note} />}
+        </motion.div>
+      )}
     </section>
   );
 }
 
-function Side({ partner, caption, values }: { partner: PartnerRef; caption: string; values: DayEntryValues }) {
+/**
+ * Two circles that travel toward each other and overlap, drawn in one SVG so
+ * the shared part — the second circle clipped to the first, filled with the
+ * shared ink — grows continuously as they meet. (A CSS blend mode only applies
+ * once the transforms have settled, which made the overlap pop in at the end.)
+ */
+function Meeting({ me, partner }: { me: PartnerRef; partner: PartnerRef }) {
+  const reduced = useReducedMotion();
+  const r = CIRCLE / 2;
+  const width = CIRCLE * 2 + 16 - OVERLAP;
+  const leftAt = r + 8;
+  const rightAt = width - r - 8;
+  const travel = reduced ? 0 : 34;
+  const ax = useMotionValue(leftAt - travel);
+  const bx = useMotionValue(rightAt + travel);
+  const clipId = useId();
+
+  useEffect(() => {
+    const options = reduced ? { duration: 0 } : { ...spring.soft, delay: 0.08 };
+    const a = animate(ax, leftAt, options);
+    const b = animate(bx, rightAt, options);
+    return () => {
+      a.stop();
+      b.stop();
+    };
+  }, [ax, bx, leftAt, rightAt, reduced]);
+
+  const fill = (side: 'a' | 'b') => (side === 'a' ? 'fill-partner-a' : 'fill-partner-b');
+
   return (
-    <div className="card p-4">
-      <div className="mb-3 flex items-center gap-2">
-        <PartnerMark partner={partner} size={28} />
-        <span className="text-body font-semibold text-ink">{caption}</span>
+    <motion.svg
+      aria-hidden="true"
+      viewBox={`0 0 ${width} ${CIRCLE}`}
+      width={width}
+      height={CIRCLE}
+      className="mx-auto block"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={reduced ? reducedFade : { duration: 0.25 }}
+    >
+      <defs>
+        <clipPath id={clipId}>
+          <motion.circle cx={ax} cy={r} r={r} />
+        </clipPath>
+      </defs>
+      <motion.circle cx={ax} cy={r} r={r} className={fill(me.side)} />
+      <motion.circle cx={bx} cy={r} r={r} className={fill(partner.side)} />
+      <motion.circle cx={bx} cy={r} r={r} clipPath={`url(#${clipId})`} className="fill-accent" />
+    </motion.svg>
+  );
+}
+
+function Note({ label, text }: { label: string; text: string }) {
+  return (
+    <figure className="px-4 py-3.5">
+      <figcaption className="text-meta font-medium text-ink-subtle">{label}</figcaption>
+      <blockquote className="mt-1 text-row whitespace-pre-line text-ink">{text}</blockquote>
+    </figure>
+  );
+}
+
+/**
+ * WAITING — this person has closed the day and the other has not.
+ *
+ * Two circles again, this time apart: mine solid, theirs an outline. Nothing
+ * about the other's answer exists on this page (R-DAY-05), and nothing here
+ * pretends to know it. Changing my own answer stays possible until the other
+ * closes (R-DAY-03), one tap away rather than a second form on the screen.
+ */
+export function WaitingPanel({
+  me,
+  partner,
+  partnerName,
+  date,
+  mine,
+  canAmend,
+}: {
+  me: PartnerRef;
+  partner: PartnerRef | null;
+  partnerName: string;
+  date: CalendarDate;
+  mine: DayEntryValues;
+  canAmend: boolean;
+}) {
+  const reduced = useReducedMotion();
+  const [amending, setAmending] = useState(false);
+  const size = 72;
+
+  return (
+    <section>
+      <div className="flex items-center justify-center gap-4" dir="ltr" aria-hidden="true">
+        <span
+          className={cx('grid place-items-center rounded-full', me.side === 'a' ? 'bg-partner-a' : 'bg-partner-b')}
+          style={{ width: size, height: size }}
+        >
+          <span className="text-on-partner px-2 text-body font-semibold">{copy.day.scale[mine.respectRating as RatingValue]}</span>
+        </span>
+        <span
+          className="rounded-full border-2 border-dashed border-rule-strong"
+          style={{ width: size, height: size }}
+        />
       </div>
 
-      <div
-        className="flex w-fit items-center gap-1.5"
-        dir="ltr"
-        aria-label={`${values.respectRating} ${copy.common.outOfFive}`}
-      >
-        {[1, 2, 3, 4, 5].map((step) => (
-          <Star
-            key={step}
-            aria-hidden="true"
-            size={18}
-            strokeWidth={step <= values.respectRating ? 0 : 1.75}
-            className={step <= values.respectRating ? 'fill-current text-accent' : 'text-rule-strong'}
-          />
-        ))}
+      <div className="mt-6 text-center">
+        <p className="text-section font-semibold text-balance text-ink">{partner ? copy.day.waitingTitle(partnerName) : copy.errors.noPartnerYet}</p>
+        <p className="mx-auto mt-1 max-w-xs text-body text-balance text-ink-muted">{copy.day.waitingWhy}</p>
       </div>
-      <p className="mt-2 text-body text-ink-muted">{copy.day.scale[values.respectRating as 1 | 2 | 3 | 4 | 5]}</p>
 
-      {values.note && (
-        <p className="mt-3 border-t border-rule-faint pt-3 text-body whitespace-pre-line text-ink-muted">{values.note}</p>
+      {canAmend && (
+        <div className="mt-8">
+          <AnimatePresence initial={false} mode="wait">
+            {amending ? (
+              <motion.div
+                key="form"
+                initial={reduced ? { opacity: 0 } : { opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={reduced ? reducedFade : spring.settle}
+              >
+                <ReviewForm date={date} mode="amend" existing={mine} />
+              </motion.div>
+            ) : (
+              <motion.div key="toggle" exit={{ opacity: 0 }} transition={{ duration: 0.12 }} className="text-center">
+                <button
+                  type="button"
+                  onClick={() => setAmending(true)}
+                  className="tap-quiet press inline-flex min-h-11 items-center rounded-chip px-4 text-body font-medium text-accent-text hover:bg-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                >
+                  {copy.day.amendAction}
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       )}
-    </div>
+    </section>
   );
 }

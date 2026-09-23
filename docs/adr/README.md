@@ -20,5 +20,6 @@ Format: Context → Decision → Consequences. Status: Accepted / Superseded by 
 | [0011](0011-stack-versions.md) | Stack and version choices; npm override removal conditions |
 | [0012](0012-new-business-workflow.md) | New-business script, blank-domain template, injected seams, role-agnostic core |
 | [0013](0013-preview-database-setup.md) | Preview database migrated and seeded from one flagged Vercel build |
+| [0014](0014-navigation-keeps-the-screen.md) | Navigation keeps the screen; the tab answers at once; functions next to the database |
 
 See also [stress-tests.md](../stress-tests.md): the dental clinic build and the garage analysis.

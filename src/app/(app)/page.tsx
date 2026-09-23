@@ -1,52 +1,33 @@
 import { requireActorPage } from '@/core/auth/page-guards';
-import { formatCalendarDate, todayIn } from '@/core/dates/calendar-date';
+import { todayIn } from '@/core/dates/calendar-date';
 import { db } from '@/core/db/client';
+import { businessLocale } from '@/brand/brand';
 import { copy } from '@/domain/copy';
 import { getDay } from '@/domain/day-entries/day-entries';
 import { partnersOf } from '@/domain/partners';
 import { listTasksForDay } from '@/domain/tasks/tasks';
 
-import { DayHeroCard } from './(couple)/_components/DayHeroCard';
+import { DayLine } from './(couple)/_components/DayLine';
 import { Screen } from './(couple)/_components/Screen';
 import { TodayTasks } from './(couple)/_components/TodayTasks';
 
 export const metadata = { title: copy.nav.today };
 
 /**
- * TODAY — SCREEN_BUILDING_PLAYBOOK, the sixteen questions.
+ * TODAY — the heart of the product, and the simplest screen in it.
  *
- *  1 Primary task: "לסמן מה נסגר, ולדרג מה שהפרטנר סגר".
- *  2 What matters most: whatever is this person's turn. Tasks waiting for MY
- *    rating come first, because someone is waiting on the other end and it
- *    costs one tap; then the open list.
- *  3 Secondary: whose task it is, its time hint, and where the day stands.
- *  4 Actions: one primary — adding a task. Completing is the card's mark;
- *    rating is five stars inline. Archiving lives inside the edit sheet.
- *  5 Shape: cards, one per task. Not a table (nothing to compare in columns)
- *    and not ruled rows (each task can carry its own action area, which a row
- *    cannot hold without looking broken).
- *  6 Phone: this IS the phone screen. Two thumb-sized targets per card, the
- *    rating stars at 40px each, and the day card at the top where the thumb
- *    does not reach — it is read, not tapped.
- *  7 Loading: the (app) skeleton.
- *  8 Empty: never-had-data ("אין משימות ליום הזה" + how to add). All-closed is
- *    a warmer state, not an empty one.
- *  9 Errors: an optimistic card snaps back and says so (TodayTasks).
- * 10 Unauthorized: the page guard. There is no per-row scope (R-TASK-01), and
- *    the rate action is absent unless the server would accept it.
- * 11 RTL: logical properties throughout; the star row is LTR, like every
- *    magnitude axis in this product.
- * 12 LTR content: the time hint and the rating number.
- * 13 Audit: every write is audited in the service.
- * 14 Confirmation: only archiving, which also collects its reason.
- * 15 Avoided tells: no stat cards, no progress ring, no "ברוכים הבאים", no
- *    chart. One gradient surface, and it is the product's subject.
- * 16 Specific to this product: the day as a single object at the top, and a
- *    section that exists only because somebody is waiting for you.
+ * It answers one question — "what is ours today?" — in reading order:
  *
- * The three sections are derived in TodayTasks, on the client, from the same
- * one list this page loads: a card moves between them on every tap, and a card
- * that moves has to take its optimistic state with it.
+ *   1. when and who: the date and a greeting that knows the hour;
+ *   2. the day, as one line (DayLine) that only becomes an action when it is
+ *      time to close it;
+ *   3. the list, with adding a task as its first row.
+ *
+ * What left, and why (second edition, after a real-iPhone review): the
+ * gradient day card (a hero on a screen that needs none), the three list
+ * sections (a task teleported between them on every tap), the separate "add"
+ * button under the list (the obvious action sat below the fold), and the
+ * card-per-task wall. Nothing here is a figure; figures live in the summary.
  */
 export default async function TodayPage() {
   const actor = await requireActorPage();
@@ -58,11 +39,33 @@ export default async function TodayPage() {
     getDay(db, actor, today),
   ]);
 
+  const now = new Date();
+  const hour = Number(
+    new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hourCycle: 'h23', timeZone: businessLocale.timeZone }).format(now),
+  );
+  const greeting =
+    hour < 5 ? copy.today.greeting.night : hour < 12 ? copy.today.greeting.morning : hour < 17 ? copy.today.greeting.noon : hour < 22 ? copy.today.greeting.evening : copy.today.greeting.night;
+  const dateLabel = new Intl.DateTimeFormat(businessLocale.language, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    timeZone: businessLocale.timeZone,
+  }).format(now);
+
   return (
     <Screen>
-      <TodayTasks tasks={tasks} me={me} partner={other} today={today}>
-        <DayHeroCard day={day} dateLabel={formatCalendarDate(today)} />
-      </TodayTasks>
+      <header className="mb-4 px-1">
+        <p className="text-body text-ink-subtle">{dateLabel}</p>
+        <h1 className="mt-0.5 text-title leading-tight font-semibold text-ink">
+          {copy.today.greet(greeting, me.name.split(' ')[0] ?? me.name)}
+        </h1>
+      </header>
+
+      <div className="mb-5">
+        <DayLine day={day} />
+      </div>
+
+      <TodayTasks tasks={tasks} me={me} partner={other} today={today} />
     </Screen>
   );
 }

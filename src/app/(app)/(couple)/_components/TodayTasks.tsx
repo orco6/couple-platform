@@ -1,53 +1,52 @@
 'use client';
 
-import { AnimatePresence, LayoutGroup } from 'motion/react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Plus } from 'lucide-react';
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { ApiError, apiRequest } from '@/core/http/client';
 import type { CalendarDate } from '@/core/dates/calendar-date';
-import { Button } from '@/core/ui/components/Button';
-import { PageHeader, Section } from '@/core/ui/components/Layout';
-import { EmptyState } from '@/core/ui/components/States';
 import { useToast } from '@/core/ui/components/Toast';
 import { copy } from '@/domain/copy';
 import type { PartnerRef } from '@/domain/partners';
 import type { TaskView } from '@/domain/tasks/tasks';
 
-import { ArchiveDialog, TaskFormSheet } from './TaskFormSheet';
-import { TaskCard } from './TaskCard';
-import type { RatingValue } from './Stars';
+import { spring } from './motion';
+import type { RatingValue } from './Scale';
+import { ArchiveDialog, TaskFormSheet, primeKeyboard } from './TaskFormSheet';
+import { TaskRow } from './TaskRow';
 
 /**
- * TODAY'S LIST — every card on the screen, and the writes behind them.
+ * TODAY'S LIST — every task on the screen, and the writes behind them.
  *
- * ONE component owns all of today's tasks, and the three sections are derived
- * here rather than on the server. That is the whole point: a card MOVES between
- * the sections every time it is tapped (open → waiting for my rating → closed
- * today), and optimistic state that lived per-section outlived the card it
- * belonged to. Ticking a task off in one list and reopening it in another
- * brought it back wearing the patch that said "completed", and for a frame it
- * existed in two lists at once. Deriving the sections from patched views makes
- * both impossible: one task, one view, one place on the screen.
+ * ONE list, not three sections. The first edition moved a task between
+ * "waiting for my rating", "open" and "closed today" on every tap: it
+ * unmounted from one list and mounted in another, which on a phone is a row
+ * that vanishes and reappears somewhere else. Now a row only ever moves
+ * *within* this list, and only after a beat: a completed task stays where the
+ * finger left it for 650ms (long enough to see the check land and the strike
+ * draw), then glides down to the finished ones on a spring. Reopening glides it
+ * back up the same way.
  *
- * Completion and rating are both optimistic. The mark has to fill under the
- * finger and the star has to land under the thumb — on a phone at night the
- * round trip is the difference between "done" and "did that register". If the
- * write fails the card snaps back and says so, which is the only honest way to
- * be optimistic.
- *
- * The writes use `apiRequest` directly rather than `useSubmit`. `useSubmit`
- * holds ONE in-flight guard for the whole hook and returns null both for
- * "refused" and for "ignored, something else is in flight" — right for a form,
- * wrong for a list. Here every card gets its own queue instead: taps on two
- * cards run in parallel, taps on the SAME card run in order, and each request
- * is addressed with the version the previous answer came back with. Ticking a
- * card and immediately un-ticking it is a thing people do at 23:40; neither tap
- * may be dropped, and neither may be reported as a failure.
+ * Completion and rating are optimistic, per card, through one promise chain
+ * per task — taps on two cards run in parallel, taps on the same card run in
+ * order and each is addressed with the version the previous answer returned.
+ * If the server refuses, the card snaps back and says so.
  */
 
-/** The server's own sentence when it has one; a generic line otherwise. */
+/** How long a toggled row stays under the finger before it moves. */
+const HOLD_MS = 650;
+
+/**
+ * Where a task belongs: waiting for MY rating first (someone is waiting on the
+ * other end, and it costs one tap), then open, then finished.
+ */
+function rankOf(task: TaskView): number {
+  if (task.state === 'COMPLETED' && task.permissions.rate && task.rating === null) return 0;
+  return task.state === 'COMPLETED' ? 2 : 1;
+}
+
 function messageFor(error: unknown): string {
   return error instanceof ApiError && error.userMessage ? error.userMessage : copy.errors.taskChangedMeanwhile;
 }
@@ -57,35 +56,42 @@ export function TodayTasks({
   me,
   partner,
   today,
-  children,
 }: {
   tasks: TaskView[];
   me: PartnerRef;
   partner: PartnerRef | null;
   today: CalendarDate;
-  /** The day card, rendered on the server and slotted under the header. */
-  children?: ReactNode;
 }) {
   const router = useRouter();
   const toast = useToast();
+  const reduced = useReducedMotion();
 
-  /** Cards whose state is ahead of the server, and the one just tapped. */
   const [optimistic, setOptimistic] = useState<Record<string, Partial<TaskView>>>({});
-  const [justTapped, setJustTapped] = useState<string | null>(null);
-  /** The newest answer the server has given for a card — above all its `version`. */
+  /** The row just completed here, for the one-time ring. */
+  const [justCompleted, setJustCompleted] = useState<string | null>(null);
+  /** Rows whose rating appeared because of a tap here, so it opens instead of appearing. */
+  const [revealed, setRevealed] = useState<Record<string, true>>({});
+  /** Rows held in their old place (their old rank) for a beat after a tap. */
+  const [held, setHeld] = useState<Record<string, number>>({});
+  const holdTimers = useRef<Record<string, number>>({});
+  /** First-seen position of every task on this screen. */
+  const [seen, setSeen] = useState<Record<string, number>>(() =>
+    Object.fromEntries(tasks.map((task, index) => [task.id, index])),
+  );
+
   const confirmed = useRef<Record<string, TaskView>>({});
-  /** One promise chain per card, so a card's requests never overtake each other. */
   const chain = useRef<Record<string, Promise<void>>>({});
 
   const [editing, setEditing] = useState<TaskView | null>(null);
   const [adding, setAdding] = useState(false);
   const [archiving, setArchiving] = useState<TaskView | null>(null);
 
-  /**
-   * Render-phase adjustment, not an effect: forget a patch once the server has
-   * caught up with it, or once the task has left the day altogether (archived,
-   * or moved to another date).
-   */
+  useEffect(() => {
+    const timers = holdTimers.current;
+    return () => Object.values(timers).forEach((timer) => window.clearTimeout(timer));
+  }, []);
+
+  // Forget a patch once the server has caught up, or the task left the day.
   const settled = Object.keys(optimistic).filter((id) => {
     const task = tasks.find((candidate) => candidate.id === id);
     const patched = optimistic[id]?.version;
@@ -109,25 +115,15 @@ export function TodayTasks({
       const { [id]: _dropped, ...rest } = previous;
       return rest;
     });
-    setJustTapped(null);
+    setJustCompleted(null);
     toast.show(message, 'error');
   }
 
-  /**
-   * The version to address a write with: whatever is newest between the props
-   * we were rendered with and the last answer the server gave us.
-   */
   function base(task: TaskView): TaskView {
     const remembered = confirmed.current[task.id];
     return remembered && remembered.version > task.version ? remembered : task;
   }
 
-  /**
-   * Runs `work` once everything already queued for this card has finished, and
-   * rolls the card back if it refuses. Queueing rather than guarding is what
-   * lets a fast second tap land: it waits for the first answer — and for the
-   * version in it — instead of being dropped on the floor.
-   */
   function enqueue(id: string, work: () => Promise<void>) {
     const previous = chain.current[id] ?? Promise.resolve();
     const entry: Promise<void> = previous
@@ -139,29 +135,50 @@ export function TodayTasks({
     chain.current[id] = entry;
   }
 
+  /**
+   * Where a row sits right now. A task completed HERE that is now waiting for
+   * my rating stays where it was (with its scale open under my thumb) instead
+   * of jumping to the top; once rated, it settles with the finished ones.
+   */
+  function currentRank(task: TaskView): number {
+    const heldRank = held[task.id];
+    if (heldRank !== undefined) return heldRank;
+    if (revealed[task.id] && task.state === 'COMPLETED' && task.rating === null) return 1;
+    return rankOf(task);
+  }
+
+  /** Keep the row where it is for a beat, then let it find its place. */
+  function hold(id: string, rank: number) {
+    window.clearTimeout(holdTimers.current[id]);
+    setHeld((previous) => (id in previous ? previous : { ...previous, [id]: rank }));
+    holdTimers.current[id] = window.setTimeout(() => {
+      setHeld((previous) => {
+        const { [id]: _released, ...rest } = previous;
+        return rest;
+      });
+    }, HOLD_MS);
+  }
+
   function toggle(task: TaskView) {
     const current = view(task);
     const next = current.state === 'COMPLETED' ? 'OPEN' : 'COMPLETED';
 
+    hold(task.id, currentRank(current));
     setOptimistic((previous) => ({
       ...previous,
       [task.id]: {
         state: next,
-        // Completing it puts the owner into "waiting for their rating", which
-        // is the state change people actually look for.
         awaitingPartnerRating: next === 'COMPLETED' && current.rating === null && current.ownerId === me.id,
-        permissions: {
-          ...current.permissions,
-          rate: next === 'COMPLETED' && current.ownerId !== me.id && current.rating === null,
-        },
+        permissions: { ...current.permissions, rate: next === 'COMPLETED' && current.ownerId !== me.id },
       },
     }));
-    setJustTapped(task.id);
+    setJustCompleted(next === 'COMPLETED' ? task.id : null);
+    if (next === 'COMPLETED' && current.ownerId !== me.id) {
+      setRevealed((previous) => ({ ...previous, [task.id]: true }));
+    }
 
     enqueue(task.id, async () => {
       const from = base(task);
-      // An earlier tap in this queue may already have put the card where this
-      // one wanted it — two taps that cancel out are two taps, not an error.
       if (from.state === next) return;
 
       const result = await apiRequest<TaskView>(`/api/tasks/${task.id}/transition`, {
@@ -176,6 +193,7 @@ export function TodayTasks({
   }
 
   function rate(task: TaskView, value: RatingValue) {
+    hold(task.id, currentRank(view(task)));
     setOptimistic((previous) => ({
       ...previous,
       [task.id]: {
@@ -187,23 +205,95 @@ export function TodayTasks({
 
     enqueue(task.id, async () => {
       await apiRequest('/api/task-ratings', { method: 'POST', body: { taskId: task.id, value } });
-      // Nothing to announce: the stars are the confirmation. A toast here
-      // would be the app congratulating itself.
       router.refresh();
     });
   }
 
   const views = tasks.map(view);
-  // Somebody is waiting on the other end of these, and each costs one tap.
-  const toRate = views.filter((task) => task.permissions.rate && task.rating === null);
-  const open = views.filter((task) => task.state === 'OPEN');
-  const closed = views.filter(
-    (task) => task.state === 'COMPLETED' && !toRate.some((waiting) => waiting.id === task.id),
+  // Waiting for my rating, then open, then finished — otherwise in the order this screen first
+  // saw them. The server re-sorts the list on every refresh (finished last),
+  // so ordering by the server's index would move a row the moment its write
+  // came back — before the hold below had let the check land. Remembered
+  // order keeps a row where the finger left it; `held` keeps its group for
+  // a beat; then it glides.
+  const unseen = tasks.filter((task) => !(task.id in seen));
+  if (unseen.length > 0) {
+    // Render-phase adjustment: a task added since, placed after everything seen.
+    setSeen((previous) => {
+      const next = { ...previous };
+      for (const task of unseen) next[task.id] = Object.keys(next).length;
+      return next;
+    });
+  }
+  const rank = currentRank;
+  const ordered = [...views].sort(
+    (a, b) => rank(a) - rank(b) || (seen[a.id] ?? 0) - (seen[b.id] ?? 0),
   );
-  const allClosed = open.length === 0 && views.length > 0;
 
-  const sheets = (
-    <>
+  const doneCount = views.filter((task) => task.state === 'COMPLETED').length;
+
+  function openComposer() {
+    primeKeyboard();
+    setAdding(true);
+  }
+
+  return (
+    <section aria-labelledby="today-list-title">
+      <div className="mb-2.5 flex items-baseline justify-between gap-3 px-1">
+        <h2 id="today-list-title" className="text-section font-semibold text-ink">
+          {copy.today.listTitle}
+        </h2>
+        {views.length > 0 && (
+          <span className="text-meta text-ink-subtle tabular-nums">
+            {doneCount === views.length ? copy.today.allDone : copy.today.progress(doneCount, views.length)}
+          </span>
+        )}
+      </div>
+
+      <ul className="panel panel-rows overflow-hidden [overflow-anchor:none]">
+        <li>
+          <button
+            type="button"
+            onClick={openComposer}
+            className="tap-quiet press-row flex min-h-14 w-full items-center gap-1 ps-1.5 pe-4 text-start focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
+          >
+            <span className="grid size-12 shrink-0 place-items-center">
+              <span className="grid size-[1.625rem] place-items-center rounded-full bg-accent text-on-accent">
+                <Plus aria-hidden="true" size={16} strokeWidth={2.6} />
+              </span>
+            </span>
+            <span className="text-[1rem] font-semibold text-ink">{copy.tasks.addAction}</span>
+          </button>
+        </li>
+
+        <AnimatePresence initial={false}>
+          {ordered.map((task) => (
+            <TaskRow
+              key={task.id}
+              task={task}
+              me={me}
+              partner={partner}
+              celebrate={justCompleted === task.id}
+              onToggle={toggle}
+              onRate={rate}
+              onOpen={setEditing}
+            />
+          ))}
+        </AnimatePresence>
+
+        {views.length === 0 && (
+          <motion.li
+            initial={reduced ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={spring.soft}
+            className="px-5 py-6"
+          >
+            <p className="text-row text-ink-muted">{copy.today.emptyLine}</p>
+            <p className="mt-0.5 text-body text-ink-subtle">{copy.tasks.emptyWhy}</p>
+          </motion.li>
+        )}
+      </ul>
+
       <TaskFormSheet
         open={adding || editing !== null}
         onClose={() => {
@@ -218,8 +308,6 @@ export function TodayTasks({
           editing
             ? (task) => {
                 setEditing(null);
-                // The next overlay opens after this one has finished closing;
-                // two overlays animating together reads as a glitch.
                 setTimeout(() => setArchiving(task), 0);
               }
             : undefined
@@ -234,71 +322,6 @@ export function TodayTasks({
           router.refresh();
         }}
       />
-    </>
-  );
-
-  function list(section: TaskView[]) {
-    return (
-      <ul className="flex flex-col gap-2.5">
-        <AnimatePresence initial={false}>
-          {section.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              me={me}
-              partner={partner}
-              celebrate={justTapped === task.id}
-              onToggle={toggle}
-              onRate={rate}
-              onOpen={setEditing}
-            />
-          ))}
-        </AnimatePresence>
-      </ul>
-    );
-  }
-
-  return (
-    <>
-      <PageHeader
-        title={copy.tasks.pageTitle}
-        description={allClosed ? copy.tasks.allClosedWhy : copy.tasks.openCount(open.length)}
-      />
-
-      {children && <div className="mb-7">{children}</div>}
-
-      {views.length === 0 ? (
-        <>
-          <EmptyState
-            title={copy.tasks.emptyTitle}
-            description={copy.tasks.emptyWhy}
-            action={
-              <Button variant="primary" onClick={() => setAdding(true)}>
-                {copy.tasks.addAction}
-              </Button>
-            }
-          />
-          {sheets}
-        </>
-      ) : (
-        <LayoutGroup>
-          {toRate.length > 0 && <Section title={copy.taskRating.sectionTitle}>{list(toRate)}</Section>}
-
-          <Section title={allClosed ? copy.tasks.allClosed : undefined}>
-            {open.length > 0 ? list(open) : null}
-            <div className={open.length > 0 ? 'mt-4' : undefined}>
-              <Button variant="secondary" onClick={() => setAdding(true)} className="w-full">
-                <Plus aria-hidden="true" size={16} />
-                {copy.tasks.addAction}
-              </Button>
-            </div>
-          </Section>
-
-          {closed.length > 0 && <Section title={copy.tasks.closedToday}>{list(closed)}</Section>}
-
-          {sheets}
-        </LayoutGroup>
-      )}
-    </>
+    </section>
   );
 }

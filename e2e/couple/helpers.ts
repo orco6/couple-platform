@@ -33,9 +33,16 @@ export function taskCard(page: Page, title: string) {
   return page.getByRole('listitem').filter({ hasText: title });
 }
 
-/** Completes a task from its card. */
+/**
+ * Completes a task from its card, and waits for the server to have it.
+ * Completion is optimistic — the card changes under the finger before the
+ * request leaves — so a navigation straight after the click would abort the
+ * write and leave the test looking at a task that was never completed.
+ */
 export async function completeTask(page: Page, title: string): Promise<void> {
+  const saved = page.waitForResponse((r) => /\/api\/tasks\/[^/]+\/transition$/.test(r.url()) && r.request().method() === 'POST');
   await taskCard(page, title).getByRole('button', { name: copy.tasks.completeAction }).click();
+  expect((await saved).ok()).toBe(true);
 }
 
 /**

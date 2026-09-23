@@ -45,8 +45,8 @@ export const viewport: Viewport = {
   // Both schemes, so the browser chrome blends into the app instead of framing
   // it. Values are --brand-canvas from brand/theme.css.
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#fdf8f6' },
-    { media: '(prefers-color-scheme: dark)', color: '#1a1428' },
+    { media: '(prefers-color-scheme: light)', color: '#f7f3ef' },
+    { media: '(prefers-color-scheme: dark)', color: '#13101a' },
   ],
 };
 

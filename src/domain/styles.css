@@ -1,41 +1,41 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   DOMAIN STYLES — שנינו
+   DOMAIN STYLES — שנינו (second edition)
 
    What the brand layer and the foundation's semantic tokens cannot express on
-   their own: the lit background, the premium card, the two people, the glows,
-   and the bottom bar.
+   their own: the light behind the page, the grouped list, the two people, the
+   completion mark, the daily tone, and the chrome's consumer shape.
 
-   Colour never appears here as a literal — every value comes from a --brand-*
-   token in src/brand/theme.css, so both schemes follow automatically and the
-   "no raw colour" lint rule keeps meaning something.
+   Colour never appears here as a literal — every value is a --brand-* or
+   semantic token, so both schemes follow automatically.
 
-   Nothing here edits core. The bottom-bar rules below hook onto
-   `[data-mobile-tab-bar]`, which the foundation's shell exposes as a
-   documented attribute (DESIGN_PATTERN_LIBRARY §0: "tab bar steps aside while
-   typing" uses the same hook), so the shell keeps owning safe areas, the
-   keyboard behaviour and the scroll padding.
+   Nothing here edits core. The chrome rules hook onto `[data-mobile-tab-bar]`
+   and `header[data-app-chrome]`, the attributes the foundation's shell exposes
+   for exactly this, so the shell keeps owning safe areas, the "step aside while
+   typing" behaviour and the scroll padding.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ── The lit background ───────────────────────────────────────────────────
-   Three washes, fixed behind everything, pointer-transparent. This is what
-   stops a mostly-white consumer app from reading as a blank sheet, and it is
-   why cards need so little decoration of their own. */
-.aurora {
+/* ── The light ────────────────────────────────────────────────────────────
+   Two soft sources at the top of the viewport, one per partner. On the body
+   itself, as a fixed pseudo-element: the first edition put this layer inside
+   the page, where the route wrapper's animation became its containing block
+   and clipped it into a visible rectangle behind every page title. */
+body::before {
+  content: '';
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background-image: var(--brand-wash-one), var(--brand-wash-two), var(--brand-wash-three);
-  background-color: var(--color-canvas);
+  background-image: var(--brand-light-warm), var(--brand-light-cool);
 }
 
 /* ── Surfaces ─────────────────────────────────────────────────────────────
-   A card is a lit object: a soft warm shadow underneath, a hairline around it,
-   and a thin light edge along the top. The edge is what makes it read as lifted
-   rather than pasted on, and it costs one inset shadow. */
-.card {
+   One kind of container for a group of things (a list, a reflection), with a
+   hairline and a small warm shadow. Rows inside it are separated by rules, not
+   boxed again: card-in-card is how the first edition turned into a wall. */
+.card,
+.panel {
   background-color: var(--color-surface);
-  border: 1px solid var(--color-rule);
+  border: 1px solid var(--color-rule-faint);
   border-radius: var(--radius-surface);
   box-shadow: var(--brand-shadow-card), var(--brand-edge-light);
 }
@@ -44,96 +44,120 @@
   box-shadow: var(--brand-shadow-lift), var(--brand-edge-light);
 }
 
-.card-float {
-  box-shadow: var(--brand-shadow-float), var(--brand-edge-light);
-}
-
-/* The one gradient surface per screen. Text on it is always on-accent white,
-   which is checked in theme.css against the lightest stop. */
-.surface-aurora {
-  background-image: var(--brand-gradient-aurora);
-  color: var(--color-on-accent);
-  border-radius: var(--radius-surface);
-  box-shadow: var(--brand-shadow-lift);
-}
-
-.surface-accent {
-  background-image: var(--brand-gradient-accent);
-  color: var(--color-on-accent);
-}
-
-.surface-warm {
-  background-image: var(--brand-gradient-warm);
-  color: var(--color-on-accent);
-}
-
-.surface-cool {
-  background-image: var(--brand-gradient-cool);
-  color: var(--color-on-accent);
-}
-
-/* Glows. Coloured light under something genuinely active — never decoration
-   on a resting element. */
-.glow-accent {
-  box-shadow: var(--brand-glow-accent);
-}
-
-.glow-warm {
-  box-shadow: var(--brand-glow-warm);
-}
-
-.glow-cool {
-  box-shadow: var(--brand-glow-cool);
+.panel-rows > * + * {
+  border-top: 1px solid var(--color-rule-faint);
 }
 
 /* ── The two people ───────────────────────────────────────────────────────
-   A round mark carrying an initial. Colour identifies who, and is never the
-   only signal: every mark is next to a name or carries its own accessible
-   name. */
+   A flat round mark carrying an initial. Colour identifies who; it is never
+   the only signal (a name is next to it, or the mark has an accessible name). */
 .partner-mark {
   display: inline-grid;
   place-items: center;
   flex: none;
   border-radius: 999px;
-  color: var(--color-on-accent);
+  color: var(--brand-on-partner);
   font-weight: 600;
   line-height: 1;
   inline-size: var(--mark-size, 2rem);
   block-size: var(--mark-size, 2rem);
-  font-size: calc(var(--mark-size, 2rem) * 0.42);
-  box-shadow: var(--brand-edge-light);
+  font-size: calc(var(--mark-size, 2rem) * 0.44);
 }
 
 .partner-mark--a {
-  background-image: var(--brand-gradient-warm);
+  background-color: var(--brand-partner-a);
 }
 
 .partner-mark--b {
-  background-image: var(--brand-gradient-cool);
+  background-color: var(--brand-partner-b);
 }
 
-/* Both marks together, slightly overlapping — "us" rather than two users. The
-   separating hairline must match whatever is actually behind the pair, so the
-   component sets --pair-ring; a hardcoded colour shows up as a halo on a card
-   and as a notch in the dark scheme. `outline` costs no layout. */
+/* Not closed yet: the same person, as a ring in their colour — present, not done. */
+.partner-mark--open {
+  background-color: transparent;
+  box-shadow: inset 0 0 0 1.5px currentColor;
+}
+
+.partner-mark--a.partner-mark--open {
+  color: var(--brand-partner-a-text);
+}
+
+.partner-mark--b.partner-mark--open {
+  color: var(--brand-partner-b-text);
+}
+
 .partner-pair {
   display: inline-flex;
   align-items: center;
 }
 
 .partner-pair > :not(:first-child) {
-  margin-inline-start: -0.32em;
-  border-radius: 999px;
+  margin-inline-start: -0.3em;
   outline: 2px solid var(--pair-ring, var(--color-surface));
+}
+
+.text-partner-a {
+  color: var(--brand-partner-a-text);
+}
+
+.text-partner-b {
+  color: var(--brand-partner-b-text);
+}
+
+.bg-partner-a {
+  background-color: var(--brand-partner-a);
+}
+
+.bg-partner-b {
+  background-color: var(--brand-partner-b);
+}
+
+.bg-partner-a-soft {
+  background-color: var(--brand-partner-a-soft);
+}
+
+.bg-partner-b-soft {
+  background-color: var(--brand-partner-b-soft);
+}
+
+.bg-partner-a-tint {
+  background-color: var(--brand-partner-a-tint);
+}
+
+.bg-partner-b-tint {
+  background-color: var(--brand-partner-b-tint);
+}
+
+.bg-on-partner {
+  background-color: var(--brand-on-partner);
+}
+
+.text-on-partner {
+  color: var(--brand-on-partner);
+}
+
+.fill-partner-a {
+  fill: var(--brand-partner-a);
+}
+
+.fill-partner-b {
+  fill: var(--brand-partner-b);
+}
+
+.stroke-partner-a {
+  stroke: var(--brand-partner-a);
+}
+
+.stroke-partner-b {
+  stroke: var(--brand-partner-b);
 }
 
 /* ── Completion ───────────────────────────────────────────────────────────
    The line-through is drawn, not toggled: a pseudo-element scaled from the
-   inline start, which animates on the compositor and works on a title that
-   wraps to two lines (a positioned 1px div does not). */
+   inline start (compositor-only, and correct on a title that wraps). */
 .strike {
   position: relative;
-  transition: color 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: color 260ms var(--ease-enter);
 }
 
 .strike::after {
@@ -146,94 +170,34 @@
   background-color: currentColor;
   transform: scaleX(0);
   transform-origin: inline-start;
-  transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 340ms var(--ease-enter) 60ms;
 }
 
 .strike[data-done='true']::after {
   transform: scaleX(1);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .strike::after {
-    transition: none;
-  }
-}
-
-/* ── Tap targets ──────────────────────────────────────────────────────────
-   Used in the dark, one-handed, half asleep. No text selection on a control,
-   no blue flash, no accidental double-tap zoom. */
-/*
- * The empty star: a surface-coloured pill outlined in its own tone, so the
- * row reads as five things waiting for an answer. The ring thickens under a
- * pointer — the only hover this product has, and it is on the control whose
- * whole job is to be tapped.
- */
-.star-empty {
-  background-color: var(--color-surface);
-  box-shadow: inset 0 0 0 1.5px var(--star-edge);
-  color: var(--star-edge);
-  transition: box-shadow 160ms ease;
-}
-
-.star-empty:hover {
-  box-shadow: inset 0 0 0 2.5px var(--star-edge);
-}
-
-.star-warm {
-  --star-edge: var(--brand-star-edge-warm);
-}
-
-.star-accent {
-  --star-edge: var(--brand-star-edge-accent);
-}
-
-/* Light on a lit surface — the four alphas from src/brand/theme.css, as
-   classes, so a gradient card never hard-codes an alpha of its own. */
-.on-accent-bloom {
-  background-color: var(--brand-on-accent-bloom);
-}
-
-.on-accent-track {
-  background-color: var(--brand-on-accent-track);
-}
-
-.on-accent-fill {
-  background-color: var(--brand-on-accent-fill);
-}
-
-.on-accent-chip {
-  background-color: var(--brand-on-accent-chip);
-  transition: background-color 200ms ease;
-}
-
-.on-accent-chip:hover {
-  background-color: var(--brand-on-accent-chip-hover);
-}
-
-/*
- * A press the finger can feel.
- *
- * Core's Button already presses (`active:scale-[0.94]`); this is the same
- * gesture for the controls this product draws itself — the completion mark and
- * the card body. Transform only: nothing here animates a layout property, and
- * 2% over 140ms is a press rather than a bounce.
- */
+/* ── Touch ────────────────────────────────────────────────────────────────
+   A press lands in 40ms and releases over 220ms (Tovli / Koma measurement:
+   a symmetric transition never reaches its pressed state in a real tap). */
 .press {
-  transition: transform 140ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 220ms var(--ease-enter);
 }
 
 .press:active {
-  transform: scale(0.98);
+  transform: scale(0.97);
+  transition-duration: 40ms;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .press {
-    transition: none;
-  }
+.press-row {
+  transition:
+    background-color 220ms var(--ease-enter),
+    transform 220ms var(--ease-enter);
+}
 
-  .press:active {
-    transform: none;
-  }
+.press-row:active {
+  background-color: var(--color-hover);
+  transition-duration: 40ms;
 }
 
 .tap-quiet {
@@ -243,75 +207,112 @@
   touch-action: manipulation;
 }
 
-/* ── The bottom bar ───────────────────────────────────────────────────────
-   The foundation draws a full-width slab, which is correct for an operational
-   tool and reads as browser chrome in a consumer app. These rules turn it into
-   a floating capsule without touching the shell: it keeps the safe-area
-   padding, the "step aside while the keyboard is open" behaviour and the
-   scroll padding that the shell already handles. */
+/* ── The day's tone ───────────────────────────────────────────────────────
+   Behind the daily scale only: a soft light whose colour follows the answer —
+   dusk at 1, dawn at 5. Opacity and background-color only; the element never
+   changes size. */
+.tone-light {
+  background-color: transparent;
+  transition:
+    background-color 520ms var(--ease-enter),
+    opacity 520ms var(--ease-enter);
+}
+
+.tone-light[data-tone='1'] {
+  background-color: var(--brand-tone-1);
+}
+.tone-light[data-tone='2'] {
+  background-color: var(--brand-tone-2);
+}
+.tone-light[data-tone='3'] {
+  background-color: var(--brand-tone-3);
+}
+.tone-light[data-tone='4'] {
+  background-color: var(--brand-tone-4);
+}
+.tone-light[data-tone='5'] {
+  background-color: var(--brand-tone-5);
+}
+
+/* ── Chrome ───────────────────────────────────────────────────────────────
+   Phones: no persistent top bar. Every screen opens with its own title, the
+   account lives in "more", and a brand strip across the top of a consumer app
+   is web chrome — on a real iPhone its translucent band also cut a hard edge
+   across the page's light. The page starts under the status bar instead. */
+@media (width < 48rem) {
+  header[data-app-chrome] {
+    display: none;
+  }
+
+  #main {
+    padding-top: max(0.75rem, env(safe-area-inset-top));
+  }
+}
+
+/*
+ * The bottom bar: the native shape. Full width, a hairline on top, translucent
+ * canvas behind a blur, icon and label only — the current place is ink and
+ * heavier, the rest recede. The first edition floated a capsule with a tinted
+ * tile behind the current tab, which on a real phone read as a web widget.
+ */
 nav[data-mobile-tab-bar] {
-  inset-inline: 0.75rem;
-  bottom: 0.5rem;
-  border: 1px solid var(--color-rule);
-  border-radius: var(--radius-sheet);
-  background-color: color-mix(in oklab, var(--color-surface) 86%, transparent);
-  backdrop-filter: blur(18px) saturate(1.5);
-  -webkit-backdrop-filter: blur(18px) saturate(1.5);
-  box-shadow: var(--brand-shadow-float), var(--brand-edge-light);
-  padding-block: 0.25rem;
+  border-top: 1px solid var(--color-rule);
+  background-color: color-mix(in oklab, var(--color-canvas) 82%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  backdrop-filter: blur(20px) saturate(1.5);
 }
 
 nav[data-mobile-tab-bar] a,
 nav[data-mobile-tab-bar] button {
-  position: relative;
-  border-radius: var(--radius-control);
   min-height: 3.25rem;
+  gap: 0.2rem;
+  font-size: 0.6875rem;
+  color: var(--color-ink-subtle);
+  -webkit-tap-highlight-color: transparent;
   transition:
     color 160ms ease-out,
-    transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+    transform 220ms var(--ease-enter);
+}
+
+nav[data-mobile-tab-bar] a[aria-current='page'],
+nav[data-mobile-tab-bar] a[data-pending] {
+  color: var(--color-ink);
+  font-weight: 600;
 }
 
 nav[data-mobile-tab-bar] a:active,
 nav[data-mobile-tab-bar] button:active {
-  transform: scale(0.94);
+  transform: scale(0.92);
   transition-duration: 40ms;
 }
 
-/* The current place gets the accent tint behind it — one accent, one job. */
-nav[data-mobile-tab-bar] a[aria-current='page']::before {
-  content: '';
-  position: absolute;
-  inset: 0.25rem 0.5rem;
-  border-radius: var(--radius-control);
-  background-color: var(--color-accent-tint);
+nav[data-mobile-tab-bar] svg {
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  stroke-width: 1.7;
 }
 
-nav[data-mobile-tab-bar] a[aria-current='page'] > * {
-  position: relative;
+nav[data-mobile-tab-bar] a[aria-current='page'] svg,
+nav[data-mobile-tab-bar] a[data-pending] svg {
+  stroke-width: 2.1;
 }
 
+/* ── Reduced motion ───────────────────────────────────────────────────────
+   Everything above that moves stops moving; colour changes stay. */
 @media (prefers-reduced-motion: reduce) {
+  .strike::after {
+    transition: none;
+  }
+
+  .press,
+  .press:active,
   nav[data-mobile-tab-bar] a:active,
   nav[data-mobile-tab-bar] button:active {
     transform: none;
+    transition: none;
   }
-}
 
-/* The partner colours as text and fill. They are not in Tailwind's theme on
-   purpose — they identify *people*, not states, and keeping them out of the
-   semantic palette stops them being reached for as decoration. */
-.text-partner-a {
-  color: var(--brand-partner-a);
-}
-
-.text-partner-b {
-  color: var(--brand-partner-b);
-}
-
-.bg-partner-a-tint {
-  background-color: var(--brand-partner-a-tint);
-}
-
-.bg-partner-b-tint {
-  background-color: var(--brand-partner-b-tint);
+  .tone-light {
+    transition-duration: 120ms;
+  }
 }

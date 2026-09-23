@@ -76,3 +76,32 @@ test('a save refused because the session ended keeps what was typed and offers s
   await expect(notice).toContainText('ההתחברות חודשה');
   await expect(current).toHaveValue('something typed before the break');
 });
+
+test('a username typed before the page hydrates is still there when it does', async ({ page }) => {
+  // On a slow phone the server-rendered field is on screen and accepts typing
+  // before React attaches. A controlled input was reset to "" by hydration, so
+  // sign-in answered "fill in username" to someone who had (found on WebKit).
+  // Hold every script until the username has been typed, then let it hydrate.
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route('**/_next/static/chunks/**', async (route) => {
+    await gate;
+    await route.continue();
+  });
+
+  // Not "domcontentloaded": that waits for the deferred scripts this test is
+  // holding. The field being on screen is the moment a person starts typing.
+  await page.goto('/login', { waitUntil: 'commit' });
+  const username = page.getByLabel('שם משתמש');
+  await expect(username).toBeVisible();
+  await username.fill(CORE_USERS.top);
+  release();
+  await page.waitForLoadState('networkidle');
+
+  await expect(username).toHaveValue(CORE_USERS.top);
+  await page.getByLabel('סיסמה', { exact: true }).fill(PASSWORD);
+  await page.getByRole('button', { name: 'כניסה' }).click();
+  await page.waitForURL((url) => !url.pathname.startsWith('/login'));
+});

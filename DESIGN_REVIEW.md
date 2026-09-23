@@ -118,6 +118,88 @@ Also from the renders: the month's weekly rows ran "שבוע 4" into "20.09.2026
 **Still open, deliberately:** WebKit. The iPhone shots are Chromium at the iPhone's size and pixel
 ratio (this machine cannot download WebKit); Safari's own rendering is a MANUAL_QA.md item.
 
+### Second edition (2026-09-23, after the owner's real-iPhone review)
+
+The owner used the preview on an iPhone and found it complicated, jumpy and ordinary. That review
+overrules several decisions recorded above — the gradient day card, the star row, the tinted rating
+panel, the four-tab bar — and they are gone. Renders: `.tmp/before/` (first edition) and the
+`npm run qa:screenshots` folders (second edition), iPhone 13 size, light and dark, plus 320px.
+
+**Hallmark audit of the first edition (before).** 4 critical — the purple-gradient hero (day card,
+week/month KPI card), an aurora-blob background (clipped into a visible rectangle behind every page
+title), card-in-card (the rating panel inside the task card; icon tiles inside the highlights card),
+a floating five-tab pill nav with a tinted active tile. 5 major — a KPI hero ("57%"), icon-tile
+highlight rows, a centred-everything review form, glow shadows on buttons, and stars that read as a
+product review. 1 minor — every section boxed and padded the same.
+
+**What the second edition does about each** — the gradients, washes and glows are gone (two quiet
+corner lights on the body remain, one per partner); the task list is one grouped surface with rules
+between rows; the rating is a five-stop scale; the nav is the native full-width bar with two
+destinations and "more"; the primary action is deep ink, not violet; summaries lead with a sentence.
+
+**Per screen** (dominant · grouped · boxed · filled buttons · chips):
+
+- **Today.** Dominant: the greeting, then the list. Grouped: the day's tasks, one surface, the add row
+  first. Boxed: only that list (and the day line when it is actionable). Filled buttons: none —
+  the add row's ink "+" is the one primary. Chips: none. The first task is visible without scrolling
+  at 320×640. Missing data reads as missing: no time → no clock; an empty day says so inside the list.
+- **Composer (sheet).** Dominant: the sentence field, focused. Grouped: who (two tiles), when (one
+  three-way control), extras (two quiet links). Filled buttons: one ("הוספה", pinned). Time and note
+  are absent until asked for.
+- **Closing the day.** Dominant: the question, then the scale with its light. Filled buttons: one.
+  Boxed: nothing — the scale sits on the canvas. The end labels say what 1 and 5 mean before a choice.
+- **Waiting.** Two circles, mine solid with my word, theirs an outline. One quiet link to amend.
+- **Reveal.** Dominant: the two circles meeting; the overlap multiplies into the shared ink. Then one
+  sentence. Notes (if any) in one surface. No buttons.
+- **Week / month.** Dominant: one sentence chosen from the real averages. Then the week's rhythm (two
+  circles a day, a partner's only once revealed) and the three figures as rows with the figure at the
+  end. Boxed: two surfaces. Filled buttons: none. Month adds two trend rows and the weekly rows.
+
+**Final quality gate (same day, after the owner's go-ahead).** Skills used: Hallmark (audit before and
+after), design-taste-frontend (brief read: premium consumer mobile app for two partners; dials variance 5
+· motion 5 · density 3), Vercel web-interface-guidelines (fetched live), Emil Kowalski's interaction
+principles (springs for anything a finger started, exits faster than entries, nothing animates from zero,
+motion only where it explains state), and Tovli's source as the implementation benchmark (Rubik 400–700 with
+600 dominant, 14/16px body, native flat tab bar with colour-only focus, sheets ≈260ms with a 200–240ms
+backdrop, 12–14px control radii). Evidence was rendered and measured, not read from source:
+
+- *Frame sequences caught* a completed row leaving its place ~180ms after the tap: `router.refresh()`
+  brought back the server's order (finished last) and the list sorted by the server's index. Fixed with
+  first-seen order; the probe then measured hold 748ms → glide 364px, ≤ 43px/frame, no height changes,
+  no scroll movement.
+- *The partner's render caught* rows waiting for their rating sitting below the fold. They now sort first;
+  a row that becomes rateable because of a tap here stays under the thumb until rated, then settles.
+- *Reopen was measured* jumping 31px and back (the hold used the raw rank) and the rating area snapping
+  shut in one frame. Both fixed: one grid-rows transition opens and folds it (inert when folded).
+- *The reveal frames caught* the overlap popping in only once the circles stopped (a CSS blend mode is
+  isolated by a transform). Redrawn as one SVG with the overlap as a clipped circle, so it grows as they meet.
+- *Taste review:* filled progress tracks under figures removed (the number already says it); the
+  software-looking range label "20.09.2026 — 26.09.2026" is now "20-26 בספטמבר" / "ספטמבר 2026"
+  (ISO dates stay on the element for tools); one em-dash in copy removed.
+- *Web interface guidelines:* `theme-color` still carried the first edition's canvas; the placeholder now
+  ends with "…"; task rows got a pointer hover; the focus colour moved from saturated violet (the last
+  trace of the old primary) to a low-chroma plum-grey at 7.0:1.
+- *WebKit* (Safari's engine) rendered every screen; the scale's click and tap both register; Rubik 400/500/600
+  load as real faces (Windows WebKit rasterises them thinner than iOS will — noted, not a product issue).
+- *Reduced motion:* fills and strikes still happen, rows hold then move without travel, the reveal appears
+  already met.
+
+**Backport candidates for business-platform-foundation** (generic, found here, NOT applied there yet):
+1. *Sign-in wiped a username typed before hydration.* A controlled input is reset to its initial "" when
+   React hydrates, so on a slow phone sign-in answered "fill in username and password" to someone who had.
+   The username field is now uncontrolled (submit already reads the DOM via `submittedValue`); a core
+   e2e test holds the scripts, types, then hydrates — it fails on the old form and passes on the new one.
+2. *No route-level skeleton; the tab answers at once; opacity-only route settle* (ADR 0014).
+3. *`NavItem.alsoActiveOn`* for a destination with more than one view.
+4. *The "more" sheet focuses its list, not its first link*, so a tap does not leave a ring on an item.
+
+**Divergences (Hallmark, second edition):**
+- **Gate 23 (accent ≤ 5%).** Now satisfied everywhere except the reveal, where the two partner
+  circles are the subject of the screen.
+- **Gate 6 (centred).** The reveal and the waiting state are centred: they are a single moment each,
+  not a page layout.
+- **Gate 24 (4px scale).** Unchanged from the first edition: Tailwind's scale with half-steps.
+
 ---
 
 ## 1. Anti-generic check (fail any → not finished)

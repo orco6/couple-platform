@@ -44,6 +44,18 @@ Record: date, build (Account page shows the version), device, tester, result per
 - [ ] Typing in a full-page form on Android: the bottom tab bar is not over the field; it returns after leaving the field.
 - [ ] A local production build opened on a real phone over the LAN (`http://<computer-ip>:3000`) signs in and works.
 
+### שנינו on a real iPhone (second edition — these cannot be checked in a browser emulator)
+- [ ] Today → "הוספת משימה": the sheet opens AND the keyboard comes up with it, focus in the sentence field (primeKeyboard); Enter on the keyboard adds the task; the sheet's button stays above the keyboard.
+- [ ] Tap a task's circle: the circle fills with the owner's colour, the check draws, the title is struck, and after a beat the row glides down — no row jumps, the page does not scroll.
+- [ ] Tap it again (reopen): it glides back up the same way.
+- [ ] Complete your partner's task: the rating scale opens under the row smoothly (not a jump); one tap on a stop rates it.
+- [ ] Tab bar: tap "סיכום" — the tab lights at once, even before the week appears; no skeleton flashes.
+- [ ] Closing the day: the light behind the scale changes colour with the answer (cool at 1, warm at 5); nothing on the page moves when choosing.
+- [ ] Reveal (a day both closed): the two circles travel in and settle overlapping; the sentence arrives after.
+- [ ] Safe areas: the greeting is not under the status bar / Dynamic Island; the tab bar clears the home indicator.
+- [ ] Settings → Accessibility → Reduce Motion ON: nothing travels (fills and strikes still happen).
+- [ ] Dark mode (Settings → Display → Dark): every screen is plum-dark with light ink; the primary button is a pale pill.
+
 ## RTL and text
 - [ ] Mixed Hebrew/English/numbers read correctly in names, notes, addresses, emails, URLs.
 - [ ] Long names truncate gracefully; nothing overlaps.

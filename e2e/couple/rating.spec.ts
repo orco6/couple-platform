@@ -36,7 +36,7 @@ test('the partner rates a completed task in one tap, and the owner sees the resu
   await signOut(page);
   await login(page, OWNER);
   await page.goto('/');
-  await expect(taskCard(page, title).getByText('4', { exact: true })).toBeVisible();
+  await expect(taskCard(page, title).getByText(copy.taskRating.scale[4], { exact: false })).toBeVisible();
   await expect(taskCard(page, title).getByText(copy.taskRating.awaitingShort, { exact: false })).toHaveCount(0);
 
   problems.assertClean();
@@ -56,10 +56,17 @@ test('the rater may change their mind; the rating is replaced, not added to', as
   await completeTask(page, title);
 
   const card = taskCard(page, title);
+  // The rating is optimistic and queued behind the completion: wait for it to
+  // reach the server before reloading, or the reload aborts it.
+  const saved = page.waitForResponse((r) => r.url().endsWith('/api/task-ratings') && r.request().method() === 'POST');
   await card.getByRole('radio').nth(1).click();
   await expect(card.getByRole('radio', { checked: true })).toHaveAttribute('aria-label', /^2 —/);
+  expect((await saved).ok()).toBe(true);
 
+  // After a reload a rated row is folded to one line; changing it is one tap away.
   await page.reload();
+  await expect(taskCard(page, title).getByText(copy.taskRating.myRatedLine(copy.taskRating.scale[2]))).toBeVisible();
+  await taskCard(page, title).getByRole('button', { name: copy.taskRating.changeShort }).click();
   await taskCard(page, title).getByRole('radio').nth(4).click();
   await expect(taskCard(page, title).getByRole('radio', { checked: true })).toHaveAttribute('aria-label', /^5 —/);
 });

@@ -12,17 +12,20 @@ import { copy } from '@/domain/copy';
 import { login, watchForProblems } from '../helpers';
 import { OWNER } from './helpers';
 
-/** "22.09.2026" → a Date, so the spec can assert which weekday it is. */
-function parseHebrewDate(text: string): Date {
-  const [day, month, year] = text.split('.').map(Number);
-  return new Date(Date.UTC(year!, month! - 1, day!));
-}
 
-/** The two dates in the range stepper's label. */
+/**
+ * The two dates of the range on screen. The label is written the way people
+ * say it ("20-26 בספטמבר"), so the dates are read from the ISO attributes the
+ * stepper carries alongside it, and the label is checked to be present.
+ */
 async function rangeDates(page: Page): Promise<[Date, Date]> {
-  const label = await page.getByText(/\d{2}\.\d{2}\.\d{4} — \d{2}\.\d{2}\.\d{4}/).first().innerText();
-  const [from, to] = label.split('—').map((part) => parseHebrewDate(part.trim()));
-  return [from!, to!];
+  const range = page.locator('[data-range-from]').first();
+  await expect(range).not.toBeEmpty();
+  const iso = (value: string | null) => {
+    const [year, month, day] = (value ?? '').split('-').map(Number);
+    return new Date(Date.UTC(year!, month! - 1, day!));
+  };
+  return [iso(await range.getAttribute('data-range-from')), iso(await range.getAttribute('data-range-to'))];
 }
 
 test('the week runs Sunday to Saturday and reports the four figures once each', async ({ page }) => {

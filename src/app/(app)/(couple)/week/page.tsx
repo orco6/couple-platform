@@ -1,37 +1,34 @@
-import { CalendarHeart, Flame, Sparkles, Star } from 'lucide-react';
-
 import { requireActorPage } from '@/core/auth/page-guards';
 import {
   addDays,
   compareCalendarDates,
-  formatCalendarDate,
   isCalendarDate,
   todayIn,
   type CalendarDate,
 } from '@/core/dates/calendar-date';
 import { db } from '@/core/db/client';
-import { PageHeader, Section } from '@/core/ui/components/Layout';
 import { EmptyState } from '@/core/ui/components/States';
 import { copy } from '@/domain/copy';
 import type { Insight } from '@/domain/summaries/calculations';
 import { getWeekSummary, shiftWeek, weekBounds } from '@/domain/summaries/summaries';
 
-import { AverageCard, CompletionHero, InsightCard, RangeStepper } from '../_components/SummaryParts';
+import { FactRow, RangeStepper, ReflectionTabs, Rhythm, Story } from '../_components/ReflectionParts';
 import { Screen } from '../_components/Screen';
 
 export const metadata = { title: copy.week.pageTitle };
 
+type Week = Awaited<ReturnType<typeof getWeekSummary>>;
+
 /**
- * THE WEEK — the Saturday review.
+ * THE WEEK — a reflection, not a report.
  *
- * The Hebrew week runs Sunday → Saturday, so Saturday is the end of it and the
- * summary is simply "this week so far" until then. There is no "generate"
- * button and nothing is snapshotted: the figures are recomputed from the rows
- * every time, so a rating given late still lands in the right week.
+ * The Hebrew week runs Sunday → Saturday; until Saturday it is "this week so
+ * far". Nothing is snapshotted: every figure is recomputed from the rows, so a
+ * late rating still lands in the right week.
  *
- * Reading order is the order a person cares: did we get through the list, how
- * did the things we asked of each other go, how were we with each other, what
- * worked, and one thing for next week. Five cards, each one figure with a word.
+ * Reading order: one sentence about the week (chosen from the real averages,
+ * never invented); the shape of the days, two circles each; the three figures
+ * as sentences; what went well; one thing for next week.
  */
 export default async function WeekPage({ searchParams }: { searchParams: Promise<{ w?: string }> }) {
   const actor = await requireActorPage();
@@ -44,13 +41,17 @@ export default async function WeekPage({ searchParams }: { searchParams: Promise
   const thisWeek = weekBounds(today);
   const isCurrent = compareCalendarDates(summary.from, thisWeek.from) >= 0;
   const lastDay = addDays(summary.toExclusive, -1);
+  const partnerName = summary.partner?.name ?? copy.common.partnerFallback;
 
   return (
     <Screen>
-      <PageHeader title={copy.week.pageTitle} description={copy.week.readyOn} />
+      <h1 className="mb-4 px-1 text-title leading-tight font-semibold text-ink">{copy.week.pageTitle}</h1>
+      <ReflectionTabs current="week" />
 
       <RangeStepper
-        label={copy.week.range(formatCalendarDate(summary.from), formatCalendarDate(lastDay))}
+        from={summary.from}
+        to={lastDay}
+        kind="week"
         previousHref={`/week?w=${shiftWeek(anchor, -1)}`}
         nextHref={isCurrent ? null : `/week?w=${shiftWeek(anchor, 1)}`}
       />
@@ -65,84 +66,80 @@ export default async function WeekPage({ searchParams }: { searchParams: Promise
           }
         />
       ) : (
-        <div className="flex flex-col gap-3">
-          <CompletionHero
-            title={copy.week.completionTitle}
-            percent={summary.completion.percent}
-            done={summary.completion.done}
-            total={summary.completion.total}
-          />
+        <>
+          <Story>{storyOf(summary)}</Story>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <AverageCard
-              title={copy.week.executionTitle}
-              hint={copy.week.executionHint}
-              value={summary.executionAverage}
-              tone="warm"
+          <Rhythm days={summary.days} me={summary.me} partner={summary.partner} today={today} />
+
+          <div className="panel panel-rows mb-4">
+            <FactRow
+              label={copy.week.completionTitle}
+              detail={copy.week.completionDetail(summary.completion.done, summary.completion.total)}
+              figure={summary.completion.percent === null ? null : `${summary.completion.percent}%`}
             />
-            <AverageCard
-              title={copy.week.respectTitle}
-              hint={copy.week.respectHint}
-              value={summary.respectAverage}
-              tone="accent"
+            <FactRow
+              label={copy.week.executionTitle}
+              figure={summary.executionAverage === null ? null : summary.executionAverage.toFixed(1)}
+              suffix={copy.common.outOfFive}
+            />
+            <FactRow
+              label={copy.week.respectTitle}
+              figure={summary.respectAverage === null ? null : summary.respectAverage.toFixed(1)}
+              suffix={copy.common.outOfFive}
             />
           </div>
 
           <Highlights summary={summary} />
 
-          <InsightCard text={insightText(summary.insight, summary.partner?.name ?? copy.common.partnerFallback)} />
-        </div>
+          <section className="px-1 pt-2">
+            <h2 className="text-meta font-semibold text-ink-subtle">{copy.week.insightTitle}</h2>
+            <p className="mt-1 text-row text-balance text-ink">{insightText(summary.insight, partnerName)}</p>
+          </section>
+        </>
       )}
     </Screen>
   );
 }
 
-/**
- * What worked. Only the items that are actually true this week get a row —
- * an empty "highlights" card with three greyed placeholders would be worse
- * than no card, so the whole section disappears when there is nothing to say.
- */
-function Highlights({ summary }: { summary: Awaited<ReturnType<typeof getWeekSummary>> }) {
-  const rows: Array<{ icon: React.ReactNode; text: string }> = [];
-
-  if (summary.streak > 0) {
-    rows.push({
-      icon: <Flame aria-hidden="true" size={17} className="text-warning-text" />,
-      text: `${copy.week.streakDays(summary.streak)} ${copy.week.streakHint}`,
-    });
+/** One sentence for the week, from the real averages. Never a figure it does not have. */
+function storyOf(summary: Week): string {
+  const story = copy.reflection.story;
+  const respect = summary.respectAverage;
+  if (respect !== null) {
+    if (respect >= 4.5) return story.warm;
+    if (respect >= 3.5) return story.good;
+    if (respect >= 2.5) return story.mixed;
+    return story.hard;
   }
+  return summary.completion.done > 0 ? story.busy : story.quiet;
+}
+
+/** What went well — only the things that are actually true this week. */
+function Highlights({ summary }: { summary: Week }) {
+  const rows: string[] = [];
+  if (summary.streak > 0) rows.push(`${copy.week.streakDays(summary.streak)} ${copy.week.streakHint}`);
   if (summary.bestDay) {
-    rows.push({
-      icon: <CalendarHeart aria-hidden="true" size={17} className="text-partner-a" />,
-      text: copy.week.bestDay(formatCalendarDate(summary.bestDay.date as CalendarDate)),
-    });
+    const weekday = new Date(`${summary.bestDay.date}T12:00:00Z`).getUTCDay();
+    rows.push(copy.week.bestDay(copy.reflection.dayNames[weekday] ?? ''));
   }
-  if (summary.completion.percent === 100 && summary.completion.total > 0) {
-    rows.push({
-      icon: <Sparkles aria-hidden="true" size={17} className="text-accent-text" />,
-      text: copy.week.allTasksDone,
-    });
-  }
-  if (summary.perfectTaskTitle) {
-    rows.push({
-      icon: <Star aria-hidden="true" size={17} className="fill-current text-warning-text" />,
-      text: copy.week.perfectTask(summary.perfectTaskTitle),
-    });
-  }
-
+  if (summary.completion.percent === 100 && summary.completion.total > 0) rows.push(copy.week.allTasksDone);
+  if (summary.perfectTaskTitle) rows.push(copy.week.perfectTask(summary.perfectTaskTitle));
   if (rows.length === 0) return null;
 
   return (
-    <Section title={copy.week.highlightsTitle} className="mb-0">
-      <ul className="card divide-y divide-rule-faint">
-        {rows.map((row, index) => (
-          <li key={index} className="flex items-center gap-3 px-4 py-3">
-            <span className="grid size-9 shrink-0 place-items-center rounded-chip bg-sunken">{row.icon}</span>
-            <span className="text-body text-balance text-ink">{row.text}</span>
+    <section className="mb-5 px-1" aria-labelledby="highlights-title">
+      <h2 id="highlights-title" className="mb-1.5 text-meta font-semibold text-ink-subtle">
+        {copy.week.highlightsTitle}
+      </h2>
+      <ul className="space-y-1.5">
+        {rows.map((row) => (
+          <li key={row} className="flex items-start gap-2.5 text-row text-ink">
+            <span aria-hidden="true" className="mt-[0.6em] size-1.5 shrink-0 rounded-full bg-rule-strong" />
+            <span className="text-balance">{row}</span>
           </li>
         ))}
       </ul>
-    </Section>
+    </section>
   );
 }
 

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { copy } from '@/core/copy';
 import { apiRequest } from '@/core/http/client';
 import { navigateAfterSessionChange } from '@/core/http/navigation';
@@ -37,9 +37,14 @@ const ICONS: Record<NavIconName, (props: { className?: string }) => React.ReactN
   layers: LayersIcon,
 };
 
+function matches(pathname: string, href: string, prefix: boolean): boolean {
+  if (href === '/') return pathname === '/';
+  return prefix ? pathname === href || pathname.startsWith(`${href}/`) : pathname === href;
+}
+
 function isActive(pathname: string, item: NavItem): boolean {
-  if (item.href === '/') return pathname === '/';
-  return item.matchPrefix === false ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`);
+  const prefix = item.matchPrefix !== false;
+  return [item.href, ...(item.alsoActiveOn ?? [])].some((href) => matches(pathname, href, prefix));
 }
 
 export function SideNav({ items }: { items: NavItem[] }) {
@@ -108,10 +113,24 @@ export function SignOutButton({ className }: { className?: string }) {
   );
 }
 
-/** Bottom tab bar on phones: up to four destinations plus "more". */
+/**
+ * Bottom tab bar on phones: up to four destinations plus "more".
+ *
+ * A tapped tab is marked `data-pending` at once, before the next screen has
+ * arrived: navigation keeps the current screen until the new one is ready
+ * (ADR 0014), so the tab itself has to say "heard you" within a frame, the way
+ * a native tab bar does. The mark clears when the pathname changes.
+ */
 export function MobileNav({ items, accountName, accountRole }: { items: NavItem[]; accountName: string; accountRole: string }) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
+  // Focus goes INTO the sheet (for keyboards and screen readers) but onto the
+  // list itself, not its first link: after a tap, a ring on an item nobody
+  // chose reads as a selection.
+  const moreList = useRef<HTMLUListElement>(null);
+  const [pending, setPending] = useState<{ href: string; from: string } | null>(null);
+  // Render-phase reset, not an effect: once the route has moved, nothing is pending.
+  if (pending && pending.from !== pathname) setPending(null);
   const bar = items.filter((item) => item.mobile === 'bar').slice(0, 4);
   const more = items.filter((item) => !bar.includes(item));
   const moreActive = more.some((item) => isActive(pathname, item));
@@ -136,7 +155,15 @@ export function MobileNav({ items, accountName, accountRole }: { items: NavItem[
             const active = isActive(pathname, item);
             return (
               <li key={item.href} className="flex flex-1">
-                <Link href={item.href} aria-current={active ? 'page' : undefined} className={tabClass(active)}>
+                <Link
+                  href={item.href}
+                  aria-current={active ? 'page' : undefined}
+                  data-pending={!active && pending?.href === item.href ? '' : undefined}
+                  onClick={() => {
+                    if (!active) setPending({ href: item.href, from: pathname });
+                  }}
+                  className={tabClass(pending ? pending.href === item.href : active)}
+                >
                   <Icon className="size-6" />
                   {item.label}
                 </Link>
@@ -158,8 +185,8 @@ export function MobileNav({ items, accountName, accountRole }: { items: NavItem[
         </ul>
       </nav>
 
-      <BottomSheet open={moreOpen} onClose={() => setMoreOpen(false)} title={accountName} description={accountRole} testId="mobile-more-sheet">
-        <ul className="-mx-2 space-y-0.5">
+      <BottomSheet open={moreOpen} onClose={() => setMoreOpen(false)} title={accountName} description={accountRole} testId="mobile-more-sheet" initialFocus={moreList}>
+        <ul ref={moreList} tabIndex={-1} className="-mx-2 space-y-0.5 outline-none">
           {more.map((item) => {
             const Icon = ICONS[item.icon];
             const active = isActive(pathname, item);

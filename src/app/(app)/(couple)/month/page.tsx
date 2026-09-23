@@ -8,14 +8,12 @@ import {
   type CalendarDate,
 } from '@/core/dates/calendar-date';
 import { db } from '@/core/db/client';
-import { PageHeader, Section } from '@/core/ui/components/Layout';
 import { EmptyState } from '@/core/ui/components/States';
 import { copy } from '@/domain/copy';
 import { getMonthSummary, monthBounds, shiftMonth } from '@/domain/summaries/summaries';
 
-import { AverageCard, CompletionHero, RangeStepper } from '../_components/SummaryParts';
+import { FactRow, RangeStepper, ReflectionTabs, Story, TrendRow } from '../_components/ReflectionParts';
 import { Screen } from '../_components/Screen';
-import { TrendLine } from '../_components/TrendLine';
 
 export const metadata = { title: copy.month.pageTitle };
 
@@ -49,10 +47,13 @@ export default async function MonthPage({ searchParams }: { searchParams: Promis
 
   return (
     <Screen>
-      <PageHeader title={copy.month.pageTitle} />
+      <h1 className="mb-4 px-1 text-title leading-tight font-semibold text-ink">{copy.month.pageTitle}</h1>
+      <ReflectionTabs current="month" />
 
       <RangeStepper
-        label={copy.week.range(formatCalendarDate(summary.from), formatCalendarDate(lastDay))}
+        from={summary.from}
+        to={lastDay}
+        kind="month"
         previousHref={`/month?m=${shiftMonth(anchor, -1)}`}
         nextHref={isCurrent ? null : `/month?m=${shiftMonth(anchor, 1)}`}
       />
@@ -67,77 +68,73 @@ export default async function MonthPage({ searchParams }: { searchParams: Promis
           }
         />
       ) : (
-        <div className="flex flex-col gap-3">
-          <CompletionHero
-            title={copy.week.completionTitle}
-            percent={summary.completion.percent}
-            done={summary.completion.done}
-            total={summary.completion.total}
-          />
+        <>
+          <Story>
+            {summary.respectTrend === 'up'
+              ? copy.reflection.monthStory.up
+              : summary.respectTrend === 'down'
+                ? copy.reflection.monthStory.down
+                : copy.reflection.monthStory.steady}
+          </Story>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <AverageCard
-              title={copy.week.executionTitle}
-              hint={copy.week.executionHint}
-              value={summary.executionAverage}
-              tone="warm"
+          <div className="panel panel-rows mb-4">
+            <FactRow
+              label={copy.week.completionTitle}
+              detail={copy.week.completionDetail(summary.completion.done, summary.completion.total)}
+              figure={summary.completion.percent === null ? null : `${summary.completion.percent}%`}
             />
-            <AverageCard
-              title={copy.week.respectTitle}
-              hint={copy.week.respectHint}
-              value={summary.respectAverage}
-              tone="accent"
+            <FactRow
+              label={copy.week.executionTitle}
+              figure={summary.executionAverage === null ? null : summary.executionAverage.toFixed(1)}
+              suffix={copy.common.outOfFive}
+            />
+            <FactRow
+              label={copy.week.respectTitle}
+              figure={summary.respectAverage === null ? null : summary.respectAverage.toFixed(1)}
+              suffix={copy.common.outOfFive}
             />
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <TrendLine
+          <div className="panel panel-rows mb-6">
+            <TrendRow
               title={copy.month.completionTrendTitle}
               values={completionValues}
               direction={summary.completionTrend}
               min={0}
               max={100}
-              tone="warm"
-              caption={copy.month.weeklyAveragesTitle}
             />
-            <TrendLine
-              title={copy.month.toneTrendTitle}
-              values={respectValues}
-              direction={summary.respectTrend}
-              min={1}
-              max={5}
-              tone="accent"
-              caption={copy.month.weeklyAveragesTitle}
-            />
+            <TrendRow title={copy.month.toneTrendTitle} values={respectValues} direction={summary.respectTrend} min={1} max={5} />
           </div>
 
-          <Section title={copy.month.weeklyAveragesTitle} className="mb-0">
-            <ul className="card divide-y divide-rule-faint">
+          <section aria-labelledby="weeks-title">
+            <h2 id="weeks-title" className="mb-2 px-1 text-meta font-semibold text-ink-subtle">
+              {copy.month.weeklyAveragesTitle}
+            </h2>
+            <ul className="panel panel-rows">
               {summary.weeks.map((week) => (
-                <li key={week.from} className="flex items-center justify-between gap-3 px-4 py-3">
-                  <span className="min-w-0">
-                    <span className="text-body font-medium text-ink">{copy.month.weekLabel(week.index)}</span>
-                    {/* <bdi>, not a span: "שבוע 4" ends in a digit and the date
-                        starts with one, so without isolation the two run
-                        together into "4 20.09.2026" as one number. */}
-                    <bdi className="ms-3 text-meta text-ink-subtle" dir="ltr">
+                <li key={week.from} className="flex items-center gap-3 px-4 py-3">
+                  <span className="w-24 shrink-0">
+                    <span className="block text-body font-medium text-ink">{copy.month.weekLabel(week.index)}</span>
+                    {/* <bdi>: "שבוע 4" ends in a digit and the date starts with one. */}
+                    <bdi className="block text-meta text-ink-subtle" dir="ltr">
                       {formatCalendarDate(week.from)}
                     </bdi>
                   </span>
-
-                  <span className="flex shrink-0 items-center gap-3 tabular-nums" dir="ltr">
-                    <span className="text-meta text-partner-a">
-                      {week.completionPercent === null ? '—' : `${week.completionPercent}%`}
-                    </span>
-                    <span className="text-meta text-accent-text">
-                      {week.respectAverage === null ? '—' : week.respectAverage.toFixed(1)}
-                    </span>
+                  <span className="h-1 min-w-0 flex-1" aria-hidden="true">
+                    <span
+                      className="block h-full origin-left rounded-full bg-accent rtl:origin-right"
+                      style={{ transform: `scaleX(${(week.completionPercent ?? 0) / 100})` }}
+                    />
+                  </span>
+                  <span className="flex w-20 shrink-0 items-baseline justify-end gap-2 text-meta tabular-nums" dir="ltr">
+                    <span className="text-ink">{week.completionPercent === null ? '—' : `${week.completionPercent}%`}</span>
+                    <span className="text-ink-subtle">{week.respectAverage === null ? '—' : week.respectAverage.toFixed(1)}</span>
                   </span>
                 </li>
               ))}
             </ul>
-          </Section>
-        </div>
+          </section>
+        </>
       )}
     </Screen>
   );

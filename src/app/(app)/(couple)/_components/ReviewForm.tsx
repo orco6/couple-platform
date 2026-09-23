@@ -12,22 +12,19 @@ import type { CalendarDate } from '@/core/dates/calendar-date';
 import { copy } from '@/domain/copy';
 import type { DayEntryValues } from '@/domain/day-entries/day-entries';
 
-import { Stars, type RatingValue } from './Stars';
+import { Scale, type RatingValue } from './Scale';
 
 /**
- * CLOSING THE DAY — one question.
+ * CLOSING THE DAY — one question, answered privately.
  *
- * Mutual respect and communication, 1–5, plus an optional note. Task execution
- * is rated per task by the other partner, so a second daily question would be
- * the same thing asked twice with a worse denominator.
+ * Mutual respect and the quality of talking, 1–5, and an optional note. The
+ * answer is felt before it is read: behind the scale there is one soft light,
+ * and its colour follows the value — dusk at 1, dawn at 5. A low answer is
+ * quiet and cool, never red; a high one is warm, never confetti.
  *
- * The screen responds to the value as it changes: the card behind the stars
- * warms from cool to warm across the five steps, so the answer is felt before
- * it is read. That gradient is driven from the value only — it is not
- * decoration, it is the feedback.
- *
- * Nothing is pre-selected. A default of 3 would be an answer nobody gave, and
- * the figure it feeds is the one the whole summary rests on.
+ * The light is a background colour on an element that never changes size, so
+ * choosing moves nothing on the page. Nothing is pre-selected: a default of 3
+ * would be an answer nobody gave, and it is the figure the summary rests on.
  */
 export function ReviewForm({
   date,
@@ -44,15 +41,12 @@ export function ReviewForm({
 
   const [respect, setRespect] = useState<RatingValue | null>((existing?.respectRating as RatingValue | undefined) ?? null);
   const [note, setNote] = useState(existing?.note ?? '');
-  /** Only ever set by pressing submit with nothing chosen. */
   const [missing, setMissing] = useState(false);
 
   async function save() {
     if (respect === null) {
-      // Not a disabled button: the foundation's rule is that pressing reveals
-      // the problem, because a disabled control that will not say why wastes
-      // the press. Extraction record — "Submit never disabled for invalid
-      // input".
+      // Pressing reveals the problem; a disabled button that will not say why
+      // wastes the press.
       setMissing(true);
       return;
     }
@@ -72,57 +66,36 @@ export function ReviewForm({
     <form method="post" onSubmit={(event) => event.preventDefault()} className="space-y-6">
       <FormError message={formError} />
 
-      <div className="card relative overflow-hidden p-6">
-        <p className="text-center text-label font-semibold text-ink-muted">{copy.day.respectLabel}</p>
-        <p className="mt-1 mb-5 text-center text-body text-ink">{copy.day.respectQuestion}</p>
-
-        {/* THE RESPONSE. Cool at 1, warm at 5, and it moves with the value
-            rather than appearing after it.
-
-            It sits behind the STARS and stops short of the words above them.
-            That is a deliberate boundary, and it is one decision serving two
-            masters: the light belongs where the thumb is, and a saturated wash
-            behind a sentence is also how a screen stops being readable — at
-            full strength this exact glow put the question below 4.5:1. */}
-        <div className="relative">
-          <motion.span
-            aria-hidden="true"
-            className="pointer-events-none absolute -inset-x-8 -bottom-4 top-0 rounded-full blur-3xl"
-            initial={false}
-            animate={{
-              opacity: respect === null ? 0 : 0.22 + (respect - 1) * 0.07,
-              backgroundColor:
-                respect === null
-                  ? 'transparent'
-                  : respect <= 2
-                    ? 'var(--brand-partner-b)'
-                    : respect === 3
-                      ? 'var(--brand-accent)'
-                      : 'var(--brand-partner-a)',
-            }}
-            transition={reduced ? { duration: 0.12 } : { duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-          />
-
-          <div className="relative">
-            <Stars
-              legend={copy.day.respectLabel}
-              labels={copy.day.scale}
-              value={respect}
-              onChange={(next) => {
-                setMissing(false);
-                setRespect(next);
-              }}
-              size={52}
-              tone="accent"
-            />
-          </div>
-        </div>
-
-        {missing && (
-          <p role="alert" className="mt-3 text-center text-body font-medium text-danger-text">
-            {copy.day.chooseFirst}
-          </p>
-        )}
+      <div className="relative isolate pt-8 pb-2">
+        {/* The light. Fixed size, coloured by the answer. */}
+        <span
+          aria-hidden="true"
+          data-tone={respect ?? undefined}
+          className="tone-light pointer-events-none absolute inset-x-4 -inset-y-2 -z-10 rounded-full blur-3xl"
+        />
+        <Scale
+          legend={copy.day.respectLabel}
+          labels={copy.day.scale}
+          value={respect}
+          onChange={(next) => {
+            setMissing(false);
+            setRespect(next);
+          }}
+          size="lg"
+          tone="ink"
+          slot={
+            missing ? (
+              <motion.p
+                role="alert"
+                initial={reduced ? false : { opacity: 0, y: -3 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-body font-medium text-danger-text"
+              >
+                {copy.day.chooseFirst}
+              </motion.p>
+            ) : undefined
+          }
+        />
       </div>
 
       <FormField label={copy.day.noteLabel} name="note" hint={copy.day.noteHint} error={fieldErrors.note}>
@@ -130,7 +103,7 @@ export function ReviewForm({
           <Textarea
             {...props}
             name="note"
-            rows={3}
+            rows={2}
             value={note}
             onChange={(event) => setNote(event.target.value)}
             placeholder={copy.day.notePlaceholder}
@@ -138,15 +111,7 @@ export function ReviewForm({
         )}
       </FormField>
 
-      {/* Disabled only because nothing has been chosen yet, with the reason
-          visible right above it — the foundation's rule is that a disabled
-          control always says why. */}
-      <Button
-        variant="primary"
-        onClick={save}
-        loading={pending}
-        className={respect === null ? 'w-full' : 'glow-accent w-full'}
-      >
+      <Button variant="primary" onClick={save} loading={pending} className="min-h-12 w-full">
         {mode === 'submit' ? copy.day.submitAction : copy.common.save}
       </Button>
     </form>

@@ -1,13 +1,12 @@
 import { requireActorPage } from '@/core/auth/page-guards';
 import {
   compareCalendarDates,
-  formatCalendarDate,
   isCalendarDate,
   todayIn,
   type CalendarDate,
 } from '@/core/dates/calendar-date';
 import { db } from '@/core/db/client';
-import { Notice, PageHeader, Section } from '@/core/ui/components/Layout';
+import { businessLocale } from '@/brand/brand';
 import { EmptyState } from '@/core/ui/components/States';
 import { copy } from '@/domain/copy';
 import { getDay } from '@/domain/day-entries/day-entries';
@@ -15,7 +14,8 @@ import { getDay } from '@/domain/day-entries/day-entries';
 import { listTasksForDay } from '@/domain/tasks/tasks';
 
 import { ReviewForm } from '../_components/ReviewForm';
-import { RevealPanel } from '../_components/RevealPanel';
+import { PartnerMark } from '../_components/PartnerMark';
+import { RevealPanel, WaitingPanel } from '../_components/RevealPanel';
 import { Screen } from '../_components/Screen';
 import { TooEarlyPanel } from '../_components/TooEarlyPanel';
 
@@ -31,7 +31,7 @@ export const metadata = { title: copy.day.pageTitle };
  *  4 Actions: one primary.
  *  5 Shape: a full page. It is the screen people open on purpose at night, and
  *    it is linkable from the attention list for a past day.
- *  6 Phone: one column, stars at 52px, the primary button at the end of the
+ *  6 Phone: one column, the scale at 56px stops, the primary button at the end of the
  *    flow rather than pinned — there is nothing above it to scroll past.
  *  7/8/9 States: too early (the time it opens), nothing written (the form),
  *    written and waiting (mine, plus amend while it is still allowed),
@@ -39,7 +39,7 @@ export const metadata = { title: copy.day.pageTitle };
  * 10 Unauthorized: the reveal is enforced in the service; this page renders
  *    whatever the view contains, and the view cannot contain the partner's
  *    values early (R-DAY-05).
- * 11/12 RTL, with the star row LTR like every magnitude axis here.
+ * 11/12 RTL, with the scale LTR like every magnitude axis here.
  * 13 Audit: the date only, never the rating or the note (R-DAY-30).
  * 14 Confirmation: none. Closing a day is not destructive, and it can be
  *    amended until the partner closes theirs.
@@ -63,44 +63,49 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
   // now?" with the list rather than with an empty screen.
   const openTasks = day.canClose || day.mine ? [] : await listTasksForDay(db, actor, date);
 
+  const heading = day.revealed || day.mine || isFuture || !day.canClose ? copy.day.pageTitle : copy.day.question;
+
   return (
     <Screen>
-      <PageHeader
-        eyebrow={<bdi dir="ltr">{formatCalendarDate(date)}</bdi>}
-        title={copy.day.pageTitle}
-        description={date === today ? copy.day.question : undefined}
-      />
+      <header className="mb-2 px-1">
+        <p className="text-body text-ink-subtle">
+          {date === today
+            ? copy.common.today
+            : new Intl.DateTimeFormat(businessLocale.language, { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }).format(
+                new Date(`${date}T12:00:00Z`),
+              )}
+        </p>
+        <h1 className="mt-0.5 text-title leading-tight font-semibold text-balance text-ink">{heading}</h1>
+        {heading === copy.day.question && <p className="mt-1 text-row text-ink-muted">{copy.day.respectQuestion}</p>}
+      </header>
 
       {isFuture ? (
         <EmptyState title={copy.day.notOpenYetTitle} description={copy.day.notOpenYetWhy(day.reviewTime)} />
       ) : day.revealed && day.mine && day.theirs && day.partner ? (
-        <>
+        <div className="pt-6">
           <RevealPanel me={day.me} partner={day.partner} mine={day.mine} theirs={day.theirs} />
-          <Notice className="mt-6">{copy.day.frozenNotice}</Notice>
-        </>
+          <p className="mt-6 text-center text-meta text-ink-subtle">{copy.day.frozenNotice}</p>
+        </div>
       ) : day.mine ? (
-        <>
-          <Notice className="mb-6">
-            {day.partner ? (
-              <>
-                <strong className="font-semibold">{copy.day.waitingTitle(partnerName)}</strong> {copy.day.waitingWhy}
-              </>
-            ) : (
-              copy.errors.noPartnerYet
-            )}
-          </Notice>
-
-          <Section title={copy.day.alreadyClosed}>
-            {day.permissions.amend ? (
-              <ReviewForm date={date} mode="amend" existing={day.mine} />
-            ) : (
-              <Notice>{copy.day.frozenNotice}</Notice>
-            )}
-          </Section>
-        </>
+        <div className="pt-8">
+          <WaitingPanel
+            me={day.me}
+            partner={day.partner}
+            partnerName={partnerName}
+            date={date}
+            mine={day.mine}
+            canAmend={day.permissions.amend}
+          />
+          {!day.permissions.amend && <p className="mt-6 text-center text-meta text-ink-subtle">{copy.day.frozenNotice}</p>}
+        </div>
       ) : day.canClose ? (
         <>
-          {day.partnerSubmitted && <Notice className="mb-6">{copy.day.partnerClosedAlready(partnerName)}</Notice>}
+          {day.partnerSubmitted && (
+            <p className="mt-3 flex items-center gap-2 px-1 text-body text-ink-muted">
+              <PartnerMark partner={day.partner ?? day.me} size={18} />
+              {copy.day.partnerClosedAlready(partnerName)}
+            </p>
+          )}
           <ReviewForm date={date} mode="submit" />
         </>
       ) : (

@@ -110,7 +110,7 @@ test('both partners sign in, and the list is genuinely shared', async ({ page })
 
   // ── Partner A ──────────────────────────────────────────────────────────
   await signIn(page, A, PASSWORD_A);
-  await expect(page.getByRole('heading', { level: 1, name: copy.tasks.pageTitle })).toBeVisible();
+  await expect(page.getByRole('heading', { name: copy.today.listTitle })).toBeVisible();
 
   // A task A owns: A finishes it and is told they are waiting. No stars for
   // the person whose task it is.
@@ -130,8 +130,9 @@ test('both partners sign in, and the list is genuinely shared', async ({ page })
   expect((await saved).ok()).toBe(true);
 
   // The write survived the round trip, not just the optimistic render.
+  // After a reload the rated row is folded to one line that says what was given.
   await page.reload();
-  await expect(card(page, theirs).getByRole('radio', { checked: true })).toHaveAttribute('aria-label', /^4 —/);
+  await expect(card(page, theirs).getByText(copy.taskRating.myRatedLine(copy.taskRating.scale[4]))).toBeVisible();
 
   // ── Partner B ──────────────────────────────────────────────────────────
   await signOut(page);
@@ -179,16 +180,15 @@ test('the summaries load and the phone bar reaches every screen', async ({ page 
   const bar = page.locator('[data-mobile-tab-bar]');
   await expect(bar).toBeVisible();
 
-  for (const [label, url, heading] of [
-    [copy.nav.week, /\/week$/, copy.week.pageTitle],
-    [copy.nav.month, /\/month$/, copy.month.pageTitle],
-    [copy.nav.review, /\/review$/, copy.day.pageTitle],
-    [copy.nav.today, /\/$/, copy.tasks.pageTitle],
-  ] as const) {
-    await bar.getByRole('link', { name: label }).click();
-    await page.waitForURL(url);
-    await expect(page.getByRole('heading', { level: 1, name: heading })).toBeVisible();
-  }
+  await bar.getByRole('link', { name: copy.nav.reflection }).click();
+  await page.waitForURL(/\/week$/);
+  await expect(page.getByRole('heading', { level: 1, name: copy.week.pageTitle })).toBeVisible();
+  await page.getByRole('navigation', { name: copy.nav.reflection }).getByRole('link', { name: copy.nav.month }).click();
+  await page.waitForURL(/\/month$/);
+  await expect(page.getByRole('heading', { level: 1, name: copy.month.pageTitle })).toBeVisible();
+  await bar.getByRole('link', { name: copy.nav.today }).click();
+  await page.waitForURL(/\/$/);
+  await expect(page.getByRole('heading', { name: copy.today.listTitle })).toBeVisible();
 
   // The summaries have real figures behind them, not empty states.
   await page.goto('/week');
