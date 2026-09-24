@@ -225,6 +225,10 @@ export function Overlay({
       data-testid={testId}
       onCancel={(event) => {
         event.preventDefault();
+        // Only the dialog's own cancel (Escape) closes it. A file input fires
+        // a bubbling `cancel` when its picker is dismissed; that is not a request
+        // to leave this screen.
+        if (event.target !== event.currentTarget) return;
         requestClose();
       }}
       onKeyDown={onKeyDown}

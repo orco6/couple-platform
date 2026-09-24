@@ -21,5 +21,7 @@ Format: Context → Decision → Consequences. Status: Accepted / Superseded by 
 | [0012](0012-new-business-workflow.md) | New-business script, blank-domain template, injected seams, role-agnostic core |
 | [0013](0013-preview-database-setup.md) | Preview database migrated and seeded from one flagged Vercel build |
 | [0014](0014-navigation-keeps-the-screen.md) | Navigation keeps the screen; the tab answers at once; functions next to the database |
+| [0015](0015-no-raw-validation-messages.md) | No raw validation messages reach a person |
+| [0016](0016-screen-transitions-and-busy-buttons.md) | Screens push like iOS (ViewTransition); busy buttons show the couple loader; A blue, B pink |
 
 See also [stress-tests.md](../stress-tests.md): the dental clinic build and the garage analysis.

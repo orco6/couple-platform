@@ -1,13 +1,10 @@
 import Link from 'next/link';
+
+import { PageTransition } from '../_components/PageTransition';
 import { X } from 'lucide-react';
 
 import { requireActorPage } from '@/core/auth/page-guards';
-import {
-  compareCalendarDates,
-  isCalendarDate,
-  todayIn,
-  type CalendarDate,
-} from '@/core/dates/calendar-date';
+import { compareCalendarDates, isCalendarDate, todayIn, type CalendarDate } from '@/core/dates/calendar-date';
 import { db } from '@/core/db/client';
 import { businessLocale } from '@/brand/brand';
 import { copy } from '@/domain/copy';
@@ -66,9 +63,12 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
   const dateLabel =
     date === today
       ? copy.common.today
-      : new Intl.DateTimeFormat(businessLocale.language, { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }).format(
-          new Date(`${date}T12:00:00Z`),
-        );
+      : new Intl.DateTimeFormat(businessLocale.language, {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          timeZone: 'UTC',
+        }).format(new Date(`${date}T12:00:00Z`));
   const asking = !isFuture && day.canClose && !day.mine && !day.revealed;
   const partnerFirst = partnerName.split(' ')[0] ?? partnerName;
 
@@ -76,52 +76,49 @@ export default async function ReviewPage({ searchParams }: { searchParams: Promi
     // The day is a moment, not a tab: the bar steps aside (data-immersive) and
     // the screen is one centred column in a frame sized to the SMALL viewport,
     // so Safari's toolbar coming and going never moves it.
-    <div data-immersive className="page-push mx-auto flex min-h-[calc(100svh-5rem)] w-full max-w-md flex-col px-2">
-      <div className="flex items-center justify-between pt-2">
-        <Link
-          href="/"
-          aria-label={copy.day.close}
-          className="tap-quiet press grid size-11 place-items-center rounded-full text-ink-muted focus-visible:outline-2 focus-visible:outline-focus"
-        >
-          <X aria-hidden="true" size={22} />
-        </Link>
-        <p className="text-body text-ink-muted">{dateLabel}</p>
-      </div>
+    <PageTransition>
+      <div data-immersive className="mx-auto flex min-h-[calc(100svh-5rem)] w-full max-w-md flex-col px-2">
+        <div className="flex items-center justify-between pt-2">
+          <Link
+            href="/"
+            transitionTypes={['nav-back']}
+            aria-label={copy.day.close}
+            className="tap-quiet press grid size-11 place-items-center rounded-full text-ink-muted focus-visible:outline-2 focus-visible:outline-focus"
+          >
+            <X aria-hidden="true" size={22} />
+          </Link>
+          <p className="text-body text-ink-muted">{dateLabel}</p>
+        </div>
 
-      <div className="flex flex-1 flex-col justify-center pb-10">
-        <h1 className="mb-10 text-center text-[1.875rem] leading-tight font-semibold text-balance text-ink">
-          {asking ? copy.day.question : day.revealed ? copy.day.revealedTitle : copy.day.pageTitle}
-        </h1>
+        <div className="flex flex-1 flex-col justify-center pb-10">
+          <h1 className="mb-10 text-center text-[1.875rem] leading-tight font-semibold text-balance text-ink">
+            {asking ? copy.day.question : day.revealed ? copy.day.revealedTitle : copy.day.pageTitle}
+          </h1>
 
-        {isFuture ? (
-          <p className="text-center text-row text-ink-muted">{copy.day.notOpenYetWhy(day.reviewTime)}</p>
-        ) : day.revealed && day.mine && day.theirs && day.partner ? (
-          <>
-            <RevealPanel me={day.me} partner={day.partner} mine={day.mine} theirs={day.theirs} />
-            <p className="mt-8 text-center text-meta text-ink-muted">{copy.day.frozenNotice}</p>
-          </>
-        ) : day.mine ? (
-          <WaitingPanel
-            partner={day.partner}
-            partnerName={partnerName}
-            date={date}
-            mine={day.mine}
-            canAmend={day.permissions.amend}
-          />
-        ) : day.canClose ? (
-          <>
-            {day.partnerSubmitted && day.partner && (
-              <p className="-mt-6 mb-8 flex items-center justify-center gap-2 text-body text-ink-muted">
-                <span aria-hidden="true" className={`${day.partner.side === 'a' ? 'light-a' : 'light-b'} size-3.5`} />
-                {copy.day.partnerClosedAlready(partnerFirst)}
-              </p>
-            )}
-            <ReviewForm date={date} mode="submit" />
-          </>
-        ) : (
-          <TooEarlyPanel reviewTime={day.reviewTime} openTasks={openTasks.filter((task) => task.state === 'OPEN').length} />
-        )}
+          {isFuture ? (
+            <p className="text-center text-row text-ink-muted">{copy.day.notOpenYetWhy(day.reviewTime)}</p>
+          ) : day.revealed && day.mine && day.theirs && day.partner ? (
+            <>
+              <RevealPanel me={day.me} partner={day.partner} mine={day.mine} theirs={day.theirs} />
+              <p className="mt-8 text-center text-meta text-ink-muted">{copy.day.frozenNotice}</p>
+            </>
+          ) : day.mine ? (
+            <WaitingPanel partner={day.partner} partnerName={partnerName} date={date} mine={day.mine} canAmend={day.permissions.amend} />
+          ) : day.canClose ? (
+            <>
+              {day.partnerSubmitted && day.partner && (
+                <p className="-mt-6 mb-8 flex items-center justify-center gap-2 text-body text-ink-muted">
+                  <span aria-hidden="true" className={`${day.partner.side === 'a' ? 'light-a' : 'light-b'} size-3.5`} />
+                  {copy.day.partnerClosedAlready(partnerFirst)}
+                </p>
+              )}
+              <ReviewForm date={date} mode="submit" />
+            </>
+          ) : (
+            <TooEarlyPanel reviewTime={day.reviewTime} openTasks={openTasks.filter((task) => task.state === 'OPEN').length} />
+          )}
+        </div>
       </div>
-    </div>
+    </PageTransition>
   );
 }

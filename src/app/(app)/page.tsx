@@ -1,3 +1,5 @@
+import { cookies } from 'next/headers';
+
 import { requireActorPage } from '@/core/auth/page-guards';
 import { addDays, todayIn } from '@/core/dates/calendar-date';
 import { db } from '@/core/db/client';
@@ -7,8 +9,10 @@ import { partnersOf } from '@/domain/partners';
 import { listTasksForDay } from '@/domain/tasks/tasks';
 
 import { DayLine } from './(couple)/_components/DayLine';
+import { PageTransition } from './(couple)/_components/PageTransition';
 import { Screen } from './(couple)/_components/Screen';
 import { TodayTasks } from './(couple)/_components/TodayTasks';
+import { readTodayView, TODAY_VIEW_COOKIE } from './(couple)/_components/today-view';
 
 export const metadata = { title: copy.nav.today };
 
@@ -26,30 +30,41 @@ export default async function TodayPage() {
   const actor = await requireActorPage();
   const today = todayIn();
 
-  const [{ me, other }, tasks, tomorrowTasks, day] = await Promise.all([
+  const [{ me, other }, tasks, tomorrowTasks, day, jar] = await Promise.all([
     partnersOf(db, actor),
     listTasksForDay(db, actor, today),
     listTasksForDay(db, actor, addDays(today, 1)),
     getDay(db, actor, today),
+    cookies(),
   ]);
 
   const first = (name: string) => name.split(' ')[0] ?? name;
   const title = other ? copy.today.couple(first(me.name), first(other.name)) : first(me.name);
 
   return (
-    <Screen className="pb-24">
-      <header className="mb-7 px-2 pt-8">
-        {/* Two presences, one space: the pair of lights is the product's mark. */}
-        <div aria-hidden="true" dir="ltr" className="mb-5 flex -space-x-3 rtl:justify-end">
-          <span className={`${me.side === 'a' ? 'light-a' : 'light-b'} size-10`} />
-          {other && <span className={`${other.side === 'a' ? 'light-a' : 'light-b'} size-10 mix-blend-multiply dark:mix-blend-screen`} />}
-        </div>
-        <h1 className="text-[2.375rem] leading-[1.08] font-bold tracking-tight text-balance text-ink">{title}</h1>
-        <div className="mt-4 min-h-0">
-          <DayLine day={day} />
-        </div>
-      </header>
-      <TodayTasks tasks={tasks} tomorrow={tomorrowTasks} me={me} partner={other} today={today} />
-    </Screen>
+    <PageTransition>
+      <Screen className="pb-24">
+        <header className="mb-7 px-2 pt-8">
+          {/* Two presences, one space: the pair of lights is the product's mark.
+            They come together as the screen opens, then breathe, slowly. */}
+          <div aria-hidden="true" dir="ltr" className="couple-mark mb-5 flex -space-x-3 rtl:justify-end">
+            <span className={`${me.side === 'a' ? 'light-a' : 'light-b'} size-10`} />
+            {other && <span className={`${other.side === 'a' ? 'light-a' : 'light-b'} size-10 mix-blend-multiply dark:mix-blend-screen`} />}
+          </div>
+          <h1 className="text-[2.375rem] leading-[1.08] font-bold tracking-tight text-balance text-ink">{title}</h1>
+          <div className="mt-4 min-h-0">
+            <DayLine day={day} />
+          </div>
+        </header>
+        <TodayTasks
+          tasks={tasks}
+          tomorrow={tomorrowTasks}
+          me={me}
+          partner={other}
+          today={today}
+          initialView={readTodayView(jar.get(TODAY_VIEW_COOKIE)?.value)}
+        />
+      </Screen>
+    </PageTransition>
   );
 }

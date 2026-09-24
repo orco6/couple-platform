@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowUp, CalendarDays, Camera, Clock, X } from 'lucide-react';
+import { CalendarDays, Camera, Clock, Plus, X } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -14,7 +14,10 @@ import { copy } from '@/domain/copy';
 import type { PartnerRef } from '@/domain/partners';
 import type { TaskView } from '@/domain/tasks/tasks';
 
+import { MAX_PHOTOS } from '@/domain/tasks/photo-limits';
+
 import { Calendar } from './Calendar';
+import { BusyLabel } from './CoupleLoader';
 import { PhotoViewer } from './PhotoViewer';
 import { RatingBadge } from './TaskRow';
 
@@ -37,7 +40,12 @@ export function primeKeyboard() {
   window.setTimeout(() => proxy.remove(), 800);
 }
 
-const shortDay = new Intl.DateTimeFormat('he-IL', { weekday: 'short', day: 'numeric', month: 'numeric', timeZone: 'UTC' });
+const shortDay = new Intl.DateTimeFormat('he-IL', {
+  weekday: 'short',
+  day: 'numeric',
+  month: 'numeric',
+  timeZone: 'UTC',
+});
 
 /**
  * THE COMPOSER — adding a task, as close to writing a message as it gets.
@@ -111,12 +119,17 @@ export function Composer({
   const [withTime, setWithTime] = useState(false);
   const [withNote, setWithNote] = useState(false);
   const [missingTitle, setMissingTitle] = useState(false);
-  const [photoFile, setPhotoFile] = useState<Blob | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [photoRemoved, setPhotoRemoved] = useState(false);
-  const [viewing, setViewing] = useState(false);
+  /** Photos picked in this visit, not uploaded yet (they need the task's id). */
+  const [newPhotos, setNewPhotos] = useState<{ key: string; blob: Blob; url: string }[]>([]);
+  /** Existing photos the person removed in this visit. */
+  const [removedPhotos, setRemovedPhotos] = useState<string[]>([]);
+  /** The photo open full screen (its index), or null. */
+  const [viewing, setViewing] = useState<number | null>(null);
   const photoInput = useRef<HTMLInputElement>(null);
   const toast = useToast();
+  /** The whole save — the task, then its photos, then the list catching up. */
+  const [saving, setSaving] = useState(false);
+  const busy = pending || saving;
 
   // Fill in on each open (render-phase: no flash of the previous task).
   const [openedFor, setOpenedFor] = useState<string | null>(null);
@@ -134,10 +147,10 @@ export function Composer({
       setWithNote(Boolean(task?.note));
       setPicking(false);
       setMissingTitle(false);
-      setPhotoFile(null);
-      setPhotoPreview(null);
-      setPhotoRemoved(false);
-      setViewing(false);
+      setNewPhotos([]);
+      setRemovedPhotos([]);
+      setViewing(null);
+      setSaving(false);
     }
   }
   if (open && !mounted) setMounted(true);
@@ -146,7 +159,7 @@ export function Composer({
 
   useEffect(() => {
     if (open || !mounted) return;
-    const timer = window.setTimeout(() => setMounted(false), 200);
+    const timer = window.setTimeout(() => setMounted(false), 380);
     return () => window.clearTimeout(timer);
   }, [open, mounted]);
 
@@ -199,17 +212,27 @@ export function Composer({
   }, [mounted]);
 
   function close() {
-    if (pending) return;
+    if (busy) return;
     titleRef.current?.blur();
     onClose();
   }
 
   async function save() {
+    if (busy) return;
     if (title.trim() === '') {
       setMissingTitle(true);
       titleRef.current?.focus({ preventScroll: true });
       return;
     }
+    setSaving(true);
+    try {
+      await saveAll();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveAll() {
     // Every key the schema knows, in the shape it expects: the edit schema
     // needs the id (its absence once reached a person as "Invalid input").
     const body = {
@@ -220,7 +243,10 @@ export function Composer({
       note: withNote && note.trim() !== '' ? note : null,
     };
     const result = task
-      ? await submit(`/api/tasks/${task.id}`, { method: 'PATCH', body: { ...body, id: task.id, version: task.version } })
+      ? await submit(`/api/tasks/${task.id}`, {
+          method: 'PATCH',
+          body: { ...body, id: task.id, version: task.version },
+        })
       : await submit('/api/tasks', { method: 'POST', body });
     if (result === null) return;
     titleRef.current?.blur();
@@ -228,36 +254,49 @@ export function Composer({
     // or remove the old one. A failed upload keeps the task and says so.
     const taskId = (result as TaskView).id;
     try {
-      if (photoFile) {
-        const response = await fetch(`/api/tasks/${taskId}/photo`, {
-          method: 'PUT',
-          headers: { 'Content-Type': photoFile.type || 'image/jpeg' },
-          body: photoFile,
+      for (const id of removedPhotos) {
+        const response = await fetch(`/api/tasks/${taskId}/photos/${id}`, {
+          method: 'DELETE',
           credentials: 'same-origin',
         });
         if (!response.ok) throw new Error(String(response.status));
-      } else if (photoRemoved && task?.photo) {
-        const response = await fetch(`/api/tasks/${taskId}/photo`, { method: 'DELETE', credentials: 'same-origin' });
+      }
+      for (const photo of newPhotos) {
+        const response = await fetch(`/api/tasks/${taskId}/photos`, {
+          method: 'POST',
+          headers: { 'Content-Type': photo.blob.type || 'image/jpeg' },
+          body: photo.blob,
+          credentials: 'same-origin',
+        });
         if (!response.ok) throw new Error(String(response.status));
       }
     } catch {
       toast.show(copy.tasks.photoFailed, 'error');
     }
+    for (const photo of newPhotos) URL.revokeObjectURL(photo.url);
     router.refresh();
     onClose();
   }
 
-  async function pickPhoto(file: File | undefined) {
-    if (!file) return;
-    try {
-      const shrunk = await shrinkPhoto(file);
-      if (photoPreview) URL.revokeObjectURL(photoPreview);
-      setPhotoFile(shrunk);
-      setPhotoPreview(URL.createObjectURL(shrunk));
-      setPhotoRemoved(false);
-    } catch {
-      toast.show(copy.tasks.photoNotImage, 'error');
+  async function pickPhotos(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const room = MAX_PHOTOS - photos.length;
+    const chosen = Array.from(files).slice(0, Math.max(0, room));
+    if (files.length > room) toast.show(copy.tasks.photosFull(MAX_PHOTOS), 'error');
+    const added: { key: string; blob: Blob; url: string }[] = [];
+    for (const file of chosen) {
+      try {
+        const blob = await shrinkPhoto(file);
+        added.push({
+          key: `${Date.now()}-${added.length}-${file.name}`,
+          blob,
+          url: URL.createObjectURL(blob),
+        });
+      } catch {
+        toast.show(copy.tasks.photoNotImage, 'error');
+      }
     }
+    if (added.length > 0) setNewPhotos((previous) => [...previous, ...added]);
   }
 
   if (!mounted) return null;
@@ -265,14 +304,28 @@ export function Composer({
   const people = partner ? [me, partner] : [me];
   const custom = date !== defaultDate && date !== tomorrow;
   const titleError = missingTitle ? copy.tasks.titleMissing : fieldErrors.title;
-  const existingPhoto = task?.photo && !photoRemoved ? `/api/tasks/${task.id}/photo?v=${task.photo.version}` : null;
-  const photoSrc = photoPreview ?? existingPhoto;
+  // Every photo on screen, in order: the saved ones (minus any removed now),
+  // then the ones picked in this visit.
+  const photos: { key: string; src: string; saved?: string }[] = [
+    ...(task?.photos ?? [])
+      .filter((photo) => !removedPhotos.includes(photo.id))
+      .map((photo) => ({
+        key: photo.id,
+        src: `/api/tasks/${task!.id}/photos/${photo.id}?v=${photo.version}`,
+        saved: photo.id,
+      })),
+    ...newPhotos.map((photo) => ({ key: photo.key, src: photo.url })),
+  ];
+  const photoAlt = (index: number) =>
+    `${copy.tasks.photoAlt(title || copy.tasks.titleLabel)} · ${copy.tasks.photoOf(index + 1, photos.length)}`;
 
   const chip = (on: boolean) =>
     cx(
       'tap-quiet press inline-flex min-h-11 items-center gap-2 rounded-chip px-4 text-body transition-[background-color,color,box-shadow] duration-200',
       'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
-      on ? 'bg-surface font-semibold text-ink shadow-[inset_0_0_0_2px_var(--color-ink)]' : 'text-ink-muted shadow-[inset_0_0_0_1px_var(--color-rule)]',
+      on
+        ? 'bg-surface font-semibold text-ink shadow-[inset_0_0_0_2px_var(--color-ink)]'
+        : 'text-ink-muted shadow-[inset_0_0_0_1px_var(--color-rule)]',
     );
 
   return (
@@ -281,8 +334,13 @@ export function Composer({
       aria-label={task ? copy.tasks.editTitle : copy.tasks.addTitle}
       data-testid="composer"
       data-shown={visible}
+      data-kind={task ? 'push' : 'rise'}
       onCancel={(event) => {
         event.preventDefault();
+        // Only the dialog's own cancel (Escape) closes it. A file input fires
+        // a bubbling `cancel` when its picker is dismissed; that is not a request
+        // to leave this screen.
+        if (event.target !== event.currentTarget) return;
         close();
       }}
       className="composer"
@@ -300,14 +358,19 @@ export function Composer({
         className="composer-body"
       >
         <div className="flex items-center justify-between">
-          <button type="button" onClick={close} aria-label={copy.common.close} className="tap-quiet press -ms-2 grid size-11 place-items-center rounded-full text-ink-muted focus-visible:outline-2 focus-visible:outline-focus">
+          <button
+            type="button"
+            onClick={close}
+            aria-label={copy.common.close}
+            className="tap-quiet press -ms-2 grid size-11 place-items-center rounded-full text-ink-muted focus-visible:outline-2 focus-visible:outline-focus"
+          >
             <X aria-hidden="true" size={24} />
           </button>
           {task && onDelete && task.permissions.delete && (
             <button
               type="button"
               onClick={() => onDelete(task)}
-              disabled={pending}
+              disabled={busy}
               className="tap-quiet press min-h-11 rounded-chip px-3 text-body text-danger-text focus-visible:outline-2 focus-visible:outline-focus"
             >
               {copy.tasks.deleteAction}
@@ -358,20 +421,12 @@ export function Composer({
               style={fieldHeight ? { height: fieldHeight } : undefined}
             />
           </div>
-          <button
-            type="submit"
-            aria-label={task ? copy.common.save : copy.common.add}
-            aria-busy={pending || undefined}
-            className={cx(
-              'send-button tap-quiet press grid size-14 shrink-0 place-items-center overflow-hidden rounded-full bg-accent text-on-accent shadow-[var(--brand-shadow-float)] transition-opacity duration-200',
-              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus',
-              title.trim() === '' && 'opacity-40',
-            )}
-          >
-            <ArrowUp aria-hidden="true" size={24} strokeWidth={2.4} />
-          </button>
         </div>
-        <p id="task-title-error" role={titleError ? 'alert' : undefined} className="mt-1.5 h-5 ps-2 text-label font-medium text-danger-text">
+        <p
+          id="task-title-error"
+          role={titleError ? 'alert' : undefined}
+          className="mt-1.5 h-5 ps-2 text-label font-medium text-danger-text"
+        >
           {titleError}
         </p>
 
@@ -381,7 +436,13 @@ export function Composer({
           {people.map((person) => {
             const checked = ownerId === person.id;
             return (
-              <label key={person.id} className={cx(chip(checked), 'ps-1.5 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus')}>
+              <label
+                key={person.id}
+                className={cx(
+                  chip(checked),
+                  'ps-1.5 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-focus',
+                )}
+              >
                 <input
                   type="radio"
                   name="ownerId"
@@ -399,10 +460,26 @@ export function Composer({
 
         {/* When — and the two extras. */}
         <div className="mt-2.5 flex flex-wrap gap-2" role="group" aria-label={copy.tasks.dateLabel}>
-          <button type="button" aria-pressed={date === defaultDate} onClick={() => { setDate(defaultDate); setPicking(false); }} className={chip(date === defaultDate)}>
+          <button
+            type="button"
+            aria-pressed={date === defaultDate}
+            onClick={() => {
+              setDate(defaultDate);
+              setPicking(false);
+            }}
+            className={chip(date === defaultDate)}
+          >
             {copy.common.today}
           </button>
-          <button type="button" aria-pressed={date === tomorrow} onClick={() => { setDate(tomorrow); setPicking(false); }} className={chip(date === tomorrow)}>
+          <button
+            type="button"
+            aria-pressed={date === tomorrow}
+            onClick={() => {
+              setDate(tomorrow);
+              setPicking(false);
+            }}
+            className={chip(date === tomorrow)}
+          >
             {copy.tasks.tomorrow}
           </button>
           <button
@@ -420,6 +497,19 @@ export function Composer({
             {custom && <span>{shortDay.format(new Date(`${date}T12:00:00Z`))}</span>}
           </button>
         </div>
+
+        {/* The one action, impossible to miss: full width, in both lights. */}
+        <button
+          type="submit"
+          aria-busy={busy || undefined}
+          className="create-button tap-quiet mt-4 flex h-14 w-full items-center justify-center rounded-full text-row font-bold text-on-partner focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+        >
+          <BusyLabel busy={busy} onFill>
+            {!task && <Plus aria-hidden="true" size={20} strokeWidth={2.6} />}
+            {task ? copy.common.save : copy.common.add}
+          </BusyLabel>
+          {busy && <span className="sr-only">{task ? copy.tasks.saving : copy.tasks.adding}</span>}
+        </button>
 
         {picking ? (
           <div className="composer-panel mt-3">
@@ -470,7 +560,7 @@ export function Composer({
                   {copy.tasks.addNote}
                 </button>
               )}
-              {!photoSrc && (
+              {photos.length === 0 && (
                 <button type="button" onClick={() => photoInput.current?.click()} className={chip(false)}>
                   <Camera aria-hidden="true" size={18} />
                   {copy.tasks.addPhoto}
@@ -480,48 +570,70 @@ export function Composer({
                 ref={photoInput}
                 type="file"
                 accept="image/*"
+                multiple
                 className="sr-only"
                 tabIndex={-1}
                 aria-label={copy.tasks.addPhoto}
                 data-testid="photo-input"
                 onChange={(event) => {
-                  void pickPhoto(event.target.files?.[0]);
+                  void pickPhotos(event.target.files);
                   event.target.value = '';
                 }}
               />
             </div>
 
-            {photoSrc && (
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setViewing(true)}
-                  aria-label={copy.tasks.openPhoto}
-                  className="tap-quiet press block size-20 overflow-hidden rounded-[1rem] shadow-[var(--brand-glass-edge),var(--brand-shadow-card)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element -- a private, versioned API image, not a static asset */}
-                  <img src={photoSrc} alt={copy.tasks.photoAlt(title || copy.tasks.titleLabel)} className="size-full object-cover" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (photoPreview) URL.revokeObjectURL(photoPreview);
-                    setPhotoPreview(null);
-                    setPhotoFile(null);
-                    setPhotoRemoved(true);
-                  }}
-                  className="tap-quiet press inline-flex min-h-11 items-center gap-1.5 rounded-chip px-3 text-body text-ink-muted"
-                >
-                  <X aria-hidden="true" size={16} />
-                  {copy.tasks.removePhoto}
-                </button>
-              </div>
+            {photos.length > 0 && (
+              <ul className="flex flex-wrap gap-2" aria-label={copy.tasks.photoCount(photos.length)}>
+                {photos.map((photo, index) => (
+                  <li key={photo.key} className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setViewing(index)}
+                      aria-label={copy.tasks.openPhoto}
+                      className="tap-quiet press block size-[4.5rem] overflow-hidden rounded-[1rem] shadow-[var(--brand-glass-edge),var(--brand-shadow-card)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element -- a private, versioned API image, not a static asset */}
+                      <img src={photo.src} alt={photoAlt(index)} className="size-full object-cover" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={copy.tasks.removePhoto}
+                      onClick={() => {
+                        if (photo.saved) {
+                          setRemovedPhotos((previous) => [...previous, photo.saved!]);
+                        } else {
+                          setNewPhotos((previous) => {
+                            const gone = previous.find((item) => item.key === photo.key);
+                            if (gone) URL.revokeObjectURL(gone.url);
+                            return previous.filter((item) => item.key !== photo.key);
+                          });
+                        }
+                      }}
+                      className="tap-quiet press absolute -top-2 -start-2 grid size-7 place-items-center rounded-full bg-[var(--color-ink)] text-[var(--color-surface)] shadow-[var(--brand-shadow-card)]"
+                    >
+                      <X aria-hidden="true" size={14} strokeWidth={2.6} />
+                    </button>
+                  </li>
+                ))}
+                {photos.length < MAX_PHOTOS && (
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => photoInput.current?.click()}
+                      aria-label={copy.tasks.addPhoto}
+                      className="tap-quiet press grid size-[4.5rem] place-items-center rounded-[1rem] text-ink-muted shadow-[inset_0_0_0_1.5px_var(--color-rule-strong)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                    >
+                      <Plus aria-hidden="true" size={22} />
+                    </button>
+                  </li>
+                )}
+              </ul>
             )}
 
             {task && task.state === 'COMPLETED' && task.permissions.rate && onRate && (
               <div className="flex min-h-12 items-center justify-between gap-3 rounded-[1rem] bg-[var(--brand-glass-strong)] px-4 py-2 shadow-[var(--brand-glass-edge)]">
                 <span className="flex items-center gap-2 text-body text-ink">
-                  {task.rating ? <RatingBadge value={task.rating.value} who={copy.taskRating.yourRating} /> : copy.taskRating.notRatedYet}
+                  {task.rating ? <RatingBadge value={task.rating.value} /> : copy.taskRating.notRatedYet}
                 </span>
                 <button
                   type="button"
@@ -535,16 +647,22 @@ export function Composer({
             {fieldErrors.dueTime && <p className="text-label text-danger-text">{fieldErrors.dueTime}</p>}
             {withNote && (
               <FormField label={copy.tasks.noteLabel} name="note" error={fieldErrors.note}>
-                {(props) => (
-                  <Textarea {...props} name="note" rows={2} value={note} onChange={(event) => setNote(event.target.value)} />
-                )}
+                {(props) => <Textarea {...props} name="note" rows={2} value={note} onChange={(event) => setNote(event.target.value)} />}
               </FormField>
             )}
           </div>
         )}
       </form>
-      {photoSrc && (
-        <PhotoViewer src={photoSrc} alt={copy.tasks.photoAlt(title || copy.tasks.titleLabel)} open={viewing} onClose={() => setViewing(false)} />
+      {photos.length > 0 && (
+        <PhotoViewer
+          photos={photos.map((photo, index) => ({
+            key: photo.key,
+            src: photo.src,
+            alt: photoAlt(index),
+          }))}
+          index={viewing}
+          onClose={() => setViewing(null)}
+        />
       )}
     </dialog>
   );

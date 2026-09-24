@@ -65,6 +65,13 @@ export const he = {
     ours: 'היום שלנו',
     emptyTitle: 'מה צריך היום?',
     listTitle: 'מה יש לנו היום',
+    /** How the list is arranged: all together, or each person's own. */
+    viewLabel: 'סידור המשימות',
+    viewTogether: 'יחד',
+    viewByPerson: 'לפי מי',
+    mine: 'שלי',
+    theirs: (name: string) => `של ${name}`,
+    sectionEmpty: 'אין כאן משימות להיום',
     progress: (done: number, total: number) => `${done} מתוך ${total}`,
     allDone: 'הכל נסגר להיום.',
     emptyLine: 'הרשימה של היום ריקה.',
@@ -92,7 +99,9 @@ export const he = {
 
     ownerLabel: 'על מי',
     moreOptions: 'עוד אפשרויות',
-    addShort: 'משימה',
+    addShort: 'משימה חדשה',
+    adding: 'מוסיפים…',
+    saving: 'שומרים…',
     ownerMe: 'עליי',
     ownerPartner: (name: string) => `על ${name}`,
 
@@ -122,7 +131,10 @@ export const he = {
     reopenAction: 'פתיחה מחדש',
     archiveAction: 'העברה לארכיון',
     deleteShort: 'מחיקה',
-    hasPhoto: 'יש תמונה',
+    hasPhoto: 'יש תמונות',
+    photosFull: (max: number) => `אפשר עד ${max} תמונות למשימה.`,
+    photoCount: (n: number) => (n === 1 ? 'תמונה אחת' : `${n} תמונות`),
+    photoOf: (i: number, n: number) => `תמונה ${i} מתוך ${n}`,
     addPhoto: 'תמונה',
     removePhoto: 'הסרת התמונה',
     openPhoto: 'הצגת התמונה במסך מלא',
@@ -163,6 +175,9 @@ export const he = {
     change: 'שינוי הדירוג',
     changeShort: 'שינוי',
     saved: 'נשמר',
+    /** The countdown after choosing, before the sheet saves and leaves. */
+    savingAs: (word: string) => `נשמר: ${word}`,
+    saveNow: 'שמירה',
     /** The five steps. Kind, but honest enough to be worth giving. */
     scale: {
       1: 'לא יצא',

@@ -48,7 +48,7 @@ export default async function SettingsPage() {
   const linkable = can(actor, 'users.manage') ? await listLinkableUsers(db, actor) : [];
 
   return (
-    <Screen className="page-push">
+    <Screen>
       <PageHeader title={copy.settings.pageTitle} />
 
       <Section>

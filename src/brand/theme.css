@@ -2,9 +2,9 @@
    BRAND THEME — שנינו (fourth edition, after the third real-iPhone review)
 
    ── The idea ──────────────────────────────────────────────────────────────
-   **Two lights, one room.** The page is a place, not a sheet of paper: warm
-   light comes in from one corner (partner A's colour) and cool light from the
-   opposite corner (partner B's), and they meet softly in the middle. Content
+   **Two lights, one room.** The page is a place, not a sheet of paper: cool
+   blue light comes in from one corner (partner A, the owner) and warm pink
+   light from the opposite corner (partner B), and they meet softly in the middle. Content
    sits on ONE frosted surface that exists for legibility, not decoration.
    The same two lights are the owner marks on tasks, the two orbs of the daily
    question and the two circles of the reveal. Never hearts.
@@ -57,14 +57,14 @@
   --brand-focus: #5c5470;
 
   /* The two people. */
-  --brand-partner-a: #d9485a;
-  --brand-partner-a-soft: #f6d3d4;
-  --brand-partner-a-tint: #fbecec;
-  --brand-partner-a-text: #c33a4c;
-  --brand-partner-b: #3068d0;
-  --brand-partner-b-soft: #d3e0f6;
-  --brand-partner-b-tint: #eaf0fb;
-  --brand-partner-b-text: #2a5fbf;
+  --brand-partner-b: #e0457f;
+  --brand-partner-b-soft: #f8d3e2;
+  --brand-partner-b-tint: #fcebf2;
+  --brand-partner-b-text: #bd2d68;
+  --brand-partner-a: #3068d0;
+  --brand-partner-a-soft: #d3e0f6;
+  --brand-partner-a-tint: #eaf0fb;
+  --brand-partner-a-text: #2a5fbf;
   --brand-on-partner: #ffffff;
 
   --brand-danger: #b3261e;
@@ -91,13 +91,13 @@
   --brand-room:
     radial-gradient(140% 100% at 50% 40%, rgb(0 0 0 / 0) 55%, rgb(70 40 70 / 0.1) 100%),
     linear-gradient(180deg, #f8efe8 0%, #f2e6e2 42%, #e8e2ef 100%);
-  /* Partner A: a warm key light, its bloom, and a shaft falling down-left. */
-  --brand-light-a:
-    radial-gradient(42% 30% at 90% 6%, rgb(255 176 128 / 0.85), rgb(255 176 128 / 0) 70%),
-    radial-gradient(110% 64% at 104% -4%, rgb(242 112 104 / 0.55), rgb(242 112 104 / 0) 72%),
-    linear-gradient(222deg, rgb(255 196 160 / 0.42) 0%, rgb(255 196 160 / 0) 46%);
-  /* Partner B: a cool light low on the other side, its bloom, a shaft up-right. */
+  /* Partner B (pink): a warm key light, its bloom, and a shaft falling down-left. */
   --brand-light-b:
+    radial-gradient(42% 30% at 90% 6%, rgb(255 172 196 / 0.8), rgb(255 172 196 / 0) 70%),
+    radial-gradient(110% 64% at 104% -4%, rgb(240 110 160 / 0.5), rgb(240 110 160 / 0) 72%),
+    linear-gradient(222deg, rgb(255 192 212 / 0.4) 0%, rgb(255 192 212 / 0) 46%);
+  /* Partner A (blue): a cool light low on the other side, its bloom, a shaft up-right. */
+  --brand-light-a:
     radial-gradient(40% 28% at 6% 80%, rgb(128 158 255 / 0.7), rgb(128 158 255 / 0) 70%),
     radial-gradient(115% 70% at -8% 92%, rgb(78 112 232 / 0.45), rgb(78 112 232 / 0) 72%),
     linear-gradient(40deg, rgb(150 176 255 / 0.34) 0%, rgb(150 176 255 / 0) 48%);
@@ -144,7 +144,7 @@
   --brand-edge-light: inset 0 1px 0 rgb(255 255 255 / 0.8);
 
   /* Kept for core surfaces that still reference them. */
-  --brand-star-edge-warm: #d9485a;
+  --brand-star-edge-warm: #e0457f;
   --brand-star-edge-accent: #3f3552;
   --brand-on-accent-bloom: rgb(255 255 255 / 0.2);
   --brand-on-accent-track: rgb(255 255 255 / 0.25);
@@ -195,14 +195,14 @@
     --brand-accent-text: #dcd1f0;
     --brand-focus: #b8afc9;
 
-    --brand-partner-a: #e45a6b;
-    --brand-partner-a-soft: #4b2332;
-    --brand-partner-a-tint: #2e1b27;
-    --brand-partner-a-text: #ff98a6;
-    --brand-partner-b: #3f77dc;
-    --brand-partner-b-soft: #21345a;
-    --brand-partner-b-tint: #1a2540;
-    --brand-partner-b-text: #9cc4ff;
+    --brand-partner-b: #ec5f95;
+    --brand-partner-b-soft: #4b2338;
+    --brand-partner-b-tint: #2e1b28;
+    --brand-partner-b-text: #ff9cc4;
+    --brand-partner-a: #3f77dc;
+    --brand-partner-a-soft: #21345a;
+    --brand-partner-a-tint: #1a2540;
+    --brand-partner-a-text: #9cc4ff;
     --brand-on-partner: #ffffff;
 
     --brand-danger: #c9352c;
@@ -229,11 +229,11 @@
     --brand-room:
       radial-gradient(150% 100% at 50% 40%, rgb(0 0 0 / 0) 50%, rgb(0 0 0 / 0.45) 100%),
       radial-gradient(130% 80% at 50% -10%, #2c2140 0%, #181226 55%, #0c0914 100%);
-    --brand-light-a:
-      radial-gradient(38% 26% at 90% 6%, rgb(255 138 104 / 0.44), rgb(255 138 104 / 0) 70%),
-      radial-gradient(100% 60% at 104% -4%, rgb(232 84 104 / 0.38), rgb(232 84 104 / 0) 72%),
-      linear-gradient(222deg, rgb(255 150 120 / 0.2) 0%, rgb(255 150 120 / 0) 46%);
     --brand-light-b:
+      radial-gradient(38% 26% at 90% 6%, rgb(255 128 176 / 0.4), rgb(255 128 176 / 0) 70%),
+      radial-gradient(100% 60% at 104% -4%, rgb(232 84 150 / 0.36), rgb(232 84 150 / 0) 72%),
+      linear-gradient(222deg, rgb(255 140 190 / 0.2) 0%, rgb(255 140 190 / 0) 46%);
+    --brand-light-a:
       radial-gradient(38% 26% at 6% 80%, rgb(104 140 255 / 0.5), rgb(104 140 255 / 0) 70%),
       radial-gradient(110% 66% at -8% 92%, rgb(70 100 240 / 0.36), rgb(70 100 240 / 0) 72%),
       linear-gradient(40deg, rgb(120 150 255 / 0.18) 0%, rgb(120 150 255 / 0) 48%);
@@ -272,7 +272,7 @@
     --brand-shadow-float: 0 10px 30px -8px rgb(0 0 0 / 0.6), 0 0 40px rgb(243 238 248 / 0.12);
     --brand-edge-light: inset 0 1px 0 rgb(255 255 255 / 0.06);
 
-    --brand-star-edge-warm: #ff98a6;
+    --brand-star-edge-warm: #ff9cc4;
     --brand-star-edge-accent: #dcd1f0;
   }
 }

@@ -109,7 +109,7 @@ test('a task is given another day through the calendar, without typing', async (
   await expect(page.getByText(name, { exact: true })).toHaveCount(0);
 });
 
-test('a photo can be added to a task, and seen when the task is opened', async ({ page }) => {
+test('several photos can be added to a task, and browsed when the task is opened', async ({ page }) => {
   const problems = watchForProblems(page);
   await login(page, OWNER);
   await page.goto('/');
@@ -118,33 +118,49 @@ test('a photo can be added to a task, and seen when the task is opened', async (
   const name = uniqueName('לקנות מדף');
   await composer.getByLabel(copy.tasks.titleLabel).fill(name);
 
-  // A small real image, drawn in the page (the composer shrinks and re-encodes it).
-  const png = await page.evaluate(() => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 120;
-    canvas.height = 80;
-    const context = canvas.getContext('2d')!;
-    context.fillStyle = '#f08040';
-    context.fillRect(0, 0, 120, 80);
-    return canvas.toDataURL('image/png').split(',')[1]!;
+  // Dismissing the photo picker fires a bubbling `cancel` on the file input.
+  // It must not close the composer (it used to).
+  await composer.getByTestId('photo-input').dispatchEvent('cancel', { bubbles: true });
+  await page.waitForTimeout(450);
+  await expect(composer).toBeVisible();
+  await expect(composer.getByLabel(copy.tasks.titleLabel)).toHaveValue(name);
+
+  // Two small real images, drawn in the page (the composer shrinks and re-encodes them).
+  const draw = (colour: string) =>
+    page.evaluate((fill) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 120;
+      canvas.height = 80;
+      const context = canvas.getContext('2d')!;
+      context.fillStyle = fill;
+      context.fillRect(0, 0, 120, 80);
+      return canvas.toDataURL('image/png').split(',')[1]!;
+    }, colour);
+  const [one, two] = [await draw('#f08040'), await draw('#4080f0')];
+  await composer.getByTestId('photo-input').setInputFiles([
+    { name: 'shelf.png', mimeType: 'image/png', buffer: Buffer.from(one, 'base64') },
+    { name: 'wall.png', mimeType: 'image/png', buffer: Buffer.from(two, 'base64') },
+  ]);
+  await expect(composer.getByRole('button', { name: copy.tasks.openPhoto })).toHaveCount(2);
+
+  let uploads = 0;
+  page.on('response', (r) => {
+    if (/\/api\/tasks\/[^/]+\/photos$/.test(r.url()) && r.request().method() === 'POST' && r.status() === 201) uploads += 1;
   });
-  await composer.getByTestId('photo-input').setInputFiles({ name: 'shelf.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
-  await expect(composer.getByRole('button', { name: copy.tasks.openPhoto })).toBeVisible();
-
-  const uploaded = page.waitForResponse((r) => /\/api\/tasks\/[^/]+\/photo$/.test(r.url()) && r.request().method() === 'PUT');
   await composer.getByRole('button', { name: copy.common.add }).click();
-  expect((await uploaded).status()).toBe(200);
   await expect(composer).toBeHidden();
+  await expect.poll(() => uploads).toBe(2);
 
-  // The row says it has a photo; opening the task shows it, and it opens full screen.
+  // The row says how many; opening the task shows both, full screen, one of two.
   const row = taskCard(page, name);
-  await expect(row.getByText(copy.tasks.hasPhoto)).toBeAttached();
+  await expect(row.getByText(copy.tasks.photoCount(2))).toBeAttached();
   await row.getByRole('button', { name: new RegExp(name) }).click();
-  const thumbnail = page.getByTestId('composer').getByRole('button', { name: copy.tasks.openPhoto });
-  await expect(thumbnail.locator('img')).toHaveJSProperty('complete', true);
-  expect(await thumbnail.locator('img').evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
-  await thumbnail.click();
-  await expect(page.getByRole('dialog', { name: copy.tasks.photoAlt(name) })).toBeVisible();
+  const thumbnails = page.getByTestId('composer').getByRole('button', { name: copy.tasks.openPhoto });
+  await expect(thumbnails).toHaveCount(2);
+  await expect(thumbnails.first().locator('img')).toHaveJSProperty('complete', true);
+  expect(await thumbnails.first().locator('img').evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+  await thumbnails.first().click();
+  await expect(page.getByText(copy.tasks.photoOf(1, 2))).toBeVisible();
 
   problems.assertClean();
 });

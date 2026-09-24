@@ -139,8 +139,8 @@ export type TaskTransitionInput = z.infer<typeof taskTransitionSchema>;
 export interface TaskView {
   id: string;
   title: string;
-  /** The task's photo, if it has one: `version` changes when it is replaced, so its URL does too. */
-  photo: { version: string } | null;
+  /** The task's photos, oldest first; `version` goes in each URL so it can be cached for good. */
+  photos: { id: string; version: string }[];
   ownerId: string;
   ownerName: string;
   taskDate: CalendarDate;
@@ -196,7 +196,7 @@ const TASK_SELECT = {
   version: true,
   rating: { select: { value: true, ratedById: true, ratedBy: { select: { name: true } } } },
   // Only that there is one, and when it was set (for the image URL); never the bytes.
-  photo: { select: { createdAt: true } },
+  photos: { select: { id: true, createdAt: true }, orderBy: { createdAt: 'asc' } },
 } as const;
 
 type TaskRow = Prisma.DailyTaskGetPayload<{ select: typeof TASK_SELECT }>;
@@ -212,7 +212,7 @@ function toView(row: TaskRow, actor: Pick<Actor, 'id' | 'role'>): TaskView {
   return {
     id: row.id,
     title: row.title,
-    photo: row.photo ? { version: String(row.photo.createdAt.getTime()) } : null,
+    photos: row.photos.map((photo) => ({ id: photo.id, version: String(photo.createdAt.getTime()) })),
     ownerId: row.ownerId,
     ownerName: row.owner.name,
     taskDate: fromDbDate(row.taskDate),

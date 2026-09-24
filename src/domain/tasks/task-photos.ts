@@ -1,15 +1,15 @@
 /**
- * A PHOTO ON A TASK (fifth edition) — one per task, replaced not stacked.
+ * PHOTOS ON A TASK — up to MAX_PHOTOS each (sixth edition: several).
  *
  * The same guarantees as every other task write:
  *   • the couple is the scope: a task outside it is "not found", for reading
- *     the photo as much as for setting it;
+ *     a photo as much as for adding or removing one;
  *   • the bytes are checked, not trusted: only JPEG, PNG or WebP, recognised
  *     by their signature (the declared type must agree), and at most
  *     MAX_PHOTO_BYTES — the client shrinks a camera photo to ~1600px first;
- *   • setting and removing are audited in the same transaction (the audit
- *     row names the task, never the image).
- * The photo leaves with its task (onDelete: Cascade).
+ *   • adding and removing are audited in the same transaction (the audit row
+ *     names the task, never the image).
+ * Photos leave with their task (onDelete: Cascade).
  */
 
 import { assertCan } from '@/core/access/can';
@@ -20,9 +20,11 @@ import { errors } from '@/core/errors/errors';
 import { recordAudit } from '@/core/audit/record';
 import { copy } from '../copy';
 
+import { MAX_PHOTOS } from './photo-limits';
 import { taskScope } from './tasks';
 
 export const MAX_PHOTO_BYTES = 2 * 1024 * 1024;
+export { MAX_PHOTOS };
 
 export type PhotoMime = 'image/jpeg' | 'image/png' | 'image/webp';
 
@@ -43,17 +45,17 @@ export function sniffImage(bytes: Uint8Array): PhotoMime | null {
 async function taskInScope(client: DbClient, actor: Actor, taskId: string) {
   const task = await client.dailyTask.findFirst({
     where: { AND: [await taskScope(client, actor), { id: taskId }] },
-    select: { id: true, title: true, archivedAt: true },
+    select: { id: true, title: true },
   });
   if (!task) throw errors.notFound();
   return task;
 }
 
-export async function setTaskPhoto(
+export async function addTaskPhoto(
   client: DbClient,
   actor: Actor,
   input: { taskId: string; bytes: Uint8Array; declaredType: string | null },
-): Promise<{ taskId: string; version: string }> {
+): Promise<{ id: string; version: string }> {
   assertCan(actor, 'tasks.edit');
   if (input.bytes.length === 0) throw errors.validation(copy.tasks.photoNotImage, { photo: copy.tasks.photoNotImage });
   if (input.bytes.length > MAX_PHOTO_BYTES) throw errors.validation(copy.tasks.photoTooBig, { photo: copy.tasks.photoTooBig });
@@ -64,12 +66,11 @@ export async function setTaskPhoto(
 
   return inTransaction(client, async (tx) => {
     const task = await taskInScope(tx, actor, input.taskId);
-    const data = { mimeType: mime, bytes: Buffer.from(input.bytes), sizeBytes: input.bytes.length, createdById: actor.id, createdAt: new Date() };
-    const saved = await tx.taskPhoto.upsert({
-      where: { taskId: task.id },
-      create: { taskId: task.id, ...data },
-      update: data,
-      select: { createdAt: true },
+    const count = await tx.taskPhoto.count({ where: { taskId: task.id } });
+    if (count >= MAX_PHOTOS) throw errors.validation(copy.tasks.photosFull(MAX_PHOTOS), { photo: copy.tasks.photosFull(MAX_PHOTOS) });
+    const saved = await tx.taskPhoto.create({
+      data: { taskId: task.id, mimeType: mime, bytes: Buffer.from(input.bytes), sizeBytes: input.bytes.length, createdById: actor.id },
+      select: { id: true, createdAt: true },
     });
     await recordAudit(tx, {
       actor,
@@ -78,23 +79,33 @@ export async function setTaskPhoto(
       entityId: task.id,
       after: { title: task.title },
     });
-    return { taskId: task.id, version: String(saved.createdAt.getTime()) };
+    return { id: saved.id, version: String(saved.createdAt.getTime()) };
   });
 }
 
-export async function getTaskPhoto(client: DbClient, actor: Actor, taskId: string): Promise<{ mimeType: string; bytes: Uint8Array }> {
+export async function getTaskPhoto(
+  client: DbClient,
+  actor: Actor,
+  taskId: string,
+  photoId: string,
+): Promise<{ mimeType: string; bytes: Uint8Array }> {
   assertCan(actor, 'tasks.read');
   await taskInScope(client, actor, taskId);
-  const photo = await client.taskPhoto.findUnique({ where: { taskId }, select: { mimeType: true, bytes: true } });
+  const photo = await client.taskPhoto.findFirst({ where: { id: photoId, taskId }, select: { mimeType: true, bytes: true } });
   if (!photo) throw errors.notFound();
   return { mimeType: photo.mimeType, bytes: new Uint8Array(photo.bytes) };
 }
 
-export async function removeTaskPhoto(client: DbClient, actor: Actor, taskId: string): Promise<{ taskId: string; removed: boolean }> {
+export async function removeTaskPhoto(
+  client: DbClient,
+  actor: Actor,
+  taskId: string,
+  photoId: string,
+): Promise<{ id: string; removed: boolean }> {
   assertCan(actor, 'tasks.edit');
   return inTransaction(client, async (tx) => {
     const task = await taskInScope(tx, actor, taskId);
-    const removed = await tx.taskPhoto.deleteMany({ where: { taskId: task.id } });
+    const removed = await tx.taskPhoto.deleteMany({ where: { id: photoId, taskId: task.id } });
     if (removed.count > 0) {
       await recordAudit(tx, {
         actor,
@@ -104,6 +115,6 @@ export async function removeTaskPhoto(client: DbClient, actor: Actor, taskId: st
         before: { title: task.title },
       });
     }
-    return { taskId: task.id, removed: removed.count > 0 };
+    return { id: photoId, removed: removed.count > 0 };
   });
 }

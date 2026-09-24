@@ -59,7 +59,7 @@ model DailyTask {
   updatedAt DateTime @updatedAt
 
   rating TaskRating?
-  photo  TaskPhoto?
+  photos TaskPhoto[]
 
   /// The list is read one day at a time, and the summaries read a date range;
   /// both want taskDate first. archivedAt is in the index because every
@@ -172,7 +172,7 @@ model Partnership {
   updatedAt DateTime @updatedAt
 }
 
-/// One photo on a task (fifth edition): a receipt, the shelf that needs
+/// Photos on a task (sixth edition: several, up to MAX_PHOTOS): a receipt, the shelf that needs
 /// fixing, the thing to buy. Stored in the database, not a bucket: the
 /// client shrinks it to about 1600px JPEG first, so rows stay small, and it is
 /// scoped, served and deleted exactly like the task it belongs to (the row
@@ -180,11 +180,13 @@ model Partnership {
 /// platform User model needs no new relation.
 model TaskPhoto {
   id          String    @id @default(cuid())
-  taskId      String    @unique
+  taskId      String
   task        DailyTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
   mimeType    String
   bytes       Bytes
   sizeBytes   Int
   createdById String
   createdAt   DateTime  @default(now())
+
+  @@index([taskId, createdAt])
 }

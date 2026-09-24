@@ -10,6 +10,7 @@ import type { Insight } from '@/domain/summaries/calculations';
 import { getWeekSummary, getWeeksOverview, weekBounds, type WeekGlance } from '@/domain/summaries/summaries';
 
 import { Card, DayBars, Figure, rangeLabel, TasksDone } from '../_components/ReflectionParts';
+import { PageTransition } from '../_components/PageTransition';
 import { Screen } from '../_components/Screen';
 
 export const metadata = { title: copy.week.pageTitle };
@@ -29,49 +30,60 @@ export default async function WeekPage({ searchParams }: { searchParams: Promise
   const params = await searchParams;
   const today = todayIn();
 
-  if (params.w && isCalendarDate(params.w)) return <WeekDetail actor={actor} anchor={params.w} today={today} />;
+  // Keyed apart, so going into a week and back out are an exit and an enter
+  // (one route, two screens).
+  if (params.w && isCalendarDate(params.w)) {
+    return (
+      <PageTransition key={`week-${params.w}`}>
+        <WeekDetail actor={actor} anchor={params.w} today={today} />
+      </PageTransition>
+    );
+  }
 
   const weeks = await getWeeksOverview(db, actor, today);
   const [current, ...earlier] = weeks;
 
   return (
-    <Screen className="pb-24">
-      <h1 className="large-title mt-2 px-1">{copy.week.overviewTitle}</h1>
+    <PageTransition key="weeks">
+      <Screen className="pb-24">
+        <h1 className="large-title mt-2 px-1">{copy.week.overviewTitle}</h1>
 
-      {current && <CurrentWeek week={current} />}
+        {current && <CurrentWeek week={current} />}
 
-      <section className="mt-7" aria-labelledby="earlier-weeks">
-        <h2 id="earlier-weeks" className="mb-2 px-4 text-meta font-semibold text-ink-muted">
-          {copy.week.earlierTitle}
-        </h2>
-        {earlier.length === 0 ? (
-          <p className="figure-card px-4 py-4 text-body text-ink-muted">{copy.week.noEarlier}</p>
-        ) : (
-          <ul className="figure-card divide-y divide-rule-faint overflow-hidden" aria-label={copy.week.earlierTitle}>
-            {earlier.map((week) => (
-              <li key={week.from}>
-                <Link
-                  href={`/week?w=${week.from}`}
-                  className="tap-quiet flex min-h-16 items-center gap-3 px-4 py-3 transition-colors duration-150 active:bg-[var(--color-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-row font-semibold text-ink">
-                      <bdi>{rangeLabel(week.from, week.to, 'week')}</bdi>
+        <section className="mt-7" aria-labelledby="earlier-weeks">
+          <h2 id="earlier-weeks" className="mb-2 px-4 text-meta font-semibold text-ink-muted">
+            {copy.week.earlierTitle}
+          </h2>
+          {earlier.length === 0 ? (
+            <p className="figure-card px-4 py-4 text-body text-ink-muted">{copy.week.noEarlier}</p>
+          ) : (
+            <ul className="figure-card divide-y divide-rule-faint overflow-hidden" aria-label={copy.week.earlierTitle}>
+              {earlier.map((week) => (
+                <li key={week.from}>
+                  <Link
+                    href={`/week?w=${week.from}`}
+                    transitionTypes={['nav-forward']}
+                    className="tap-quiet flex min-h-16 items-center gap-3 px-4 py-3 transition-colors duration-150 active:bg-[var(--color-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-row font-semibold text-ink">
+                        <bdi>{rangeLabel(week.from, week.to, 'week')}</bdi>
+                      </span>
+                      <span className="mt-0.5 block text-meta text-ink-muted">
+                        {week.total === 0 ? copy.week.noTasks : copy.week.tasksLine(week.done, week.total)}
+                        {week.respectAverage !== null && ` · ${copy.week.respectShort} ${week.respectAverage.toFixed(1)}`}
+                      </span>
                     </span>
-                    <span className="mt-0.5 block text-meta text-ink-muted">
-                      {week.total === 0 ? copy.week.noTasks : copy.week.tasksLine(week.done, week.total)}
-                      {week.respectAverage !== null && ` · ${copy.week.respectShort} ${week.respectAverage.toFixed(1)}`}
-                    </span>
-                  </span>
-                  <Bar done={week.done} total={week.total} className="w-16" />
-                  <ChevronLeft aria-hidden="true" size={18} className="shrink-0 text-ink-muted" />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </Screen>
+                    <Bar done={week.done} total={week.total} className="w-16" />
+                    <ChevronLeft aria-hidden="true" size={18} className="shrink-0 text-ink-muted" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </Screen>
+    </PageTransition>
   );
 }
 
@@ -80,6 +92,7 @@ function CurrentWeek({ week }: { week: WeekGlance }) {
   return (
     <Link
       href={`/week?w=${week.from}`}
+      transitionTypes={['nav-forward']}
       className="figure-card tap-quiet press mt-4 block px-5 pt-4 pb-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
     >
       <span className="flex items-baseline justify-between gap-3">
@@ -121,7 +134,11 @@ function Stat({ label, value }: { label: string; value: string }) {
 /** Done out of total, filling left to right. */
 function Bar({ done, total, className }: { done: number; total: number; className?: string }) {
   return (
-    <span aria-hidden="true" dir="ltr" className={`block h-2 shrink-0 overflow-hidden rounded-full bg-[var(--color-rule)] ${className ?? ''}`}>
+    <span
+      aria-hidden="true"
+      dir="ltr"
+      className={`block h-2 shrink-0 overflow-hidden rounded-full bg-[var(--color-rule)] ${className ?? ''}`}
+    >
       <span className="block h-full rounded-full bg-accent" style={{ width: `${total === 0 ? 0 : (done / total) * 100}%` }} />
     </span>
   );
@@ -138,9 +155,10 @@ async function WeekDetail({ actor, anchor, today }: { actor: Actor; anchor: Cale
   const daysSoFar = summary.days.filter((day) => day.date <= today).length;
 
   return (
-    <Screen className="page-push pb-24">
+    <Screen className="pb-24">
       <Link
         href="/week"
+        transitionTypes={['nav-back']}
         className="tap-quiet press -ms-1 inline-flex min-h-11 items-center gap-0.5 rounded-chip pe-3 text-row font-medium text-accent-text focus-visible:outline-2 focus-visible:outline-focus"
       >
         <ChevronRight aria-hidden="true" size={22} />

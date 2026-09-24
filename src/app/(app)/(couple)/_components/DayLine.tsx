@@ -23,7 +23,7 @@ export function DayLine({ day }: { day: DayView }) {
 
   if (day.revealed && day.partner) {
     return (
-      <Link href="/review" className={cx(row, 'font-medium text-ink')}>
+      <Link href="/review" transitionTypes={['nav-forward']} className={cx(row, 'font-medium text-ink')}>
         <Pair day={day} overlap />
         <span className="flex-1">{copy.today.bothClosed}</span>
         <ChevronLeft aria-hidden="true" size={18} className="text-ink-muted" />
@@ -33,7 +33,7 @@ export function DayLine({ day }: { day: DayView }) {
 
   if (day.mine) {
     return (
-      <Link href="/review" className={cx(row, 'text-ink')}>
+      <Link href="/review" transitionTypes={['nav-forward']} className={cx(row, 'text-ink')}>
         <Pair day={day} />
         <span className="flex-1">{day.partner ? copy.today.youClosed(partnerName) : copy.errors.noPartnerYet}</span>
         <ChevronLeft aria-hidden="true" size={18} className="text-ink-muted" />
@@ -54,6 +54,7 @@ export function DayLine({ day }: { day: DayView }) {
     <div>
       <Link
         href="/review"
+        transitionTypes={['nav-forward']}
         className="tap-quiet press flex min-h-14 w-full items-center gap-3 rounded-[1.25rem] bg-accent px-4 text-row font-semibold text-on-accent shadow-[var(--brand-shadow-float)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
       >
         <span aria-hidden="true" className="invite-light size-8 shrink-0" />

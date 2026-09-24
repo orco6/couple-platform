@@ -84,7 +84,13 @@ export function Sheet({
 
   // Drag to dismiss, from the grip.
   const panel = useRef<HTMLDivElement>(null);
-  const pull = useRef<{ id: number; y: number; t: number; dy: number; v: number } | null>(null);
+  const pull = useRef<{
+    id: number;
+    y: number;
+    t: number;
+    dy: number;
+    v: number;
+  } | null>(null);
   function setPull(dy: number | null) {
     const node = dialog.current;
     if (!node) return;
@@ -110,6 +116,10 @@ export function Sheet({
       data-shown={visible}
       onCancel={(event) => {
         event.preventDefault();
+        // Only the dialog's own cancel (Escape) closes it. A file input fires
+        // a bubbling `cancel` when its picker is dismissed; that is not a request
+        // to leave this screen.
+        if (event.target !== event.currentTarget) return;
         if (dismissible) onClose();
       }}
       onScroll={(event) => {
@@ -128,7 +138,13 @@ export function Sheet({
           onPointerDown={(event) => {
             if (!dismissible) return;
             event.currentTarget.setPointerCapture(event.pointerId);
-            pull.current = { id: event.pointerId, y: event.clientY, t: event.timeStamp, dy: 0, v: 0 };
+            pull.current = {
+              id: event.pointerId,
+              y: event.clientY,
+              t: event.timeStamp,
+              dy: 0,
+              v: 0,
+            };
           }}
           onPointerMove={(event) => {
             const current = pull.current;

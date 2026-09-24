@@ -1,5 +1,6 @@
 'use client';
 
+import { Check } from 'lucide-react';
 import { useMotionValue } from 'motion/react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -11,8 +12,12 @@ import { Moods } from './Moods';
 import { Sheet } from './Sheet';
 import { Slider, type RatingValue } from './Slider';
 
-/** Release → the light settles (~250ms) → the word is read → the sheet leaves. */
-const CONFIRM_AFTER = 750;
+/**
+ * Release → a ring counts down around "save" while the word is read → the
+ * sheet saves and leaves. Long enough to see and to change one's mind, short
+ * enough never to feel like waiting.
+ */
+export const CONFIRM_AFTER = 2200;
 
 /**
  * RATING A TASK — a small moment over Today.
@@ -37,6 +42,11 @@ export function RateSheet({
 }) {
   const [chosen, setChosen] = useState<RatingValue | null>(null);
   const [forTask, setForTask] = useState<string | null>(null);
+  /** Counting down to saving this value (a new key restarts the ring). */
+  const [counting, setCounting] = useState<{
+    value: RatingValue;
+    key: number;
+  } | null>(null);
   const progress = useMotionValue(0.5);
   const leaving = useRef<number | undefined>(undefined);
   // Focus lands on the question, not the slider: a focus ring round the light
@@ -46,6 +56,19 @@ export function RateSheet({
   if ((task?.id ?? null) !== forTask) {
     setForTask(task?.id ?? null);
     setChosen((task?.rating?.value as RatingValue | undefined) ?? null);
+    setCounting(null);
+  }
+
+  function stopCounting() {
+    window.clearTimeout(leaving.current);
+    setCounting(null);
+  }
+
+  function commit(value: RatingValue) {
+    window.clearTimeout(leaving.current);
+    if (!task) return;
+    onRate(task, value);
+    onClose();
   }
 
   useEffect(() => () => window.clearTimeout(leaving.current), []);
@@ -54,7 +77,7 @@ export function RateSheet({
     <Sheet
       open={task !== null}
       onClose={() => {
-        window.clearTimeout(leaving.current);
+        stopCounting();
         onClose();
       }}
       label={copy.taskRating.prompt}
@@ -76,20 +99,55 @@ export function RateSheet({
               hint={copy.taskRating.hint}
               progress={progress}
               confirmOnIdle
-              onGrab={() => window.clearTimeout(leaving.current)}
+              onGrab={stopCounting}
               onChange={(next) => {
                 // A new touch while the sheet was about to leave: stay.
-                window.clearTimeout(leaving.current);
+                stopCounting();
                 setChosen(next);
               }}
               onRelease={(value) => {
                 window.clearTimeout(leaving.current);
-                leaving.current = window.setTimeout(() => {
-                  onRate(task, value);
-                  onClose();
-                }, CONFIRM_AFTER);
+                setCounting({ value, key: Date.now() });
+                leaving.current = window.setTimeout(() => commit(value), CONFIRM_AFTER);
               }}
             />
+          </div>
+          {/* The countdown: a ring fills around the check while the chosen word
+              is read; tapping saves at once, touching the slider again stops it.
+              Its place is always kept, so nothing moves when it appears. */}
+          <div className="relative mt-4 flex h-14 items-center justify-center">
+            <button
+              type="button"
+              onClick={() => counting && commit(counting.value)}
+              tabIndex={counting ? 0 : -1}
+              aria-hidden={counting ? undefined : true}
+              data-on={counting !== null}
+              className="rate-commit tap-quiet press inline-flex min-h-12 items-center gap-3 rounded-full ps-2 pe-5 text-body font-semibold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+            >
+              <span className="relative grid size-10 place-items-center">
+                <svg
+                  key={counting?.key ?? 0}
+                  viewBox="0 0 40 40"
+                  aria-hidden="true"
+                  className="rate-ring absolute inset-0 size-10 -rotate-90"
+                >
+                  <circle cx="20" cy="20" r="17" fill="none" strokeWidth="3" className="rate-ring-track" />
+                  <circle
+                    cx="20"
+                    cy="20"
+                    r="17"
+                    fill="none"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    pathLength={1}
+                    className="rate-ring-fill"
+                    style={{ animationDuration: `${CONFIRM_AFTER}ms` }}
+                  />
+                </svg>
+                <Check aria-hidden="true" size={18} strokeWidth={2.8} />
+              </span>
+              <span>{counting ? copy.taskRating.savingAs(copy.taskRating.scale[counting.value]) : copy.taskRating.saveNow}</span>
+            </button>
           </div>
         </div>
       )}

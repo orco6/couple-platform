@@ -78,6 +78,9 @@ export function SwipeRow({
       className={cx('swipe-row relative overflow-hidden', className)}
       onPointerDown={(event) => {
         if (event.button !== 0 || removing) return;
+        // A swipe whose closing click never came must not eat this tap (it
+        // made a tick feel ignored until the second press).
+        swallowClick.current = false;
         drag.current = { id: event.pointerId, x0: event.clientX, y0: event.clientY, from: x.get(), swiping: false };
       }}
       onPointerMove={(event) => {
