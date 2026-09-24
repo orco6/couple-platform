@@ -4,9 +4,10 @@ import { db } from '@/core/db/client';
 import { PageHeader, Section } from '@/core/ui/components/Layout';
 import { copy } from '@/domain/copy';
 import { reviewTimeOf } from '@/domain/day-entries/day-entries';
-import { getPartnership, listLinkableUsers } from '@/domain/partners';
+import { getPartnership, listLinkableUsers, partnersOf } from '@/domain/partners';
 
 import { PartnerLinkForm } from '../_components/PartnerLinkForm';
+import { ProfilePhotoForm } from '../_components/ProfilePhotoForm';
 import { ReviewTimeForm } from '../_components/ReviewTimeForm';
 import { Screen } from '../_components/Screen';
 
@@ -42,7 +43,7 @@ export const metadata = { title: copy.settings.pageTitle };
 export default async function SettingsPage() {
   const actor = await requireActorPage();
 
-  const [reviewTime, partnership] = await Promise.all([reviewTimeOf(db), getPartnership(db, actor)]);
+  const [reviewTime, partnership, { me }] = await Promise.all([reviewTimeOf(db), getPartnership(db, actor), partnersOf(db, actor)]);
   // Only the owner may link, and only the owner may be shown the list of
   // people — it is the one place this product names other accounts.
   const linkable = can(actor, 'users.manage') ? await listLinkableUsers(db, actor) : [];
@@ -50,6 +51,12 @@ export default async function SettingsPage() {
   return (
     <Screen>
       <PageHeader title={copy.settings.pageTitle} />
+
+      {can(actor, 'profile.photo') && (
+        <Section title={copy.settings.photoTitle} description={copy.settings.photoHint}>
+          <ProfilePhotoForm me={me} />
+        </Section>
+      )}
 
       <Section>
         <ReviewTimeForm value={reviewTime} canManage={can(actor, 'settings.manage')} />

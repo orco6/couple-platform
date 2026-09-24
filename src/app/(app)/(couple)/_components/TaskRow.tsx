@@ -10,6 +10,7 @@ import type { PartnerRef } from '@/domain/partners';
 import type { TaskView } from '@/domain/tasks/tasks';
 
 import type { RatingValue } from './Slider';
+import { PartnerAvatar } from './PartnerAvatar';
 import { SwipeRow } from './SwipeRow';
 
 /**
@@ -227,8 +228,15 @@ export function TaskRow({
               )}
             >
               {/* Finished: the name goes quiet in colour, never in contrast; only the dot fades. */}
-              <span className={cx(owner.side === 'a' ? 'light-a' : 'light-b', 'size-3 shrink-0', done && 'opacity-50')} />
-              <span className="truncate">{owner.id === me.id ? copy.common.me : owner.name.split(' ')[0]}</span>
+              {owner.photo ? (
+                // A face says whose it is on its own.
+                <PartnerAvatar person={owner} size={1.875} className={cx('transition-opacity duration-300', done && 'opacity-60')} />
+              ) : (
+                <>
+                  <span className={cx(owner.side === 'a' ? 'light-a' : 'light-b', 'size-3 shrink-0', done && 'opacity-50')} />
+                  <span className="truncate">{owner.id === me.id ? copy.common.me : owner.name.split(' ')[0]}</span>
+                </>
+              )}
             </span>
           )}
         </span>

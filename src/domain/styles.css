@@ -1379,18 +1379,18 @@ body {
 }
 
 /* ── Today's two lights: they meet, then breathe together ───────────────── */
-.couple-mark > span {
+.couple-mark > * {
   animation:
     mark-meet 900ms cubic-bezier(0.22, 1, 0.36, 1) both,
     mark-breathe 5.6s ease-in-out 900ms infinite;
 }
 
-.couple-mark > span:first-child {
+.couple-mark > :first-child {
   --from: -14px;
   --sway: 2px;
 }
 
-.couple-mark > span:last-child {
+.couple-mark > :last-child {
   --from: 14px;
   --sway: -2px;
   animation-delay: 60ms, 960ms;
@@ -1494,7 +1494,7 @@ header[data-app-chrome] {
   .couple-loader > i:last-child {
     transform: translateX(0.4em);
   }
-  .couple-mark > span,
+  .couple-mark > *,
   .list-swap,
   .create-button[aria-busy='true'] {
     animation: none;
@@ -1545,4 +1545,50 @@ header[data-app-chrome] {
   .waiting-dot {
     animation: none;
   }
+}
+
+/* ── A partner's face (PartnerAvatar) ──────────────────────────────────── */
+.avatar {
+  display: block;
+  border-radius: 999px;
+  object-fit: cover;
+  /* Faces sit in the upper part of a portrait. */
+  object-position: 50% 35%;
+  background-color: var(--color-rule-faint);
+}
+
+.avatar--a {
+  box-shadow: 0 0 0 2px var(--brand-partner-a), 0 4px 14px -6px color-mix(in oklab, var(--brand-partner-a) 60%, transparent);
+}
+
+.avatar--b {
+  box-shadow: 0 0 0 2px var(--brand-partner-b), 0 4px 14px -6px color-mix(in oklab, var(--brand-partner-b) 60%, transparent);
+}
+
+/* ── A day in the summary: who closed it ───────────────────────────────── */
+.day-mark {
+  display: block;
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  border-radius: 999px;
+}
+
+/* Both of us: the two colours, half and half. */
+.day-mark--both {
+  background: linear-gradient(90deg, var(--brand-partner-a) 50%, var(--brand-partner-b) 50%);
+}
+
+/* One of us: half full. */
+.day-mark--one {
+  background: linear-gradient(90deg, var(--color-ink-muted) 50%, transparent 50%);
+  box-shadow: inset 0 0 0 1.5px var(--color-ink-muted);
+}
+
+.day-mark--none {
+  box-shadow: inset 0 0 0 1.5px var(--color-rule-strong);
+}
+
+/* Later this week: not a state yet, just a place. */
+.day-mark--ahead {
+  border: 1.5px dashed var(--color-rule-strong);
 }

@@ -190,3 +190,14 @@ model TaskPhoto {
 
   @@index([taskId, createdAt])
 }
+
+/// A partner's own photo, shown wherever the two of them appear. One per
+/// person; only the two people in the couple can see it. The user id is a
+/// plain column (no relation), so the platform's User model is untouched.
+model ProfilePhoto {
+  userId    String   @id
+  mimeType  String
+  bytes     Bytes
+  sizeBytes Int
+  updatedAt DateTime @updatedAt
+}

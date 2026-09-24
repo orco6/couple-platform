@@ -206,12 +206,8 @@ test('the summaries load and the phone bar reaches every screen', async ({ page 
   await bar.getByRole('link', { name: copy.nav.reflection }).click();
   await page.waitForURL(/\/week$/);
   await expect(page.getByRole('heading', { level: 1, name: copy.week.overviewTitle })).toBeVisible();
-  // This week opens from the summary, and there is a way back.
-  await page.getByRole('link', { name: new RegExp(copy.week.openWeek) }).click();
-  await page.waitForURL(/\/week\?w=/);
-  await expect(page.getByRole('heading', { level: 1, name: copy.week.thisWeek })).toBeVisible();
-  await page.locator('#main').getByRole('link', { name: copy.week.overviewTitle }).click();
-  await page.waitForURL(/\/week$/);
+  // Every week on one page, this week first.
+  await expect(page.getByRole('article', { name: copy.week.thisWeek })).toBeVisible();
   await bar.getByRole('link', { name: copy.nav.today }).click();
   await page.waitForURL(/\/$/);
   await expect(page.getByRole('heading', { name: copy.today.listTitle })).toBeVisible();

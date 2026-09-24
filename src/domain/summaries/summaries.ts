@@ -283,6 +283,17 @@ export async function getMonthSummary(
 
 /* ── The weeks, at a glance ───────────────────────────────────────────── */
 
+/** One day of a week, as the summary shows it. */
+export interface GlanceDay {
+  date: CalendarDate;
+  done: number;
+  total: number;
+  /** Who closed the day: both of us, one of us, or nobody yet. */
+  closed: 'both' | 'one' | 'none';
+  /** Not here yet (later this week). */
+  future: boolean;
+}
+
 export interface WeekGlance {
   from: CalendarDate;
   /** Last day (inclusive), for the label. */
@@ -290,11 +301,17 @@ export interface WeekGlance {
   isCurrent: boolean;
   done: number;
   total: number;
+  /** Mine first, then my partner's: whose tasks were done. */
+  byOwner: (Tally & { ownerId: string })[];
   executionAverage: number | null;
   respectAverage: number | null;
   /** Days both of us closed, out of the days of the week that have happened. */
   closedTogether: number;
   daysSoFar: number;
+  /** Sunday to Saturday. */
+  days: GlanceDay[];
+  /** The one thing worth doing differently next week. */
+  insight: Insight;
 }
 
 /**
@@ -314,7 +331,8 @@ export async function getWeeksOverview(
 
   const current = weekBounds(today);
   const span: RangeBounds = { from: addDays(current.from, -7 * (count - 1)), toExclusive: current.toExclusive };
-  const { days, tasks } = await loadRange(client, actor, span);
+  const [{ me, other }, { days, tasks }] = await Promise.all([partnersOf(client, actor), loadRange(client, actor, span)]);
+  const owners = other ? [me.id, other.id] : [me.id];
 
   const weeks: WeekGlance[] = [];
   for (let index = 0; index < count; index += 1) {
@@ -327,16 +345,27 @@ export async function getWeeksOverview(
     const hasAnything = weekTasks.length > 0 || weekDays.some((day) => day.mine !== null || day.partnerSubmitted);
     if (!isCurrent && !hasAnything) continue;
     const tally = completion(weekTasks, actor.id);
+    const tallies = completionByDay(weekTasks, weekDays.map((day) => day.date));
     weeks.push({
       from,
       to: addDays(toExclusive, -1),
       isCurrent,
       done: tally.done,
       total: tally.total,
+      byOwner: completionByOwner(weekTasks, owners),
       executionAverage: executionAverage(weekTasks),
       respectAverage: coupleRespectAverage(weekDays),
       closedTogether: weekDays.filter((day) => day.theirs).length,
       daysSoFar: weekDays.filter((day) => compareCalendarDates(day.date, today) <= 0).length,
+      days: weekDays.map((day, at) => ({
+        date: day.date,
+        done: tallies[at]?.done ?? 0,
+        total: tallies[at]?.total ?? 0,
+        // "theirs" is present only once both closed (the reveal).
+        closed: day.theirs ? 'both' : day.mine !== null || day.partnerSubmitted ? 'one' : 'none',
+        future: compareCalendarDates(day.date, today) > 0,
+      })),
+      insight: weeklyInsight({ tasks: weekTasks, days: weekDays, completion: tally, myId: actor.id }),
     });
   }
   return weeks;

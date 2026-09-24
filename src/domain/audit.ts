@@ -25,6 +25,7 @@ export const domainAuditVocabulary = defineAuditVocabulary({
     day_entry: 'סגירת יום',
     task_rating: 'דירוג משימה',
     partnership: 'הקישור בין הפרטנרים',
+    profile: 'תמונת פרופיל',
   },
   actions: {
     'task.created': { label: 'משימה נוספה' },
@@ -36,6 +37,8 @@ export const domainAuditVocabulary = defineAuditVocabulary({
     'task.deleted': { label: 'משימה נמחקה' },
     'task.photo_set': { label: 'נוספה תמונה למשימה' },
     'task.photo_removed': { label: 'הוסרה תמונה ממשימה' },
+    'profile.photo_set': { label: 'תמונת פרופיל עודכנה' },
+    'profile.photo_removed': { label: 'תמונת פרופיל הוסרה' },
     'task_rating.given': { label: 'משימה דורגה' },
     'task_rating.changed': { label: 'דירוג משימה שונה' },
     'day_entry.submitted': { label: 'היום נסגר' },

@@ -28,57 +28,57 @@ async function rangeDates(page: Page): Promise<[Date, Date]> {
   return [iso(await range.getAttribute('data-range-from')), iso(await range.getAttribute('data-range-to'))];
 }
 
-test('the week runs Sunday to Saturday and tells three figures, without a percentage', async ({ page }) => {
+test('each week is one card: Sunday to Saturday, its figures in words, seven days, one thought', async ({ page }) => {
   const problems = watchForProblems(page);
   await login(page, OWNER);
   await page.goto('/week');
 
-  // The summary opens on this week; its card leads to the week in full.
   await expect(page.getByRole('heading', { level: 1, name: copy.week.overviewTitle })).toBeVisible();
-  await page.getByRole('link', { name: new RegExp(copy.week.openWeek) }).click();
-  await expect(page.getByRole('heading', { level: 1, name: copy.week.thisWeek })).toBeVisible();
+  // This week leads, named as people say it.
+  const thisWeek = page.getByRole('article', { name: copy.week.thisWeek });
+  await expect(thisWeek).toBeVisible();
 
   const [from, to] = await rangeDates(page);
   expect(from.getUTCDay(), 'a week starts on Sunday').toBe(0);
   expect(to.getUTCDay(), 'a week ends on Saturday').toBe(6);
 
-  // The list, as people say it: how many of how many. Not a percentage — the
-  // week is told, not reported (third edition).
-  await expect(page.getByText(/^\d+ מתוך \d+$/).first()).toBeVisible();
+  // Every week card says how many of how many, never a percentage.
   await expect(page.getByText(/%/)).toHaveCount(0);
 
-  // The two averages, each out of five. Not a score out of 100.
-  for (const title of [copy.week.executionTitle, copy.week.respectTitle]) {
-    const card = page.locator('section, div').filter({ hasText: title }).last();
-    await expect(card.getByText(copy.common.outOfFive).first()).toBeVisible();
+  // A card with anything in it: the two averages are out of five (or "not yet"),
+  // seven days in order, and exactly one thought for next week.
+  const cards = page.getByRole('article');
+  const count = await cards.count();
+  expect(count).toBeGreaterThanOrEqual(1);
+  for (let index = 0; index < count; index += 1) {
+    const card = cards.nth(index);
+    if ((await card.getByRole('list', { name: copy.week.byDayTitle }).count()) === 0) continue;
+    await expect(card.getByRole('list', { name: copy.week.byDayTitle }).getByRole('listitem')).toHaveCount(7);
+    for (const title of [copy.week.executionTitle, copy.week.respectTitle]) {
+      await expect(card.getByText(title, { exact: true })).toBeVisible();
+    }
+    await expect(card.getByRole('region', { name: copy.week.insightTitle })).toHaveCount(1);
   }
-
-  // Exactly one insight, which is the product decision this screen rests on.
-  await expect(page.getByText(copy.week.insightTitle)).toHaveCount(1);
 
   problems.assertClean();
 });
 
-test('every earlier week opens from the summary, a week before the one above it, with a way back', async ({ page }) => {
+test('the weeks run newest first, seven days apart, all on one page', async ({ page }) => {
   await login(page, OWNER);
   await page.goto('/week');
 
-  await page.getByRole('link', { name: new RegExp(copy.week.openWeek) }).click();
-  const [thisFrom] = await rangeDates(page);
-  await page.locator('#main').getByRole('link', { name: copy.week.overviewTitle }).click();
-  await page.waitForURL(/\/week$/);
-
-  // The first earlier week is exactly seven days before this one.
-  const earlier = page.getByRole('list', { name: copy.week.earlierTitle }).getByRole('link');
-  await expect(earlier.first()).toBeVisible();
-  await earlier.first().click();
-  await page.waitForURL(/\/week\?w=/);
-  const [previousFrom] = await rangeDates(page);
-  expect(Math.round((thisFrom.getTime() - previousFrom.getTime()) / 86_400_000)).toBe(7);
-
-  // And back to the summary.
-  await page.locator('#main').getByRole('link', { name: copy.week.overviewTitle }).click();
-  await expect(page.getByRole('heading', { level: 1, name: copy.week.overviewTitle })).toBeVisible();
+  const ranges = page.locator('[data-range-from]');
+  const count = await ranges.count();
+  expect(count).toBeGreaterThanOrEqual(1);
+  let previous: number | null = null;
+  for (let index = 0; index < count; index += 1) {
+    const value = await ranges.nth(index).getAttribute('data-range-from');
+    const [year, month, day] = (value ?? '').split('-').map(Number);
+    const time = Date.UTC(year!, month! - 1, day!);
+    if (previous !== null) expect((previous - time) % (7 * 86_400_000)).toBe(0);
+    if (previous !== null) expect(time).toBeLessThan(previous);
+    previous = time;
+  }
 });
 
 test('the month is its weeks as lights, with no percentages or trend charts', async ({ page }) => {

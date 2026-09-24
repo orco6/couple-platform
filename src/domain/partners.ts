@@ -44,6 +44,8 @@ export interface PartnerRef {
   initial: string;
   /** Which person-colour identifies them. The same for both viewers. */
   side: 'a' | 'b';
+  /** Their photo's version, for a cache-safe URL; absent without one. */
+  photo?: string | null;
 }
 
 export interface Partners {
@@ -105,8 +107,29 @@ export async function partnersOf(client: DbClient, actor: Actor): Promise<Partne
   };
   if (!link) return fallback;
 
-  const a: PartnerRef = { id: link.partnerA.id, name: link.partnerA.name, initial: initialOf(link.partnerA.name), side: 'a' };
-  const b: PartnerRef = { id: link.partnerB.id, name: link.partnerB.name, initial: initialOf(link.partnerB.name), side: 'b' };
+  // Their photos (profile-photos.ts), read here so every screen gets them for free.
+  const photos = await client.profilePhoto.findMany({
+    where: { userId: { in: [link.partnerA.id, link.partnerB.id] } },
+    select: { userId: true, updatedAt: true },
+  });
+  const photoOf = (id: string) => {
+    const row = photos.find((photo) => photo.userId === id);
+    return row ? String(row.updatedAt.getTime()) : null;
+  };
+  const a: PartnerRef = {
+    id: link.partnerA.id,
+    name: link.partnerA.name,
+    initial: initialOf(link.partnerA.name),
+    side: 'a',
+    photo: photoOf(link.partnerA.id),
+  };
+  const b: PartnerRef = {
+    id: link.partnerB.id,
+    name: link.partnerB.name,
+    initial: initialOf(link.partnerB.name),
+    side: 'b',
+    photo: photoOf(link.partnerB.id),
+  };
 
   if (actor.id === a.id) return { me: a, other: b };
   if (actor.id === b.id) return { me: b, other: a };

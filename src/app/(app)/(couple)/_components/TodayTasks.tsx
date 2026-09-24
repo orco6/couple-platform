@@ -17,6 +17,7 @@ import { ConfirmDialog } from '@/core/ui/components/Dialog';
 import { Composer, primeKeyboard } from './Composer';
 import { RateSheet } from './RateSheet';
 import type { RatingValue } from './Slider';
+import { PartnerAvatar } from './PartnerAvatar';
 import { TaskRow } from './TaskRow';
 import { TODAY_VIEW_COOKIE, type TodayView } from './today-view';
 
@@ -273,7 +274,7 @@ export function TodayTasks({
             return (
               <section key={person.id} aria-label={title}>
                 <h3 className="mb-1.5 flex items-center gap-2 px-3 text-meta font-semibold text-ink-muted">
-                  <span aria-hidden="true" className={cx(person.side === 'a' ? 'light-a' : 'light-b', 'size-2.5')} />
+                  <PartnerAvatar person={person} size={person.photo ? 1.375 : 0.625} />
                   {title}
                   <span className="tabular-nums">
                     · {copy.today.progress(left.filter((task) => task.state === 'COMPLETED').length, left.length)}
@@ -468,7 +469,7 @@ function DayProgress({
             <p className="flex flex-wrap gap-x-5 gap-y-1 text-meta text-ink-muted">
               {people.map((person) => (
                 <span key={person.id} className="flex items-center gap-1.5 tabular-nums">
-                  <span aria-hidden="true" className={cx(person.side === 'a' ? 'light-a' : 'light-b', 'size-2.5')} />
+                  <PartnerAvatar person={person} size={person.photo ? 1.375 : 0.625} />
                   {person.id === me.id ? copy.common.me : person.name.split(' ')[0]} {copy.today.progress(doneBy(person.id), of(person.id))}
                 </span>
               ))}

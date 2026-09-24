@@ -68,7 +68,7 @@ export const he = {
     /** How the list is arranged: all together, or each person's own. */
     viewLabel: 'סידור המשימות',
     viewTogether: 'יחד',
-    viewByPerson: 'לפי מי',
+    viewByPerson: 'בנפרד',
     mine: 'שלי',
     theirs: (name: string) => `של ${name}`,
     sectionEmpty: 'אין כאן משימות להיום',
@@ -292,6 +292,13 @@ export const he = {
     completionTitle: 'משימות שהושלמו',
     byDayTitle: 'יום אחר יום',
     overviewTitle: 'סיכום',
+    pageIntro: 'כל שבוע, מראשון עד שבת: מה עשינו ואיך היה בינינו.',
+    lastWeek: 'שבוע שעבר',
+    notYet: 'עוד אין',
+    legendBoth: 'סגרתם שניכם',
+    legendOne: 'רק אחד סגר',
+    legendNone: 'לא נסגר',
+    dayAhead: 'עוד לא הגיע',
     thisWeek: 'השבוע',
     earlierTitle: 'שבועות קודמים',
     noEarlier: 'השבועות הקודמים יופיעו כאן.',
@@ -306,10 +313,10 @@ export const he = {
     completionDetail: (done: number, total: number) => `${done} מתוך ${total}`,
 
     executionTitle: 'איך יצאו המשימות',
-    executionHint: 'הממוצע של דירוגי המשימות.',
+    executionHint: 'הממוצע של הדירוגים שנתתם למשימות.',
 
     respectTitle: 'כבוד ותקשורת',
-    respectHint: 'הממוצע של סגירות היום.',
+    respectHint: 'הממוצע של שניכם, מסגירות היום.',
 
     highlightsTitle: 'מה עבד',
     streakDays: (n: number) => (n === 1 ? 'יום אחד רצוף' : `${n} ימים רצופים`),
@@ -367,6 +374,13 @@ export const he = {
 
   settings: {
     pageTitle: 'הגדרות',
+    photoTitle: 'התמונה שלי',
+    photoHint: 'מופיעה ליד השם שלך, רק לשניכם.',
+    photoChoose: 'בחירת תמונה',
+    photoChange: 'החלפת תמונה',
+    photoRemove: 'הסרת התמונה',
+    photoSaved: 'התמונה נשמרה',
+    photoRemoved: 'התמונה הוסרה',
     reviewTimeSaved: 'השעה נשמרה',
     partnerSaved: 'הפרטנר קושר',
     partnerBoth: (a: string, b: string) => `${a} ו${b}`,

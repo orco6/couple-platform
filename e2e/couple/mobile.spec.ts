@@ -33,10 +33,8 @@ test('the destinations are one thumb-tap apart, and each one arrives', async ({ 
   await expect(bar.locator('[aria-current="page"]')).toHaveCount(1);
   await expectNoHorizontalOverflow(page);
 
-  // A week opens from the summary; the tab stays lit on it.
-  await page.getByRole('link', { name: new RegExp(copy.week.openWeek) }).click();
-  await page.waitForURL(/\/week\?w=/);
-  await expect(page.getByRole('heading', { level: 1, name: copy.week.thisWeek })).toBeVisible();
+  // The summary is every week on one page, this week first.
+  await expect(page.getByRole('article', { name: copy.week.thisWeek })).toBeVisible();
   await expect(bar.getByRole('link', { name: copy.nav.reflection })).toHaveAttribute('aria-current', 'page');
   await expectNoHorizontalOverflow(page);
 

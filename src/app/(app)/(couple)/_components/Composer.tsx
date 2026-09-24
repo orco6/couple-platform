@@ -19,6 +19,8 @@ import { MAX_PHOTOS } from '@/domain/tasks/photo-limits';
 import { Calendar } from './Calendar';
 import { BusyLabel } from './CoupleLoader';
 import { GrowingTextarea } from './GrowingTextarea';
+import { PartnerAvatar } from './PartnerAvatar';
+import { shrinkPhoto } from './shrink-photo';
 import { PhotoViewer } from './PhotoViewer';
 import { RatingBadge } from './TaskRow';
 
@@ -452,7 +454,7 @@ export function Composer({
                   onChange={() => setOwnerId(person.id)}
                   className="sr-only"
                 />
-                <span aria-hidden="true" className={cx(person.side === 'a' ? 'light-a' : 'light-b', 'size-7')} />
+                <PartnerAvatar person={person} size={1.75} />
                 {person.id === me.id ? copy.common.me : person.name.split(' ')[0]}
               </label>
             );
@@ -681,29 +683,4 @@ export function Composer({
       )}
     </dialog>
   );
-}
-
-/**
- * A camera photo is 3 to 12 MB; the task needs a clear picture, not a print.
- * So it is redrawn at most 1600px on its long side as a JPEG (about 150 to
- * 400 KB) before it leaves the phone. Drawing through an <img> keeps the
- * camera's rotation (browsers apply EXIF orientation to images by default).
- */
-async function shrinkPhoto(file: File): Promise<Blob> {
-  const url = URL.createObjectURL(file);
-  try {
-    const image = new Image();
-    image.src = url;
-    await image.decode();
-    const scale = Math.min(1, 1600 / Math.max(image.naturalWidth, image.naturalHeight));
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.round(image.naturalWidth * scale);
-    canvas.height = Math.round(image.naturalHeight * scale);
-    canvas.getContext('2d')!.drawImage(image, 0, 0, canvas.width, canvas.height);
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.82));
-    if (!blob) throw new Error('encode');
-    return blob;
-  } finally {
-    URL.revokeObjectURL(url);
-  }
 }

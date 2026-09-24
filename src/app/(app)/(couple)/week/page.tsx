@@ -1,213 +1,218 @@
-import Link from 'next/link';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-
 import { requireActorPage } from '@/core/auth/page-guards';
-import type { Actor } from '@/core/auth/actor';
-import { addDays, compareCalendarDates, isCalendarDate, todayIn, type CalendarDate } from '@/core/dates/calendar-date';
+import { addDays, todayIn } from '@/core/dates/calendar-date';
 import { db } from '@/core/db/client';
+import { cx } from '@/core/ui/cx';
 import { copy } from '@/domain/copy';
+import { partnersOf, type PartnerRef } from '@/domain/partners';
 import type { Insight } from '@/domain/summaries/calculations';
-import { getWeekSummary, getWeeksOverview, weekBounds, type WeekGlance } from '@/domain/summaries/summaries';
+import { getWeeksOverview, weekBounds, type GlanceDay, type WeekGlance } from '@/domain/summaries/summaries';
 
-import { Card, DayBars, Figure, rangeLabel, TasksDone } from '../_components/ReflectionParts';
 import { PageTransition } from '../_components/PageTransition';
+import { PartnerAvatar } from '../_components/PartnerAvatar';
+import { rangeLabel } from '../_components/ReflectionParts';
 import { Screen } from '../_components/Screen';
 
-export const metadata = { title: copy.week.pageTitle };
+export const metadata = { title: copy.week.overviewTitle };
 
 /**
- * SUMMARY — two levels, like a Settings app (fifth edition).
+ * SUMMARY — every week, whole, on one page (eighth edition).
  *
- *   /week          this week at the top, with the three figures that say how
- *                  it is going, then every earlier week as one row each;
- *   /week?w=DATE   one week in full: tasks done and whose, day by day, how it
- *                  went, and one thought for next week — with a way back.
+ * The earlier summary was two levels (a front card, then a week page) and
+ * people could not say what had happened in a given week. Now each week is
+ * one card that answers, in order and in plain words:
  *
- * Every figure is written out ("12 מתוך 18", "4.3 מתוך 5"); nothing to decode.
+ *   how many tasks got done, and whose          12 מתוך 18 · אור 7/9 · מאיה 5/9
+ *   how they went (the ratings you gave)        4.3 מתוך 5
+ *   how it was between us (the day closings)    4.1 מתוך 5
+ *   which days we closed together               א ב ג ד ה ו ש — each with its tasks
+ *   one thing for next week
+ *
+ * Newest first. Weeks before the couple had anything are left out; this week
+ * is always there. Nothing to open, nothing to decode, no percentages.
  */
-export default async function WeekPage({ searchParams }: { searchParams: Promise<{ w?: string }> }) {
+export default async function WeekPage() {
   const actor = await requireActorPage();
-  const params = await searchParams;
   const today = todayIn();
 
-  // Keyed apart, so going into a week and back out are an exit and an enter
-  // (one route, two screens).
-  if (params.w && isCalendarDate(params.w)) {
-    return (
-      <PageTransition key={`week-${params.w}`}>
-        <WeekDetail actor={actor} anchor={params.w} today={today} />
-      </PageTransition>
-    );
-  }
-
-  const weeks = await getWeeksOverview(db, actor, today);
-  const [current, ...earlier] = weeks;
+  const [weeks, { me, other }] = await Promise.all([getWeeksOverview(db, actor, today), partnersOf(db, actor)]);
+  const lastWeekFrom = addDays(weekBounds(today).from, -7);
 
   return (
-    <PageTransition key="weeks">
+    <PageTransition>
       <Screen className="pb-24">
         <h1 className="large-title mt-2 px-1">{copy.week.overviewTitle}</h1>
+        <p className="mt-1 px-1 text-body text-ink-muted">{copy.week.pageIntro}</p>
 
-        {current && <CurrentWeek week={current} />}
-
-        <section className="mt-7" aria-labelledby="earlier-weeks">
-          <h2 id="earlier-weeks" className="mb-2 px-4 text-meta font-semibold text-ink-muted">
-            {copy.week.earlierTitle}
-          </h2>
-          {earlier.length === 0 ? (
-            <p className="figure-card px-4 py-4 text-body text-ink-muted">{copy.week.noEarlier}</p>
-          ) : (
-            <ul className="figure-card divide-y divide-rule-faint overflow-hidden" aria-label={copy.week.earlierTitle}>
-              {earlier.map((week) => (
-                <li key={week.from}>
-                  <Link
-                    href={`/week?w=${week.from}`}
-                    transitionTypes={['nav-forward']}
-                    className="tap-quiet flex min-h-16 items-center gap-3 px-4 py-3 transition-colors duration-150 active:bg-[var(--color-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus"
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-row font-semibold text-ink">
-                        <bdi>{rangeLabel(week.from, week.to, 'week')}</bdi>
-                      </span>
-                      <span className="mt-0.5 block text-meta text-ink-muted">
-                        {week.total === 0 ? copy.week.noTasks : copy.week.tasksLine(week.done, week.total)}
-                        {week.respectAverage !== null && ` · ${copy.week.respectShort} ${week.respectAverage.toFixed(1)}`}
-                      </span>
-                    </span>
-                    <Bar done={week.done} total={week.total} className="w-16" />
-                    <ChevronLeft aria-hidden="true" size={18} className="shrink-0 text-ink-muted" />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        <div className="mt-5 space-y-5">
+          {weeks.map((week) => (
+            <WeekCard
+              key={week.from}
+              week={week}
+              me={me}
+              partner={other}
+              title={week.isCurrent ? copy.week.thisWeek : week.from === lastWeekFrom ? copy.week.lastWeek : null}
+            />
+          ))}
+        </div>
       </Screen>
     </PageTransition>
   );
 }
 
-/** This week, as a card you can open: the headline figure and the three that matter. */
-function CurrentWeek({ week }: { week: WeekGlance }) {
-  return (
-    <Link
-      href={`/week?w=${week.from}`}
-      transitionTypes={['nav-forward']}
-      className="figure-card tap-quiet press mt-4 block px-5 pt-4 pb-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-    >
-      <span className="flex items-baseline justify-between gap-3">
-        <span className="text-row font-semibold text-ink">{copy.week.thisWeek}</span>
-        <span className="text-meta text-ink-muted">
-          <bdi>{rangeLabel(week.from, week.to, 'week')}</bdi>
-        </span>
-      </span>
-
-      <span className="mt-3 block text-[2.25rem] leading-none font-bold text-ink tabular-nums">
-        {week.total === 0 ? '—' : copy.week.completionDetail(week.done, week.total)}
-      </span>
-      <span className="mt-1 block text-body text-ink-muted">{copy.week.completionTitle}</span>
-      <Bar done={week.done} total={week.total} className="mt-3 h-2.5 w-full" />
-
-      <span className="mt-4 grid grid-cols-3 divide-x divide-rule-faint rtl:divide-x-reverse">
-        <Stat label={copy.week.executionShort} value={week.executionAverage === null ? '—' : week.executionAverage.toFixed(1)} />
-        <Stat label={copy.week.respectShort} value={week.respectAverage === null ? '—' : week.respectAverage.toFixed(1)} />
-        <Stat label={copy.week.togetherShort} value={copy.week.completionDetail(week.closedTogether, week.daysSoFar)} />
-      </span>
-
-      <span className="mt-3 flex items-center justify-end gap-1 border-t border-rule-faint pt-3 text-body font-semibold text-accent-text">
-        {copy.week.openWeek}
-        <ChevronLeft aria-hidden="true" size={18} />
-      </span>
-    </Link>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <span className="flex flex-col items-center px-1 text-center">
-      <span className="text-section font-bold text-ink tabular-nums">{value}</span>
-      <span className="mt-0.5 text-[0.75rem] leading-tight text-ink-muted">{label}</span>
-    </span>
-  );
-}
-
-/** Done out of total, filling left to right. */
-function Bar({ done, total, className }: { done: number; total: number; className?: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      dir="ltr"
-      className={`block h-2 shrink-0 overflow-hidden rounded-full bg-[var(--color-rule)] ${className ?? ''}`}
-    >
-      <span className="block h-full rounded-full bg-accent" style={{ width: `${total === 0 ? 0 : (done / total) * 100}%` }} />
-    </span>
-  );
-}
-
-/** One week in full. */
-async function WeekDetail({ actor, anchor, today }: { actor: Actor; anchor: CalendarDate; today: CalendarDate }) {
-  const summary = await getWeekSummary(db, actor, anchor);
-  const thisWeek = weekBounds(today);
-  const isCurrent = compareCalendarDates(summary.from, thisWeek.from) >= 0;
-  const lastDay = addDays(summary.toExclusive, -1);
-  const partnerName = summary.partner?.name ?? copy.common.partnerFallback;
-  const closedTogether = summary.days.filter((day) => day.theirs).length;
-  const daysSoFar = summary.days.filter((day) => day.date <= today).length;
+function WeekCard({
+  week,
+  me,
+  partner,
+  title,
+}: {
+  week: WeekGlance;
+  me: PartnerRef;
+  partner: PartnerRef | null;
+  /** "השבוע" / "שבוע שעבר"; older weeks are named by their dates. */
+  title: string | null;
+}) {
+  const id = `week-${week.from}`;
+  const range = rangeLabel(week.from, week.to, 'week');
+  const people = partner ? [me, partner] : [me];
+  const nameOf = (person: PartnerRef) => (person.id === me.id ? copy.common.me : (person.name.split(' ')[0] ?? person.name));
+  const tallyOf = (person: PartnerRef) => week.byOwner.find((tally) => tally.ownerId === person.id) ?? { done: 0, total: 0 };
+  const empty = week.total === 0 && week.days.every((day) => day.closed === 'none');
 
   return (
-    <Screen className="pb-24">
-      <Link
-        href="/week"
-        transitionTypes={['nav-back']}
-        className="tap-quiet press -ms-1 inline-flex min-h-11 items-center gap-0.5 rounded-chip pe-3 text-row font-medium text-accent-text focus-visible:outline-2 focus-visible:outline-focus"
-      >
-        <ChevronRight aria-hidden="true" size={22} />
-        {copy.week.overviewTitle}
-      </Link>
-      <h1 className="large-title mt-1 px-1">{isCurrent ? copy.week.thisWeek : copy.week.pageTitle}</h1>
-      <p className="px-1 text-body text-ink-muted" data-range-from={summary.from} data-range-to={lastDay}>
-        <bdi>{rangeLabel(summary.from, lastDay, 'week')}</bdi>
-      </p>
+    <article aria-labelledby={id} className="figure-card overflow-hidden">
+      <header className="flex items-baseline justify-between gap-3 px-5 pt-4">
+        {/* Named weeks (this one, last one) say their dates beside the name;
+            older ones are named by their dates, once. */}
+        <h2 id={id} className="text-section font-bold text-ink" {...(title ? {} : { 'data-range-from': week.from, 'data-range-to': week.to })}>
+          {title ?? <bdi>{range}</bdi>}
+        </h2>
+        {title && (
+          <p className="shrink-0 text-meta text-ink-muted" data-range-from={week.from} data-range-to={week.to}>
+            <bdi>{range}</bdi>
+          </p>
+        )}
+      </header>
 
-      {summary.isEmpty ? (
-        <div className="figure-card mt-6 px-5 py-6 text-center">
-          <p className="text-section font-semibold text-balance text-ink">{copy.week.emptyTitle}</p>
-          <p className="mx-auto mt-2 max-w-xs text-body text-balance text-ink-muted">{copy.week.emptyWhat}</p>
-        </div>
+      {empty ? (
+        <p className="px-5 pt-3 pb-5 text-body text-balance text-ink-muted">{copy.week.emptyWhat}</p>
       ) : (
         <>
-          <Card title={copy.week.completionTitle}>
-            <TasksDone total={summary.completion} byOwner={summary.byOwner} me={summary.me} partner={summary.partner} />
-          </Card>
-
-          <Card title={copy.week.byDayTitle}>
-            <DayBars byDay={summary.byDay} today={today} />
-          </Card>
-
-          <Card title={copy.week.howItWentTitle}>
-            <div className="mt-1 divide-y divide-rule-faint">
-              <Figure
-                label={copy.week.executionTitle}
-                hint={copy.week.executionHint}
-                value={summary.executionAverage === null ? null : summary.executionAverage.toFixed(1)}
-                suffix={copy.common.outOfFive}
-              />
-              <Figure
-                label={copy.week.respectTitle}
-                hint={copy.week.respectHint}
-                value={summary.respectAverage === null ? null : summary.respectAverage.toFixed(1)}
-                suffix={copy.common.outOfFive}
-              />
-              <Figure label={copy.week.closedTogetherTitle} value={copy.week.completionDetail(closedTogether, daysSoFar)} />
+          {/* Tasks: how many of how many, and whose. */}
+          <section className="px-5 pt-4" aria-label={copy.week.completionTitle}>
+            <div className="flex items-baseline justify-between gap-3">
+              <h3 className="text-body font-semibold text-ink">{copy.week.completionTitle}</h3>
+              <p className="text-row font-bold text-ink tabular-nums">
+                {week.total === 0 ? copy.week.noTasks : copy.week.completionDetail(week.done, week.total)}
+              </p>
             </div>
-          </Card>
+            {week.total > 0 && (
+              <>
+                <div dir="ltr" aria-hidden="true" className="mt-2 flex h-2.5 overflow-hidden rounded-full bg-[var(--color-rule)]">
+                  {people.map((person) => (
+                    <span
+                      key={person.id}
+                      className={cx('h-full', person.side === 'a' ? 'bg-partner-a' : 'bg-partner-b')}
+                      style={{ width: `${(tallyOf(person).done / week.total) * 100}%` }}
+                    />
+                  ))}
+                </div>
+                <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-meta text-ink-muted">
+                  {people.map((person) => (
+                    <li key={person.id} className="flex items-center gap-1.5 tabular-nums">
+                      <PartnerAvatar person={person} size={person.photo ? 1.25 : 0.625} />
+                      {nameOf(person)} {copy.week.completionDetail(tallyOf(person).done, tallyOf(person).total)}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </section>
 
-          <Card title={copy.week.insightTitle}>
-            <p className="mt-1 text-row text-balance text-ink">{insightText(summary.insight, partnerName)}</p>
-          </Card>
+          {/* The two averages, each out of five, each said in words. */}
+          <dl className="mx-5 mt-4 divide-y divide-rule-faint border-y border-rule-faint">
+            <Figure label={copy.week.executionTitle} hint={copy.week.executionHint} value={week.executionAverage} />
+            <Figure label={copy.week.respectTitle} hint={copy.week.respectHint} value={week.respectAverage} />
+          </dl>
+
+          {/* Day by day. */}
+          <section className="px-5 pt-4" aria-label={copy.week.byDayTitle}>
+            <div className="flex items-baseline justify-between gap-3">
+              <h3 className="text-body font-semibold text-ink">{copy.week.closedTogetherTitle}</h3>
+              <p className="text-row font-bold text-ink tabular-nums">{copy.week.completionDetail(week.closedTogether, week.daysSoFar)}</p>
+            </div>
+            <ol className="mt-3 grid grid-cols-7 gap-1" aria-label={copy.week.byDayTitle}>
+              {week.days.map((day) => (
+                <DayCell key={day.date} day={day} />
+              ))}
+            </ol>
+            <p aria-hidden="true" className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1 text-[0.75rem] text-ink-muted">
+              <span className="flex items-center gap-1.5">
+                <span className="day-mark day-mark--both" />
+                {copy.week.legendBoth}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="day-mark day-mark--one" />
+                {copy.week.legendOne}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="day-mark day-mark--none" />
+                {copy.week.legendNone}
+              </span>
+            </p>
+          </section>
+
+          {/* One thing for next week. */}
+          <section className="mx-5 mt-4 mb-5 rounded-[1rem] bg-[var(--color-rule-faint)] px-4 py-3" aria-label={copy.week.insightTitle}>
+            <h3 className="text-meta font-semibold text-ink-muted">{copy.week.insightTitle}</h3>
+            <p className="mt-0.5 text-body text-balance text-ink">
+              {insightText(week.insight, partner ? nameOf(partner) : copy.common.partnerFallback)}
+            </p>
+          </section>
         </>
       )}
-    </Screen>
+    </article>
+  );
+}
+
+function Figure({ label, hint, value }: { label: string; hint: string; value: number | null }) {
+  return (
+    <div className="flex items-center justify-between gap-3 py-3">
+      <dt>
+        <span className="block text-body font-semibold text-ink">{label}</span>
+        <span className="block text-meta text-ink-muted">{hint}</span>
+      </dt>
+      <dd className="shrink-0 text-end">
+        {value === null ? (
+          <span className="text-body text-ink-muted">{copy.week.notYet}</span>
+        ) : (
+          <span className="text-row font-bold text-ink tabular-nums">
+            {value.toFixed(1)} <span className="text-meta font-normal text-ink-muted">{copy.common.outOfFive}</span>
+          </span>
+        )}
+      </dd>
+    </div>
+  );
+}
+
+const weekday = new Intl.DateTimeFormat('he-IL', { weekday: 'narrow', timeZone: 'UTC' });
+const longDay = new Intl.DateTimeFormat('he-IL', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+
+function DayCell({ day }: { day: GlanceDay }) {
+  const date = new Date(`${day.date}T12:00:00Z`);
+  const closedText = day.future ? copy.week.dayAhead : day.closed === 'both' ? copy.week.legendBoth : day.closed === 'one' ? copy.week.legendOne : copy.week.legendNone;
+  return (
+    <li className={cx('flex flex-col items-center gap-1 rounded-[0.75rem] py-2', day.future ? 'shadow-[inset_0_0_0_1px_var(--color-rule-faint)]' : 'bg-[var(--color-rule-faint)]')}>
+      <span aria-hidden="true" className="text-meta font-semibold text-ink-muted">
+        {weekday.format(date)}
+      </span>
+      <span aria-hidden="true" className={cx('day-mark', day.future ? 'day-mark--ahead' : `day-mark--${day.closed}`)} />
+      <span aria-hidden="true" dir="ltr" className="text-[0.75rem] font-semibold text-ink tabular-nums">
+        {day.total === 0 ? '–' : `${day.done}/${day.total}`}
+      </span>
+      <span className="sr-only">
+        {longDay.format(date)}: {day.total === 0 ? copy.week.noTasks : copy.week.tasksLine(day.done, day.total)}, {closedText}
+      </span>
+    </li>
   );
 }
 

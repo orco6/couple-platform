@@ -33,6 +33,7 @@ export const access = defineAccess({
     'day_entries.submit': 'סגירת היום',
     'day_entries.read': 'צפייה בסגירות היום שלי',
     'summaries.read': 'צפייה בסיכומים',
+    'profile.photo': 'התמונה שלי',
   },
   roles: {
     OWNER: {
@@ -55,6 +56,7 @@ export const access = defineAccess({
         'day_entries.read',
         'summaries.read',
         'archive.read',
+        'profile.photo',
       ],
     },
   },
