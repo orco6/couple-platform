@@ -118,6 +118,7 @@ export const he = {
     titleMissing: 'כתבו מה צריך לעשות.',
     dateLabel: 'לאיזה יום',
     timeLabel: 'עד שעה',
+    untilTime: (time: string) => `עד ${time}`,
     timeHint: 'לא חייב.',
     noteLabel: 'פתק',
     noteHint: 'לא חייב.',

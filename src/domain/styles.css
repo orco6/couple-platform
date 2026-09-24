@@ -1524,3 +1524,25 @@ header[data-app-chrome] {
 .fab-plus {
   background-color: color-mix(in oklab, var(--brand-on-partner) 20%, transparent);
 }
+
+/* "Waiting for X's rating": a small dot that breathes, instead of a clock
+   that read as the task's time. */
+.waiting-dot {
+  inline-size: 0.4rem;
+  block-size: 0.4rem;
+  border-radius: 999px;
+  background-color: var(--color-ink-muted);
+  animation: waiting-dot 2.4s ease-in-out infinite;
+}
+
+@keyframes waiting-dot {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .waiting-dot {
+    animation: none;
+  }
+}

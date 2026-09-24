@@ -4,7 +4,7 @@ import { CalendarDays, Camera, Clock, Plus, X } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { FormField, Textarea } from '@/core/ui/components/Field';
+import { controlClasses, FormField } from '@/core/ui/components/Field';
 import { useToast } from '@/core/ui/components/Toast';
 import { useSubmit } from '@/core/ui/hooks/useSubmit';
 import { cx } from '@/core/ui/cx';
@@ -18,6 +18,7 @@ import { MAX_PHOTOS } from '@/domain/tasks/photo-limits';
 
 import { Calendar } from './Calendar';
 import { BusyLabel } from './CoupleLoader';
+import { GrowingTextarea } from './GrowingTextarea';
 import { PhotoViewer } from './PhotoViewer';
 import { RatingBadge } from './TaskRow';
 
@@ -525,18 +526,28 @@ export function Composer({
         ) : (
           <div className="mt-2.5 space-y-3">
             <div className="flex flex-wrap gap-2">
-              {withTime ? (
-                <label className={cx(chip(true), 'pe-2')}>
-                  <Clock aria-hidden="true" size={18} />
-                  <span className="sr-only">{copy.tasks.timeLabel}</span>
-                  <input
-                    type="time"
-                    name="dueTime"
-                    value={time}
-                    onChange={(event) => setTime(event.target.value as LocalTime | '')}
-                    className="min-w-20 bg-transparent text-body font-semibold tabular-nums outline-none"
-                    dir="ltr"
-                  />
+              {/* The time: the chip IS the native time field (laid over it,
+                  invisible), so the first tap opens the wheel — a button that
+                  first had to turn into a field took two taps. */}
+              <span className={cx(chip(withTime && time !== ''), 'relative', withTime && time !== '' && 'pe-1.5')}>
+                <Clock aria-hidden="true" size={18} />
+                <span aria-hidden="true" className="tabular-nums">
+                  {withTime && time !== '' ? copy.tasks.untilTime(time) : copy.tasks.timeLabel}
+                </span>
+                <input
+                  type="time"
+                  name="dueTime"
+                  aria-label={copy.tasks.timeLabel}
+                  value={time}
+                  onChange={(event) => {
+                    const next = event.target.value as LocalTime | '';
+                    setTime(next);
+                    setWithTime(next !== '');
+                  }}
+                  className="absolute inset-0 size-full cursor-pointer opacity-0"
+                  dir="ltr"
+                />
+                {withTime && time !== '' && (
                   <button
                     type="button"
                     aria-label={copy.tasks.removeTime}
@@ -544,17 +555,12 @@ export function Composer({
                       setWithTime(false);
                       setTime('');
                     }}
-                    className="grid size-7 place-items-center rounded-full text-ink-subtle"
+                    className="relative z-10 grid size-8 place-items-center rounded-full text-ink-subtle"
                   >
                     <X aria-hidden="true" size={16} />
                   </button>
-                </label>
-              ) : (
-                <button type="button" onClick={() => setWithTime(true)} className={chip(false)}>
-                  <Clock aria-hidden="true" size={18} />
-                  {copy.tasks.addTime}
-                </button>
-              )}
+                )}
+              </span>
               {!withNote && (
                 <button type="button" onClick={() => setWithNote(true)} className={chip(false)}>
                   {copy.tasks.addNote}
@@ -647,7 +653,16 @@ export function Composer({
             {fieldErrors.dueTime && <p className="text-label text-danger-text">{fieldErrors.dueTime}</p>}
             {withNote && (
               <FormField label={copy.tasks.noteLabel} name="note" error={fieldErrors.note}>
-                {(props) => <Textarea {...props} name="note" rows={2} value={note} onChange={(event) => setNote(event.target.value)} />}
+                {(props) => (
+                  <GrowingTextarea
+                    {...props}
+                    name="note"
+                    rows={2}
+                    value={note}
+                    onChange={(event) => setNote(event.target.value)}
+                    className={controlClasses(Boolean(fieldErrors.note), 'leading-relaxed [overflow-wrap:anywhere]')}
+                  />
+                )}
               </FormField>
             )}
           </div>

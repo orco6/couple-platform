@@ -94,8 +94,8 @@ export function TaskRow({
       </span>
     )
   ) : task.awaitingPartnerRating ? (
-    <span className="flex min-h-8 items-center gap-1 text-meta text-ink-muted">
-      <Clock aria-hidden="true" size={13} />
+    <span className="flex min-h-8 items-center gap-1.5 text-meta text-ink-muted">
+      <span aria-hidden="true" className="waiting-dot" />
       {partner ? copy.taskRating.awaiting(firstName(partner.name)) : copy.taskRating.awaitingShort}
     </span>
   ) : null;
@@ -158,15 +158,30 @@ export function TaskRow({
                 {task.title}
               </span>
             </span>
-            {task.dueTime && (
+            {/* The details, always in the same place under the title: until
+                when, and how many photos. */}
+            {(task.dueTime || task.photos.length > 0) && (
               <span
-                dir="ltr"
-                className={cx('mt-0.5 text-meta tabular-nums text-ink-muted transition-opacity duration-300', done && 'opacity-60')}
+                className={cx(
+                  'mt-1 flex items-center gap-2.5 text-meta text-ink-muted tabular-nums transition-opacity duration-300',
+                  done && 'opacity-70',
+                )}
               >
-                {task.dueTime}
+                {task.dueTime && (
+                  <span className="flex items-center gap-1">
+                    <Clock aria-hidden="true" size={13} />
+                    {copy.tasks.untilTime(task.dueTime)}
+                  </span>
+                )}
+                {task.photos.length > 0 && (
+                  <span className="flex items-center gap-1">
+                    <ImageIcon aria-hidden="true" size={13} />
+                    <span aria-hidden="true">{task.photos.length}</span>
+                    <span className="sr-only">{copy.tasks.photoCount(task.photos.length)}</span>
+                  </span>
+                )}
               </span>
             )}
-            {task.photos.length > 0 && <span className="sr-only">, {copy.tasks.photoCount(task.photos.length)}</span>}
             <span className="sr-only">, {ownerSays}</span>
           </button>
           {/* Where a finished task stands. It opens and closes with a real height
@@ -189,13 +204,7 @@ export function TaskRow({
         </div>
 
         {/* One fixed width, whatever it holds, so completing never reflows the title. */}
-        <span className="flex w-12 shrink-0 flex-col items-end gap-1">
-          {task.photos.length > 0 && (
-            <span aria-hidden="true" className="flex items-center gap-0.5 text-[0.6875rem] font-semibold text-ink-muted tabular-nums">
-              <ImageIcon size={14} />
-              {task.photos.length > 1 && task.photos.length}
-            </span>
-          )}
+        <span className="flex w-12 shrink-0 items-center justify-end">
           {done && task.permissions.rate && !task.rating ? (
             <button
               type="button"

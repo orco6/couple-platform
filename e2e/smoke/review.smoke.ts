@@ -5,7 +5,7 @@
  * against the same commit). It answers one question — does the real product,
  * on the real database, behind the real proxy, work on a phone?
  *
- * It writes only its own rows, and it does not spend the demo: today is left
+ * It writes only its own rows and deletes its tasks when done, and it does not spend the demo: today is left
  * unclosed so the reviewer can close it themselves, and the reveal is checked
  * on a day the fixtures already revealed.
  */
@@ -60,7 +60,7 @@ async function signIn(page: Page, username: string, password: string) {
 }
 
 async function signOut(page: Page) {
-  await page.getByRole('button', { name: 'עוד' }).click();
+  await page.getByRole('button', { name: 'עוד', exact: true }).click();
   await page.getByTestId('mobile-more-sheet').getByRole('button', { name: 'יציאה' }).click();
   await page.waitForURL(/\/login/);
 }
@@ -150,6 +150,15 @@ test('both partners sign in, and the list is genuinely shared', async ({ page })
   await expect(slider).toHaveAttribute('aria-valuetext', /^5 —/);
   await slider.press('Enter');
   await expect(sheet).toBeHidden();
+
+  // The review environment is where the couple actually lives: leave nothing
+  // behind. Deleted the way a person deletes (the task screen, then confirm).
+  for (const title of [mine, theirs]) {
+    await card(page, title).getByRole('button', { name: title }).click();
+    await page.getByTestId('composer').getByRole('button', { name: copy.tasks.deleteAction }).click();
+    await page.getByRole('dialog').getByRole('button', { name: copy.tasks.deleteShort, exact: true }).click();
+    await expect(card(page, title)).toHaveCount(0);
+  }
 
   problems.assertClean();
 });

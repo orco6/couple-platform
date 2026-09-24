@@ -164,3 +164,29 @@ test('several photos can be added to a task, and browsed when the task is opened
 
   problems.assertClean();
 });
+
+test('a time is set in one step and shown as "until"; a long note grows its field', async ({ page }) => {
+  const problems = watchForProblems(page);
+  await login(page, OWNER);
+  await page.goto('/');
+  await page.getByRole('button', { name: copy.tasks.addAction }).click();
+  const composer = page.getByTestId('composer');
+  const name = uniqueName('להזמין שולחן');
+  await composer.getByLabel(copy.tasks.titleLabel).fill(name);
+
+  // The chip is the time field itself: no extra tap to turn it into one.
+  await composer.getByLabel(copy.tasks.timeLabel).fill('20:30');
+  await expect(composer.getByText(copy.tasks.untilTime('20:30'))).toBeVisible();
+
+  await composer.getByRole('button', { name: copy.tasks.addNote, exact: true }).click();
+  const note = composer.getByRole('textbox', { name: copy.tasks.noteLabel });
+  const before = (await note.boundingBox())!.height;
+  await note.fill('שורה ארוכה מאוד של פתק שממשיכה וממשיכה כדי לראות שהתיבה גדלה יחד עם הטקסט. '.repeat(4));
+  await expect.poll(async () => (await note.boundingBox())!.height).toBeGreaterThan(before + 20);
+
+  await composer.getByRole('button', { name: copy.common.add }).click();
+  await expect(composer).toBeHidden();
+  await expect(taskCard(page, name).getByText(copy.tasks.untilTime('20:30'))).toBeVisible();
+
+  problems.assertClean();
+});
