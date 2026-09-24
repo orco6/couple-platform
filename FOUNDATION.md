@@ -9,7 +9,7 @@ This document is the map for people and AI agents. Read it before changing anyth
 | Layer | Path | Changes when | Who may change it |
 |---|---|---|---|
 | Core platform | `src/core/`, `prisma/schema/core.prisma` (except the marked block), `src/proxy.ts`, `scripts/lib/`, core screens (`src/app/(app)/{account,admin,attention}`, `src/app/login`, …), `tests/{support,unit/core,integration/core}`, `e2e/core`, `templates/`, `scripts/new-business.ts` | a platform capability is genuinely missing or wrong | deliberately, with an ADR in `docs/adr/` and tests |
-| Domain | `src/domain/`, `prisma/schema/domain.prisma`, one route group per area (`src/app/(app)/(<area>)`, `src/app/api/(<area>)`, `src/app/print/(<area>)`), `src/app/(app)/page.tsx` (home), `tests/*/<area>`, `e2e/<area>` | every project | freely, following DOMAIN_IMPLEMENTATION_CHECKLIST.md |
+| Domain | `src/domain/`, `prisma/schema/domain.prisma`, one route group per area (`src/app/(app)/(<area>)`, `src/app/api/(<area>)`, `src/app/print/(<area>)`), the home page (`src/app/(app)/page.tsx`, or inside the area's route group — this business keeps it in `(couple)/(today)` so it can have its own loading state), `tests/*/<area>`, `e2e/<area>` | every project | freely, following DOMAIN_IMPLEMENTATION_CHECKLIST.md |
 | Brand | `src/brand/`, `src/app/icon.svg`, font import in `src/app/layout.tsx` | every project | freely |
 
 A new business project should be able to finish **without editing `src/core/`**. If you find

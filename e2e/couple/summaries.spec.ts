@@ -45,8 +45,9 @@ test('each week is one card: Sunday to Saturday, its figures in words, seven day
   // Every week card says how many of how many, never a percentage.
   await expect(page.getByText(/%/)).toHaveCount(0);
 
-  // A card with anything in it: the two averages are out of five (or "not yet"),
-  // seven days in order, and exactly one thought for next week.
+  // A card with tasks in it: the rating average (out of five, or "not yet"),
+  // seven days in order, one thought for next week — and nothing about the
+  // day closings or respect (taken off the summary on request).
   const cards = page.getByRole('article');
   const count = await cards.count();
   expect(count).toBeGreaterThanOrEqual(1);
@@ -54,11 +55,10 @@ test('each week is one card: Sunday to Saturday, its figures in words, seven day
     const card = cards.nth(index);
     if ((await card.getByRole('list', { name: copy.week.byDayTitle }).count()) === 0) continue;
     await expect(card.getByRole('list', { name: copy.week.byDayTitle }).getByRole('listitem')).toHaveCount(7);
-    for (const title of [copy.week.executionTitle, copy.week.respectTitle]) {
-      await expect(card.getByText(title, { exact: true })).toBeVisible();
-    }
-    await expect(card.getByRole('region', { name: copy.week.insightTitle })).toHaveCount(1);
+    await expect(card.getByText(copy.week.ratingAverage, { exact: true })).toBeVisible();
+    await expect(card.getByText(`${copy.week.insightTitle}:`)).toHaveCount(1);
   }
+  await expect(page.getByText(copy.week.respectTitle)).toHaveCount(0);
 
   problems.assertClean();
 });

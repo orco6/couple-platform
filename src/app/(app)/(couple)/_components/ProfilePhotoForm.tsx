@@ -4,6 +4,7 @@ import { Camera } from 'lucide-react';
 import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 
+import { ConfirmDialog } from '@/core/ui/components/Dialog';
 import { useToast } from '@/core/ui/components/Toast';
 import { copy } from '@/domain/copy';
 import type { PartnerRef } from '@/domain/partners';
@@ -24,6 +25,7 @@ export function ProfilePhotoForm({ me }: { me: PartnerRef }) {
   const [saving, setSaving] = useState<'set' | 'remove' | null>(null);
   const [refreshing, startRefresh] = useTransition();
   const busy = saving !== null || refreshing;
+  const [asking, setAsking] = useState(false);
 
   async function send(init: RequestInit, kind: 'set' | 'remove') {
     setSaving(kind);
@@ -70,7 +72,7 @@ export function ProfilePhotoForm({ me }: { me: PartnerRef }) {
         {me.photo && (
           <button
             type="button"
-            onClick={() => void send({ method: 'DELETE' }, 'remove')}
+            onClick={() => setAsking(true)}
             aria-busy={saving === 'remove' || undefined}
             disabled={busy}
             className="tap-quiet press min-h-11 rounded-chip px-4 text-body text-danger-text focus-visible:outline-2 focus-visible:outline-focus"
@@ -92,6 +94,18 @@ export function ProfilePhotoForm({ me }: { me: PartnerRef }) {
           }}
         />
       </div>
+      <ConfirmDialog
+        open={asking}
+        title={copy.settings.photoRemoveTitle}
+        body={copy.settings.photoRemoveBody}
+        confirmLabel={copy.tasks.removePhotoConfirm}
+        tone="danger"
+        onConfirm={() => {
+          setAsking(false);
+          void send({ method: 'DELETE' }, 'remove');
+        }}
+        onCancel={() => setAsking(false)}
+      />
     </div>
   );
 }

@@ -136,12 +136,25 @@ test('several photos can be added to a task, and browsed when the task is opened
       context.fillRect(0, 0, 120, 80);
       return canvas.toDataURL('image/png').split(',')[1]!;
     }, colour);
-  const [one, two] = [await draw('#f08040'), await draw('#4080f0')];
+  const [one, two, three] = [await draw('#f08040'), await draw('#4080f0'), await draw('#40a060')];
   await composer.getByTestId('photo-input').setInputFiles([
     { name: 'shelf.png', mimeType: 'image/png', buffer: Buffer.from(one, 'base64') },
     { name: 'wall.png', mimeType: 'image/png', buffer: Buffer.from(two, 'base64') },
+    { name: 'spare.png', mimeType: 'image/png', buffer: Buffer.from(three, 'base64') },
   ]);
+  await expect(composer.getByRole('button', { name: copy.tasks.openPhoto })).toHaveCount(3);
+
+  // Removing one asks first; "cancel" keeps it, "remove" takes it away.
+  await composer.getByRole('button', { name: copy.tasks.removePhoto }).last().click();
+  const ask = page.getByRole('dialog', { name: copy.tasks.removePhotoTitle });
+  await expect(ask).toBeVisible();
+  await ask.getByRole('button', { name: copy.common.cancel }).click();
+  await expect(ask).toBeHidden();
+  await expect(composer.getByRole('button', { name: copy.tasks.openPhoto })).toHaveCount(3);
+  await composer.getByRole('button', { name: copy.tasks.removePhoto }).last().click();
+  await page.getByRole('dialog', { name: copy.tasks.removePhotoTitle }).getByRole('button', { name: copy.tasks.removePhotoConfirm, exact: true }).click();
   await expect(composer.getByRole('button', { name: copy.tasks.openPhoto })).toHaveCount(2);
+  await expect(composer).toBeVisible();
 
   let uploads = 0;
   page.on('response', (r) => {

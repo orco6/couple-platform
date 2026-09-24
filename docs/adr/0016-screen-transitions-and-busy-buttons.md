@@ -32,3 +32,10 @@ from the side over ~300ms with an ease-out-cubic curve, mirrored for right-to-le
 ## Consequences
 - Browsers without view-transition types simply do not animate; nothing depends on the animation.
 - A new directional link must be tagged by hand, and its page must use `PageTransition`.
+
+## Addendum (2026-09-24) — two screens answer a tap at once
+Every request from Israel to the functions (next to the database, `iad1`) costs ~330ms before any
+work, so a tab tap waited ~900ms with nothing on screen. Today and the summary now each have a
+`loading.tsx` drawn in their own shape (ADR 0014 allows exactly that): the tap shows the screen's
+outline and the couple loader in ~130ms, and the data replaces it. Today moved into its own route
+group, `(couple)/(today)`, so its boundary covers it alone.

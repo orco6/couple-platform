@@ -25,8 +25,8 @@ export async function shrinkPhoto(file: File, longSide = 1600): Promise<Blob> {
 
 /**
  * A profile photo: a square around where a face is in a portrait — centred
- * across, from a little below the top (people frame themselves with the face
- * in the upper part) — at most `side` pixels. The circle then shows a face,
+ * across and around 40% of the way down (people frame themselves with the
+ * face a little above the middle) — at most `side` pixels. The circle then shows a face,
  * not a whole scene with a small person in it.
  */
 export async function squarePortrait(file: File, side = 640): Promise<Blob> {
@@ -39,7 +39,8 @@ export async function squarePortrait(file: File, side = 640): Promise<Blob> {
     const height = image.naturalHeight;
     const crop = Math.round(Math.min(width, height) * (height > width ? 0.78 : 0.9));
     const x = Math.round((width - crop) / 2);
-    const y = height > width ? Math.round(Math.min(height * 0.1, height - crop)) : Math.round((height - crop) / 2);
+    // In a portrait the face is usually around 40% of the way down.
+    const y = height > width ? Math.round(Math.max(0, Math.min(height * 0.4 - crop / 2, height - crop))) : Math.round((height - crop) / 2);
     const out = Math.min(side, crop);
     const canvas = document.createElement('canvas');
     canvas.width = out;

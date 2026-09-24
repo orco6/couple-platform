@@ -40,6 +40,10 @@ test('a partner sets their photo in settings, sees it on Today, and can remove i
   await page.goto('/settings');
   const removed = page.waitForResponse((r) => r.url().endsWith('/api/profile-photo') && r.request().method() === 'DELETE');
   await page.getByRole('button', { name: copy.settings.photoRemove }).click();
+  // It asks first.
+  const confirm = page.getByRole('dialog', { name: copy.settings.photoRemoveTitle });
+  await expect(confirm).toBeVisible();
+  await confirm.getByRole('button', { name: copy.tasks.removePhotoConfirm, exact: true }).click();
   expect((await removed).status()).toBe(200);
   await expect(page.getByRole('button', { name: copy.settings.photoChoose })).toBeVisible();
 

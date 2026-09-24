@@ -8,12 +8,12 @@ import { getDay } from '@/domain/day-entries/day-entries';
 import { partnersOf } from '@/domain/partners';
 import { listTasksForDay } from '@/domain/tasks/tasks';
 
-import { DayLine } from './(couple)/_components/DayLine';
-import { PageTransition } from './(couple)/_components/PageTransition';
-import { PartnerAvatar } from './(couple)/_components/PartnerAvatar';
-import { Screen } from './(couple)/_components/Screen';
-import { TodayTasks } from './(couple)/_components/TodayTasks';
-import { readTodayView, TODAY_VIEW_COOKIE } from './(couple)/_components/today-view';
+import { DayLine } from '../_components/DayLine';
+import { PageTransition } from '../_components/PageTransition';
+import { PartnerAvatar } from '../_components/PartnerAvatar';
+import { Screen } from '../_components/Screen';
+import { TodayTasks } from '../_components/TodayTasks';
+import { readTodayView, TODAY_VIEW_COOKIE } from '../_components/today-view';
 
 export const metadata = { title: copy.nav.today };
 

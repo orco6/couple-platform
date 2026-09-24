@@ -4,6 +4,7 @@ import { CalendarDays, Camera, Clock, Plus, X } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+import { ConfirmDialog } from '@/core/ui/components/Dialog';
 import { controlClasses, FormField } from '@/core/ui/components/Field';
 import { useToast } from '@/core/ui/components/Toast';
 import { useSubmit } from '@/core/ui/hooks/useSubmit';
@@ -128,6 +129,8 @@ export function Composer({
   const [removedPhotos, setRemovedPhotos] = useState<string[]>([]);
   /** The photo open full screen (its index), or null. */
   const [viewing, setViewing] = useState<number | null>(null);
+  /** A photo whose X was tapped: waiting for "are you sure". */
+  const [confirmRemove, setConfirmRemove] = useState<{ key: string; saved?: string; src: string } | null>(null);
   const photoInput = useRef<HTMLInputElement>(null);
   const toast = useToast();
   /** The whole save — the task, then its photos, then the list catching up. */
@@ -153,6 +156,7 @@ export function Composer({
       setNewPhotos([]);
       setRemovedPhotos([]);
       setViewing(null);
+      setConfirmRemove(null);
       setSaving(false);
     }
   }
@@ -606,18 +610,10 @@ export function Composer({
                     <button
                       type="button"
                       aria-label={copy.tasks.removePhoto}
-                      onClick={() => {
-                        if (photo.saved) {
-                          setRemovedPhotos((previous) => [...previous, photo.saved!]);
-                        } else {
-                          setNewPhotos((previous) => {
-                            const gone = previous.find((item) => item.key === photo.key);
-                            if (gone) URL.revokeObjectURL(gone.url);
-                            return previous.filter((item) => item.key !== photo.key);
-                          });
-                        }
-                      }}
-                      className="tap-quiet press absolute -top-2 -start-2 grid size-7 place-items-center rounded-full bg-[var(--color-ink)] text-[var(--color-surface)] shadow-[var(--brand-shadow-card)]"
+                      // Asks first: a photo is easy to remove by accident and
+                      // hard to take again.
+                      onClick={() => setConfirmRemove({ key: photo.key, saved: photo.saved, src: photo.src })}
+                      className="tap-quiet press absolute -top-2.5 -start-2.5 grid size-8 place-items-center rounded-full bg-[var(--color-ink)] text-[var(--color-surface)] shadow-[var(--brand-shadow-card)]"
                     >
                       <X aria-hidden="true" size={14} strokeWidth={2.6} />
                     </button>
@@ -670,6 +666,33 @@ export function Composer({
           </div>
         )}
       </form>
+      <ConfirmDialog
+        open={confirmRemove !== null}
+        title={copy.tasks.removePhotoTitle}
+        body={confirmRemove?.saved ? copy.tasks.removePhotoBodySaved : copy.tasks.removePhotoBody}
+        confirmLabel={copy.tasks.removePhotoConfirm}
+        tone="danger"
+        onConfirm={() => {
+          const photo = confirmRemove;
+          setConfirmRemove(null);
+          if (!photo) return;
+          if (photo.saved) {
+            setRemovedPhotos((previous) => [...previous, photo.saved!]);
+          } else {
+            setNewPhotos((previous) => {
+              const gone = previous.find((item) => item.key === photo.key);
+              if (gone) URL.revokeObjectURL(gone.url);
+              return previous.filter((item) => item.key !== photo.key);
+            });
+          }
+        }}
+        onCancel={() => setConfirmRemove(null)}
+      >
+        {confirmRemove && (
+          // eslint-disable-next-line @next/next/no-img-element -- the photo in question, already loaded
+          <img src={confirmRemove.src} alt="" className="mx-auto mt-1 size-24 rounded-[1rem] object-cover" />
+        )}
+      </ConfirmDialog>
       {photos.length > 0 && (
         <PhotoViewer
           photos={photos.map((photo, index) => ({

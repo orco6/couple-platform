@@ -1565,30 +1565,4 @@ header[data-app-chrome] {
   box-shadow: 0 0 0 2px var(--brand-partner-b), 0 4px 14px -6px color-mix(in oklab, var(--brand-partner-b) 60%, transparent);
 }
 
-/* ── A day in the summary: who closed it ───────────────────────────────── */
-.day-mark {
-  display: block;
-  inline-size: 0.875rem;
-  block-size: 0.875rem;
-  border-radius: 999px;
-}
 
-/* Both of us: the two colours, half and half. */
-.day-mark--both {
-  background: linear-gradient(90deg, var(--brand-partner-a) 50%, var(--brand-partner-b) 50%);
-}
-
-/* One of us: half full. */
-.day-mark--one {
-  background: linear-gradient(90deg, var(--color-ink-muted) 50%, transparent 50%);
-  box-shadow: inset 0 0 0 1.5px var(--color-ink-muted);
-}
-
-.day-mark--none {
-  box-shadow: inset 0 0 0 1.5px var(--color-rule-strong);
-}
-
-/* Later this week: not a state yet, just a place. */
-.day-mark--ahead {
-  border: 1.5px dashed var(--color-rule-strong);
-}

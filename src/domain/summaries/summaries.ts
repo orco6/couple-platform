@@ -281,6 +281,15 @@ export async function getMonthSummary(
   };
 }
 
+/**
+ * The summary talks about the tasks only for now (the day closings and the
+ * respect figure were taken off it on request): an insight about those
+ * becomes "all good".
+ */
+function tasksOnly(insight: Insight): Insight {
+  return insight.key === 'fewClosedDays' || insight.key === 'respectDip' ? { key: 'allGood' } : insight;
+}
+
 /* ── The weeks, at a glance ───────────────────────────────────────────── */
 
 /** One day of a week, as the summary shows it. */
@@ -365,7 +374,7 @@ export async function getWeeksOverview(
         closed: day.theirs ? 'both' : day.mine !== null || day.partnerSubmitted ? 'one' : 'none',
         future: compareCalendarDates(day.date, today) > 0,
       })),
-      insight: weeklyInsight({ tasks: weekTasks, days: weekDays, completion: tally, myId: actor.id }),
+      insight: tasksOnly(weeklyInsight({ tasks: weekTasks, days: weekDays, completion: tally, myId: actor.id })),
     });
   }
   return weeks;
